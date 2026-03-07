@@ -97,13 +97,55 @@ Dashboard → Project Settings → Data API：
 
 ## 手順2: ローカル確認（任意）
 
-```bash
-cp .env.local.example .env.local
-# .env.local を編集してURLとキーを入力
+毎回コミット → デプロイしなくても、`vercel dev` を使えばローカルでAPIもフロントも動作確認できます。
 
+### 初回セットアップ（1回だけ）
+
+**① Vercel CLIをインストール**
+
+```bash
+npm i -g vercel
+```
+
+**② 依存パッケージをインストール**
+
+```bash
 npm install
-npm run dev
-# http://localhost:3000
+```
+
+**③ プロジェクトをVercelと紐付け**
+
+```bash
+vercel link
+```
+
+ブラウザが開いてVercelにログインを求められます。ログイン後、対象プロジェクトを選択してください。
+
+**④ 環境変数をローカルに取得**
+
+```bash
+vercel env pull .env.local
+```
+
+Vercelに設定済みの環境変数が `.env.local` に自動で書き出されます。手入力不要です。
+
+**⑤ `.gitignore` に `.env.local` を追加**
+
+```bash
+echo ".env.local" >> .gitignore
+```
+
+> ⚠️ `.env.local` には本番DBの接続情報が含まれるため、絶対にコミットしないでください。
+
+---
+
+### 毎回の起動
+
+```bash
+vercel dev
+```
+
+`http://localhost:3000` でアプリが起動します。HTMLもAPIも全てローカルで動作します。
 ```
 
 ---

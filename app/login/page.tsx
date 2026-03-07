@@ -47,6 +47,7 @@ export default function LoginPage() {
     }
   }
 
+  /* 一時無効化
   async function handleOAuth(provider: "google" | "twitter") {
     setLoading(true);
     const { error } = await supabase.auth.signInWithOAuth({
@@ -56,6 +57,7 @@ export default function LoginPage() {
     if (error) setMessage({ type: "error", text: error.message });
     setLoading(false);
   }
+  */
 
   const titles: Record<Mode, string> = {
     login: "ログイン",
@@ -96,7 +98,8 @@ export default function LoginPage() {
         )}
 
         {/* SNSログイン（resetモード以外） */}
-        {mode !== "reset" && (
+        {/* 一時無効化
+        mode !== "reset" && (
           <>
             <div style={{ display: "grid", gap: 10, marginBottom: 20 }}>
               <OAuthButton
@@ -116,7 +119,7 @@ export default function LoginPage() {
             </div>
             <Divider />
           </>
-        )}
+        )*/}
 
         {/* メール入力 */}
         <form onSubmit={(e) => { e.preventDefault(); handleEmail(); }}
