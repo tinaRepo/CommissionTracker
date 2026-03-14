@@ -1,5 +1,6 @@
 import { createBrowserClient } from "@supabase/ssr";
 
+// --- Supabaseクライアントの作成 ---
 export function createClient() {
   return createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -7,6 +8,7 @@ export function createClient() {
   );
 }
 
+// --- クライアントはアプリ全体で共有 ---
 export const supabase = createClient();
 
 // ---- 型定義 ----
@@ -14,15 +16,18 @@ export type Plan = "free" | "standard" | "premium";
 export type CommissionStatus = "pending" | "rough" | "progress" | "done" | "cancelled";
 export type ImageType = "rough" | "wip" | "finished" | "other";
 
+// --- ユーザ情報 ---
 export interface UserProfile {
   id: string;
   plan: Plan;
   is_admin: boolean;
+  display_name?: string;
   created_at: string;
   updated_at: string;
-  email?: string; // joinして取得する場合
+  email?: string;
 }
 
+// --- 依頼情報 ---
 export interface Commission {
   id: string;
   user_id: string;
@@ -41,6 +46,7 @@ export interface Commission {
   images?: CommissionImage[];
 }
 
+// --- 画像情報 ---
 export interface CommissionImage {
   id: string;
   commission_id: string;
@@ -87,6 +93,7 @@ export async function countMyImages(): Promise<number> {
   return count ?? 0;
 }
 
+// --- 画像アップロード前にプラン制限をチェック ---
 export async function canUploadImage(plan: Plan): Promise<{ ok: boolean; current: number; limit: number | null }> {
   const limit = PLAN_LIMITS[plan].imageLimit;
   if (limit === null) return { ok: true, current: 0, limit: null }; // premium: 無制限
@@ -94,7 +101,7 @@ export async function canUploadImage(plan: Plan): Promise<{ ok: boolean; current
   return { ok: current < limit, current, limit };
 }
 
-// ----  ----
+// ---- 依頼情報の取得 ----
 export async function fetchCommissions(): Promise<Commission[]> {
   const { data, error } = await supabase
     .from("commissions")
@@ -104,6 +111,7 @@ export async function fetchCommissions(): Promise<Commission[]> {
   return data ?? [];
 }
 
+// ---- 依頼情報の作成 ----
 export async function createCommission(
   values: Omit<Commission, "id" | "user_id" | "created_at" | "updated_at" | "images">
 ): Promise<Commission> {
@@ -117,6 +125,18 @@ export async function createCommission(
   return data;
 }
 
+// --- IDで特定の依頼情報を取得 ---
+export async function fetchCommissionById(id: string): Promise<Commission | null> {
+  const { data, error } = await supabase
+    .from("commissions")
+    .select("*, images:commission_images(*)")
+    .eq("id", id)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+// --- IDで特定の依頼情報を更新 ---
 export async function updateCommission(
   id: string,
   values: Partial<Omit<Commission, "id" | "user_id" | "created_at" | "updated_at" | "images">>
@@ -127,6 +147,7 @@ export async function updateCommission(
   return data;
 }
 
+// --- IDで特定の依頼情報を削除 ---
 export async function deleteCommission(id: string): Promise<void> {
   const { error } = await supabase.from("commissions").delete().eq("id", id);
   if (error) throw error;
@@ -135,6 +156,7 @@ export async function deleteCommission(id: string): Promise<void> {
 // ---- Storage操作 ----
 const BUCKET = "commission-images";
 
+// --- 画像アップロード ---
 export async function uploadImage(
   commissionId: string,
   file: File,
@@ -144,18 +166,20 @@ export async function uploadImage(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  // プラン制限チェック
+  // --- プラン制限チェック ---
   const { ok, current, limit } = await canUploadImage(plan);
   if (!ok) {
     throw new Error(`PLAN_LIMIT:${current}:${limit}`);
   }
 
+  // --- ファイル名から拡張子を取得して保存パスを生成 ---
   const ext = file.name.split(".").pop();
   const path = `${user.id}/${commissionId}/${imageType}_${Date.now()}.${ext}`;
   const { error: uploadError } = await supabase.storage
     .from(BUCKET).upload(path, file, { upsert: false });
   if (uploadError) throw uploadError;
 
+  // --- 画像情報をDBに保存 ---
   const { data, error } = await supabase
     .from("commission_images")
     .insert({ commission_id: commissionId, storage_path: path, file_name: file.name, image_type: imageType })
@@ -164,11 +188,13 @@ export async function uploadImage(
   return data;
 }
 
+// --- 画像削除 ---
 export async function deleteImage(image: CommissionImage): Promise<void> {
   await supabase.storage.from(BUCKET).remove([image.storage_path]);
   await supabase.from("commission_images").delete().eq("id", image.id);
 }
 
+// --- 画像の署名付きURLを取得 ---
 export async function getSignedImageUrl(storagePath: string): Promise<string> {
   const { data, error } = await supabase.storage
     .from(BUCKET).createSignedUrl(storagePath, 3600);
@@ -177,6 +203,42 @@ export async function getSignedImageUrl(storagePath: string): Promise<string> {
 }
 
 // ---- 管理者用 ----
+// --- ユーザが自分のアカウント削除をリクエスト ---
+export async function requestDeleteAccount(): Promise<void> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token ?? "";
+  const res = await fetch("/api/request-delete", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) {
+    const { error } = await res.json();
+    throw new Error(error ?? "送信に失敗しました");
+  }
+}
+
+// --- 管理者がユーザを削除 ---
+export async function adminDeleteUser(userId: string): Promise<void> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token ?? "";
+  const res = await fetch("/api/admin/delete-user", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+    body: JSON.stringify({ userId }),
+  });
+  if (!res.ok) {
+    const { error } = await res.json();
+    throw new Error(error ?? "削除に失敗しました");
+  }
+}
+
+// --- 管理者が全ユーザを取得 ---
 export async function adminFetchAllUsers(): Promise<UserProfile[]> {
   const { data, error } = await supabase
     .from("user_profiles")
@@ -186,6 +248,7 @@ export async function adminFetchAllUsers(): Promise<UserProfile[]> {
   return data ?? [];
 }
 
+// --- 管理者がユーザのプランを更新 ---
 export async function adminUpdateUserPlan(userId: string, plan: Plan): Promise<void> {
   const { error } = await supabase
     .from("user_profiles")

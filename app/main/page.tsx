@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import {
-  supabase, adminFetchAllUsers, adminUpdateUserPlan,
+  supabase, adminFetchAllUsers, adminUpdateUserPlan, adminDeleteUser,
   PLAN_LIMITS, type UserProfile, type Plan,
 } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
@@ -18,6 +18,8 @@ export default function AdminPage() {
   const [search, setSearch] = useState("");
   const [filterPlan, setFilterPlan] = useState<"all" | Plan>("all");
   const [toast, setToast] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null); // 削除確認対象のuserId
+  const [deleting, setDeleting] = useState(false);
 
   // メールアドレスをauth.usersから取得する（管理者のみ可能）
   const [emails, setEmails] = useState<Record<string, string>>({});
@@ -76,9 +78,26 @@ export default function AdminPage() {
     setTimeout(() => setToast(null), 2500);
   }
 
+  async function handleDeleteUser(userId: string) {
+    setDeleting(true);
+    try {
+      await adminDeleteUser(userId);
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      setDeleteConfirm(null);
+      showToast("ユーザーを削除しました ✓");
+    } catch (e: any) {
+      showToast(e.message ?? "削除に失敗しました ✗");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   const filtered = users.filter(u => {
     const matchPlan = filterPlan === "all" || u.plan === filterPlan;
-    const matchSearch = !search || u.id.toLowerCase().includes(search.toLowerCase());
+    const searchLower = search.toLowerCase();
+    const matchSearch = !search ||
+      u.id.toLowerCase().includes(searchLower) ||
+      (u.display_name ?? "").toLowerCase().includes(searchLower);
     return matchPlan && matchSearch;
   });
 
@@ -132,7 +151,7 @@ export default function AdminPage() {
         <div style={{ display:"flex", gap:10, marginBottom:20, flexWrap:"wrap", alignItems:"center" }}>
           <input
             value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="ユーザーIDで検索…"
+            placeholder="名前 / IDで検索…"
             style={{ flex:1, minWidth:200, padding:"9px 12px", border:"1.5px solid #e5e7eb",
               borderRadius:10, fontSize:13, outline:"none", background:"#fff" }}
           />
@@ -162,13 +181,14 @@ export default function AdminPage() {
         ) : (
           <div style={{ background:"#fff", borderRadius:16, overflow:"hidden", boxShadow:"0 1px 6px #0001,0 2px 12px #0001" }}>
             {/* テーブルヘッダー */}
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 120px 200px 100px",
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 120px 200px 80px 60px",
               padding:"12px 20px", background:"#f8f7ff", borderBottom:"1px solid #e5e7eb",
               fontSize:11, fontWeight:700, color:"#888", letterSpacing:"0.06em" }}>
-              <span>ユーザーID</span>
+              <span>ユーザー</span>
               <span>現在のプラン</span>
               <span>プランを変更</span>
               <span>登録日</span>
+              <span>削除</span>
             </div>
 
             {filtered.length === 0 && (
@@ -180,7 +200,7 @@ export default function AdminPage() {
               const isUpdating = updating === u.id;
               const regDate = u.created_at ? new Date(u.created_at).toLocaleDateString("ja-JP") : "—";
               return (
-                <div key={u.id} style={{ display:"grid", gridTemplateColumns:"1fr 120px 200px 100px",
+                <div key={u.id} style={{ display:"grid", gridTemplateColumns:"1fr 120px 200px 80px 60px",
                   padding:"14px 20px", borderBottom: i < filtered.length-1 ? "1px solid #f3f4f6" : "none",
                   alignItems:"center", background: u.is_admin ? "#faf5ff" : "#fff",
                   transition:"background 0.1s" }}
@@ -193,11 +213,15 @@ export default function AdminPage() {
                       background:`linear-gradient(135deg, ${planInfo.color}40, ${planInfo.color}20)`,
                       display:"flex", alignItems:"center", justifyContent:"center",
                       fontSize:12, fontWeight:800, color:planInfo.color, flexShrink:0 }}>
-                      {u.id.charAt(0).toUpperCase()}
+                      {(u.display_name ?? u.id).charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <div style={{ fontSize:11, color:"#666", fontFamily:"monospace",
+                      <div style={{ fontSize:13, fontWeight:700, color:"#1a0a2e",
                         maxWidth:220, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                        {u.display_name ?? <span style={{ color:"#aaa", fontStyle:"italic" }}>未設定</span>}
+                      </div>
+                      <div style={{ fontSize:10, color:"#aaa", fontFamily:"monospace",
+                        maxWidth:220, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", marginTop:2 }}>
                         {u.id}
                       </div>
                       {u.is_admin && (
@@ -240,7 +264,20 @@ export default function AdminPage() {
 
                   {/* 登録日 */}
                   <div style={{ fontSize:12, color:"#888" }}>{regDate}</div>
+
+                  {/* 削除ボタン */}
+                  <div>
+                    {!u.is_admin && (
+                      <button onClick={() => setDeleteConfirm(u.id)}
+                        style={{ padding:"5px 10px", fontSize:11, fontWeight:700,
+                          background:"#fff0f0", color:"#ef4444",
+                          border:"1px solid #fca5a560", borderRadius:8, cursor:"pointer" }}>
+                        削除
+                      </button>
+                    )}
+                  </div>
                 </div>
+                
               );
             })}
           </div>
@@ -267,6 +304,44 @@ export default function AdminPage() {
           })}
         </div>
       </main>
+
+      {/* 削除確認ダイアログ */}
+      {deleteConfirm && (() => {
+        const target = users.find(u => u.id === deleteConfirm);
+        const name = target?.display_name ?? deleteConfirm.slice(0, 8) + "...";
+        return (
+          <div style={{ position:"fixed", inset:0, background:"#0007", zIndex:200,
+            display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <div style={{ background:"#fff", borderRadius:20, padding:"32px", maxWidth:380,
+              width:"90%", boxShadow:"0 8px 48px #0004", textAlign:"center" }}>
+              <div style={{ fontSize:40, marginBottom:12 }}>🗑</div>
+              <div style={{ fontWeight:800, fontSize:17, color:"#1a0a2e", marginBottom:8 }}>
+                ユーザーを削除しますか？
+              </div>
+              <div style={{ fontSize:14, color:"#ef4444", fontWeight:700, marginBottom:8 }}>
+                「{name}」
+              </div>
+              <div style={{ fontSize:13, color:"#888", marginBottom:24, lineHeight:1.6 }}>
+                このユーザーのすべての依頼データ・画像が<br />
+                <strong>完全に削除されます。この操作は取り消せません。</strong>
+              </div>
+              <div style={{ display:"flex", gap:10 }}>
+                <button onClick={() => setDeleteConfirm(null)} disabled={deleting}
+                  style={{ flex:1, background:"#f3f4f6", border:"none", borderRadius:10,
+                    padding:"12px", fontWeight:600, cursor:"pointer", fontSize:14 }}>
+                  キャンセル
+                </button>
+                <button onClick={() => handleDeleteUser(deleteConfirm)} disabled={deleting}
+                  style={{ flex:1, background: deleting ? "#fca5a5" : "#ef4444", color:"#fff",
+                    border:"none", borderRadius:10, padding:"12px",
+                    fontWeight:800, cursor: deleting ? "not-allowed" : "pointer", fontSize:14 }}>
+                  {deleting ? "削除中…" : "削除する"}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* トースト通知 */}
       {toast && (

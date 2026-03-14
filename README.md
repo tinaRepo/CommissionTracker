@@ -160,6 +160,10 @@ vercel dev
 |------|-----|
 | `NEXT_PUBLIC_SUPABASE_URL` | SupabaseのProject URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabaseのanon key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabaseのservice_role key |
+| `RESEND_API_KEY` | ResendのAPIキー |
+| `ADMIN_EMAIL` | 削除申請メールの送信先アドレス |
+| `NEXT_PUBLIC_APP_URL` | VercelのデプロイURL（例: https://your-app.vercel.app） |
 
 4. Deploy → 完成！🎉
 
@@ -167,7 +171,19 @@ vercel dev
 
 ---
 
-## 手順4: 管理者ユーザーの設定
+## 手順4: Resend セットアップ（メール送信）
+
+ユーザーからのアカウント削除申請をメールで受け取るために設定します。
+
+1. https://resend.com でアカウント作成（無料・月3,000通まで）
+2. Dashboard → API Keys → **Create API Key**
+3. 作成したAPIキーを `RESEND_API_KEY` としてVercelの環境変数に追加
+4. `ADMIN_EMAIL` に削除申請を受け取りたいメールアドレスを設定
+
+> ⚠️ 無料プランでは **Resendが発行したドメイン（onboarding@resend.dev）** からの送信のみ可能です。
+> 独自ドメインで送信したい場合はDNS設定が必要です（任意）。
+
+## 手順5: 管理者ユーザーの設定
 
 1. アプリにアクセスして**新規登録**する
 2. Supabase → Authentication → Users から自分のUUIDをコピー
