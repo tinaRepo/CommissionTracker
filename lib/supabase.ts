@@ -94,7 +94,7 @@ export async function canUploadImage(plan: Plan): Promise<{ ok: boolean; current
   return { ok: current < limit, current, limit };
 }
 
-// ---- DB操作 ----
+// ----  ----
 export async function fetchCommissions(): Promise<Commission[]> {
   const { data, error } = await supabase
     .from("commissions")
