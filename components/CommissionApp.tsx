@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import {
-  supabase, fetchCommissions, createCommission, updateCommission,
+  supabase, requestDeleteAccount, fetchCommissions, createCommission, updateCommission,
   deleteCommission, uploadImage, deleteImage, getSignedImageUrl,
   fetchMyProfile, canUploadImage,
   PLAN_LIMITS,
@@ -61,7 +61,7 @@ function daysUntil(d?: string) {
   return Math.ceil((new Date(d).getTime() - today.getTime()) / 86400000);
 }
 
-// --- 画像アップロード前にプランの上限をチェック ---
+// --- 締切までの日数スタイル ---
 const inp: React.CSSProperties = {
   width: "100%", padding: "9px 12px", border: "1.5px solid #e5e7eb",
   borderRadius: 10, fontSize: 14, outline: "none", color: "#1a0a2e",
@@ -291,6 +291,11 @@ export default function CommissionApp() {
   const [detailItem, setDetailItem] = useState<Commission | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showNameEdit, setShowNameEdit] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+  const [showDeleteRequest, setShowDeleteRequest] = useState(false);
+  const [deleteRequesting, setDeleteRequesting] = useState(false);
+  const [deleteRequestDone, setDeleteRequestDone] = useState(false);
 
   useEffect(() => {
     // 初回: セッション確認してuserをセット、なければloginへ
@@ -326,6 +331,30 @@ export default function CommissionApp() {
   }
 
   useEffect(() => { if (user) load(); }, [user]);
+
+  // --- プロフィールの更新 ---
+  async function handleSaveName() {
+    if (!nameInput.trim()) return;
+    const { data: { user: u } } = await supabase.auth.getUser();
+    if (!u) return;
+    await supabase.from("user_profiles").update({ display_name: nameInput.trim() }).eq("id", u.id);
+    await load();
+    setShowNameEdit(false);
+    setShowUserMenu(false);
+  }
+
+  // --- アカウント削除リクエスト ---
+  async function handleDeleteRequest() {
+    setDeleteRequesting(true);
+    try {
+      await requestDeleteAccount();
+      setDeleteRequestDone(true);
+    } catch (e: any) {
+      alert(e.message ?? "送信に失敗しました");
+    } finally {
+      setDeleteRequesting(false);
+    }
+  }
 
   // ログアウト処理
   async function handleLogout() {
@@ -404,7 +433,8 @@ export default function CommissionApp() {
     setDetailItem(item);
   }, [detailId, commissions]);
   const plan = (profile?.plan ?? "free") as Plan;
-  const userLabel = user?.user_metadata?.full_name ?? user?.email ?? "ユーザー";
+  const displayName = profile?.display_name;
+  const userLabel = displayName ?? user?.user_metadata?.full_name ?? (user?.email?.split("@")[0]) ?? "ユーザー";
   const userAvatar = user?.user_metadata?.avatar_url as string | undefined;
 
   // ローディング中の表示
@@ -475,6 +505,12 @@ export default function CommissionApp() {
                   <div style={{ fontSize:12, color:"#888", marginBottom:4 }}>{user?.email}</div>
                   {profile && <PlanBadge plan={profile.plan} />}
                 </div>
+                <button onClick={() => { setNameInput(profile?.display_name ?? ""); setShowNameEdit(true); setShowUserMenu(false); }}
+                  style={{ width:"100%", padding:"11px 16px", background:"none", border:"none",
+                    borderBottom:"1px solid #f3f4f6", cursor:"pointer", fontSize:13,
+                    color:"#1a0a2e", fontWeight:600, textAlign:"left" }}>
+                  ✏️ 名前を変更
+                </button>
                 {profile?.is_admin && (
                   <button onClick={() => window.location.href = "/mgmt-c7f2a91e"}
                     style={{ width:"100%", padding:"11px 16px", background:"none", border:"none",
@@ -483,6 +519,12 @@ export default function CommissionApp() {
                     ⚙ 管理者ページ
                   </button>
                 )}
+                <button onClick={() => { setShowDeleteRequest(true); setShowUserMenu(false); }}
+                  style={{ width:"100%", padding:"11px 16px", background:"none", border:"none",
+                    borderTop:"1px solid #f3f4f6", cursor:"pointer", fontSize:13,
+                    color:"#ef4444", fontWeight:600, textAlign:"left" }}>
+                  🗑 アカウント削除を申請
+                </button>
                 <button onClick={handleLogout}
                   style={{ width:"100%", padding:"11px 16px", background:"none", border:"none",
                     cursor:"pointer", fontSize:13, color:"#ef4444", fontWeight:700, textAlign:"left" }}>
@@ -593,6 +635,93 @@ export default function CommissionApp() {
               <button onClick={() => setDeleteConfirm(detailItem.id)}
                 style={{ flex:1, background:"#fff", color:"#ef4444", border:"1.5px solid #fca5a5",
                   borderRadius:10, padding:"10px", fontWeight:700, cursor:"pointer" }}>削除</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* アカウント削除申請モーダル */}
+      {showDeleteRequest && (
+        <div style={{ position:"fixed", inset:0, background:"#0007", zIndex:200,
+          display:"flex", alignItems:"center", justifyContent:"center" }}
+          onClick={() => { if (!deleteRequesting) { setShowDeleteRequest(false); setDeleteRequestDone(false); } }}>
+          <div style={{ background:"#fff", borderRadius:20, padding:"32px", maxWidth:380,
+            width:"90%", boxShadow:"0 8px 48px #0004", textAlign:"center" }}
+            onClick={e => e.stopPropagation()}>
+            {deleteRequestDone ? (
+              <>
+                <div style={{ fontSize:48, marginBottom:12 }}>📨</div>
+                <div style={{ fontWeight:800, fontSize:17, color:"#1a0a2e", marginBottom:12 }}>
+                  申請を送信しました
+                </div>
+                <div style={{ fontSize:13, color:"#666", lineHeight:1.7, marginBottom:24 }}>
+                  管理者にメールで通知しました。<br />
+                  削除が完了するまで少しお待ちください。
+                </div>
+                <button onClick={() => { setShowDeleteRequest(false); setDeleteRequestDone(false); }}
+                  style={{ background:"linear-gradient(135deg,#7c3aed,#4f46e5)", color:"#fff",
+                    border:"none", borderRadius:10, padding:"11px 28px",
+                    fontWeight:700, cursor:"pointer", fontSize:14 }}>
+                  閉じる
+                </button>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize:40, marginBottom:12 }}>🗑</div>
+                <div style={{ fontWeight:800, fontSize:17, color:"#1a0a2e", marginBottom:12 }}>
+                  アカウント削除を申請する
+                </div>
+                <div style={{ fontSize:13, color:"#666", lineHeight:1.7, marginBottom:24 }}>
+                  管理者にメールで削除申請を送ります。<br />
+                  削除されると<strong>すべてのデータが失われます。</strong>
+                </div>
+                <div style={{ display:"flex", gap:10 }}>
+                  <button onClick={() => setShowDeleteRequest(false)} disabled={deleteRequesting}
+                    style={{ flex:1, background:"#f3f4f6", border:"none", borderRadius:10,
+                      padding:"11px", fontWeight:600, cursor:"pointer", fontSize:14 }}>
+                    キャンセル
+                  </button>
+                  <button onClick={handleDeleteRequest} disabled={deleteRequesting}
+                    style={{ flex:1, background: deleteRequesting ? "#fca5a5" : "#ef4444",
+                      color:"#fff", border:"none", borderRadius:10, padding:"11px",
+                      fontWeight:800, cursor: deleteRequesting ? "not-allowed" : "pointer", fontSize:14 }}>
+                    {deleteRequesting ? "送信中…" : "申請する"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 名前編集モーダル */}
+      {showNameEdit && (
+        <div style={{ position:"fixed", inset:0, background:"#0006", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center" }}
+          onClick={() => setShowNameEdit(false)}>
+          <div style={{ background:"#fff", borderRadius:20, padding:"32px", maxWidth:360, width:"90%", boxShadow:"0 8px 48px #0004" }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ fontWeight:800, fontSize:18, color:"#1a0a2e", marginBottom:20 }}>表示名を変更</div>
+            <input
+              value={nameInput}
+              onChange={e => setNameInput(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleSaveName()}
+              placeholder="例: ちな"
+              maxLength={30}
+              autoFocus
+              style={{ width:"100%", padding:"11px 14px", border:"1.5px solid #e5e7eb", borderRadius:12,
+                fontSize:15, outline:"none", color:"#1a0a2e", background:"#faf8f5",
+                boxSizing:"border-box", fontFamily:"inherit", marginBottom:16 }}
+            />
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={() => setShowNameEdit(false)}
+                style={{ flex:1, background:"#f3f4f6", border:"none", borderRadius:10, padding:"11px", fontWeight:600, cursor:"pointer" }}>
+                キャンセル
+              </button>
+              <button onClick={handleSaveName} disabled={!nameInput.trim()}
+                style={{ flex:2, background: nameInput.trim() ? "linear-gradient(135deg,#7c3aed,#4f46e5)" : "#c4b5fd",
+                  color:"#fff", border:"none", borderRadius:10, padding:"11px", fontWeight:800, cursor: nameInput.trim() ? "pointer" : "not-allowed", fontSize:14 }}>
+                保存する
+              </button>
             </div>
           </div>
         </div>

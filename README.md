@@ -22,58 +22,7 @@ Dashboard → SQL Editor → 以下を**順番に**実行してください。
 
 #### ① テーブル作成（schema.sql の内容を貼り付けて実行）
 
-`supabase/schema.sql` の内容をSQL Editorに貼り付けて「Run」
-
-#### ② RLSポリシーを正しく設定（必ずこちらを実行）
-
-```sql
--- 既存ポリシーを全削除
-drop policy if exists "profiles_select_own" on user_profiles;
-drop policy if exists "profiles_select_admin" on user_profiles;
-drop policy if exists "profiles_update_admin" on user_profiles;
-
--- 再帰しないセキュリティ定義関数を作成
-create or replace function is_admin()
-returns boolean
-language sql
-security definer
-stable
-as $$
-  select exists (
-    select 1 from user_profiles
-    where id = auth.uid() and is_admin = true
-  );
-$$;
-
--- ポリシーを関数ベースで再作成
-create policy "profiles_select_own" on user_profiles
-  for select using (auth.uid() = id);
-
-create policy "profiles_select_admin" on user_profiles
-  for select using (is_admin());
-
-create policy "profiles_update_admin" on user_profiles
-  for update using (is_admin());
-```
-
-#### ③ signupトリガーを正しく作成
-
-```sql
-create or replace function handle_new_user()
-returns trigger as $$
-begin
-  insert into public.user_profiles (id)
-  values (new.id)
-  on conflict (id) do nothing;
-  return new;
-end;
-$$ language plpgsql security definer set search_path = public;
-
-drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute procedure handle_new_user();
-```
+#### ② RLSポリシー,signupトリガーを正しく作成（policy.sql　の内容を張り付けて実行）
 
 ### 1-3. Authentication設定
 Dashboard → Authentication → Providers で有効化：
@@ -160,6 +109,7 @@ vercel dev
 |------|-----|
 | `NEXT_PUBLIC_SUPABASE_URL` | SupabaseのProject URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabaseのanon key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Project Settings → API Keys → `service_role` ⚠️ 絶対に公開しないこと |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabaseのservice_role key |
 | `RESEND_API_KEY` | ResendのAPIキー |
 | `ADMIN_EMAIL` | 削除申請メールの送信先アドレス |
