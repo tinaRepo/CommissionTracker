@@ -2,16 +2,18 @@
 
 import { useState, useEffect, useMemo } from "react";
 import {
-  supabase, fetchCommissions, createCommission, updateCommission,
+  supabase, requestDeleteAccount, fetchCommissions, createCommission, updateCommission,
   deleteCommission, uploadImage, deleteImage, getSignedImageUrl,
   fetchMyProfile, canUploadImage,
   PLAN_LIMITS,
   type Commission, type CommissionStatus, type CommissionImage,
   type ImageType, type UserProfile, type Plan,
+  fetchCommissionById,
 } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 
+// ---- 定数とユーティリティ ----
 const STATUSES: { key: CommissionStatus; label: string; color: string; bg: string }[] = [
   { key: "pending",   label: "依頼済み",   color: "#f59e0b", bg: "#fef3c7" },
   { key: "rough",     label: "ラフ確認中", color: "#8b5cf6", bg: "#ede9fe" },
@@ -20,45 +22,53 @@ const STATUSES: { key: CommissionStatus; label: string; color: string; bg: strin
   { key: "cancelled", label: "キャンセル", color: "#6b7280", bg: "#f3f4f6" },
 ];
 
+// --- 画像タイプのラベル ---
 const IMAGE_TYPES: { key: ImageType; label: string }[] = [
   { key: "rough", label: "ラフ" }, { key: "wip", label: "作業中" },
   { key: "finished", label: "完成" }, { key: "other", label: "その他" },
 ];
 
+// --- 画像アップロード前のプラン制限チェック ---
 type FormValues = {
   title: string; artist: string; x_id: string; ordered_at: string;
   deadline: string; price: string; currency: string;
   status: CommissionStatus; rough_date: string; notes: string;
 };
+
+// 画像アップロード前にプランの上限をチェック
 const EMPTY_FORM: FormValues = {
   title: "", artist: "", x_id: "", ordered_at: "", deadline: "",
   price: "", currency: "JPY", status: "pending", rough_date: "", notes: "",
 };
 
+// --- 画像アップロード前にプランの上限をチェック ---
 function fmtDate(d?: string) {
   if (!d) return "—";
   const [y, m, day] = d.split("-");
   return `${y}/${m}/${day}`;
 }
+
+// --- 金額をフォーマット ---
 function fmtPrice(price?: number, currency?: string) {
   if (!price) return "—";
-  if (currency === "JPY") return `¥${price.toLocaleString()}`;
-  if (currency === "USD") return `$${price.toLocaleString()}`;
-  if (currency === "EUR") return `€${price.toLocaleString()}`;
-  return `${price.toLocaleString()} ${currency}`;
+  return `${price.toLocaleString()} 円`;
 }
+
+// --- 締切までの日数を計算 ---
 function daysUntil(d?: string) {
   if (!d) return null;
   const today = new Date(); today.setHours(0,0,0,0);
   return Math.ceil((new Date(d).getTime() - today.getTime()) / 86400000);
 }
 
+// --- 締切までの日数スタイル ---
 const inp: React.CSSProperties = {
   width: "100%", padding: "9px 12px", border: "1.5px solid #e5e7eb",
   borderRadius: 10, fontSize: 14, outline: "none", color: "#1a0a2e",
   background: "#faf8f5", boxSizing: "border-box",
 };
 
+// --- 画像アップロード前にプランの上限をチェック ---
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
@@ -68,6 +78,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
+// --- ステータスバッジ ---
 function StatusBadge({ status }: { status: CommissionStatus }) {
   const s = STATUSES.find(x => x.key === status) ?? STATUSES[0];
   return (
@@ -78,6 +89,7 @@ function StatusBadge({ status }: { status: CommissionStatus }) {
   );
 }
 
+// --- プランバッジ ---
 function PlanBadge({ plan }: { plan: Plan }) {
   const p = PLAN_LIMITS[plan];
   return (
@@ -118,6 +130,24 @@ function ImageSection({ commission, plan, onUpdated }: {
   commission: Commission; plan: Plan; onUpdated: () => void;
 }) {
   const [uploading, setUploading] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const [prevCount, setPrevCount] = useState<number>(commission.images?.length ?? 0);
+  useEffect(() => {
+    // commission.idが変わったらprevCountをリセット
+    setPrevCount(commission.images?.length ?? 0);
+  }, [commission.id]);
+  useEffect(() => {
+    const currentCount = commission.images?.length ?? 0;
+    if (prevCount !== currentCount) {
+      if (currentCount > prevCount) {
+        setToast(`画像をアップロードしました（最新枚数: ${currentCount}枚）`);
+      } else if (currentCount < prevCount) {
+        setToast(`画像を削除しました（最新枚数: ${currentCount}枚）`);
+      }
+      setTimeout(() => setToast(null), 3000);
+      setPrevCount(currentCount);
+    }
+  }, [commission.images?.length]);
   const [imageType, setImageType] = useState<ImageType>("rough");
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const [preview, setPreview] = useState<string | null>(null);
@@ -139,7 +169,6 @@ function ImageSection({ commission, plan, onUpdated }: {
     setUploading(true);
     try {
       await uploadImage(commission.id, file, imageType, plan);
-      onUpdated();
     } catch (err: any) {
       if (err.message?.startsWith("PLAN_LIMIT:")) {
         const [, current, limit] = err.message.split(":");
@@ -151,6 +180,12 @@ function ImageSection({ commission, plan, onUpdated }: {
     } finally {
       setUploading(false);
       e.target.value = "";
+      onUpdated(); // アップロード後に必ず再取得
+      // 再取得後のcommission.images.lengthを即時トースト
+      setTimeout(() => {
+        setToast(`画像をアップロードしました（最新枚数: ${(commission.images?.length ?? 0) + 1}枚）`);
+        setTimeout(() => setToast(null), 3000);
+      }, 500);
     }
   }
 
@@ -158,6 +193,16 @@ function ImageSection({ commission, plan, onUpdated }: {
     if (!confirm(`「${img.file_name}」を削除しますか？`)) return;
     await deleteImage(img);
     onUpdated();
+    setTimeout(() => {
+      setToast(`画像を削除しました（最新枚数: ${(commission.images?.length ?? 0) - 1}枚）`);
+      setTimeout(() => setToast(null), 3000);
+    }, 500);
+    // ...existing code...
+    {toast && (
+      <div style={{ position:"fixed", bottom:30, left:"50%", transform:"translateX(-50%)", background:"#7c3aed", color:"#fff", padding:"12px 24px", borderRadius:12, fontSize:14, fontWeight:700, boxShadow:"0 4px 16px #0003", zIndex:999 }}>
+        {toast}
+      </div>
+    )}
   }
 
   const images = commission.images ?? [];
@@ -243,8 +288,14 @@ export default function CommissionApp() {
   const [form, setForm] = useState<FormValues>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [detailItem, setDetailItem] = useState<Commission | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showNameEdit, setShowNameEdit] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+  const [showDeleteRequest, setShowDeleteRequest] = useState(false);
+  const [deleteRequesting, setDeleteRequesting] = useState(false);
+  const [deleteRequestDone, setDeleteRequestDone] = useState(false);
 
   useEffect(() => {
     // 初回: セッション確認してuserをセット、なければloginへ
@@ -266,6 +317,7 @@ export default function CommissionApp() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // データのロード
   async function load() {
     try {
       const [data, prof] = await Promise.all([fetchCommissions(), fetchMyProfile()]);
@@ -280,22 +332,50 @@ export default function CommissionApp() {
 
   useEffect(() => { if (user) load(); }, [user]);
 
+  // --- プロフィールの更新 ---
+  async function handleSaveName() {
+    if (!nameInput.trim()) return;
+    const { data: { user: u } } = await supabase.auth.getUser();
+    if (!u) return;
+    await supabase.from("user_profiles").update({ display_name: nameInput.trim() }).eq("id", u.id);
+    await load();
+    setShowNameEdit(false);
+    setShowUserMenu(false);
+  }
+
+  // --- アカウント削除リクエスト ---
+  async function handleDeleteRequest() {
+    setDeleteRequesting(true);
+    try {
+      await requestDeleteAccount();
+      setDeleteRequestDone(true);
+    } catch (e: any) {
+      alert(e.message ?? "送信に失敗しました");
+    } finally {
+      setDeleteRequesting(false);
+    }
+  }
+
+  // ログアウト処理
   async function handleLogout() {
     await supabase.auth.signOut();
     window.location.href = "/login";
   }
 
+  // フィルタリングされたリスト
   const filtered = useMemo(() =>
     filterStatus === "all" ? commissions : commissions.filter(c => c.status === filterStatus),
     [commissions, filterStatus]
   );
 
+  // ステータスごとの統計
   const stats = useMemo(() => ({
     total: commissions.length,
     active: commissions.filter(c => c.status !== "done" && c.status !== "cancelled").length,
     done: commissions.filter(c => c.status === "done").length,
   }), [commissions]);
 
+  // プロフィールの取得
   function openNew() { setForm(EMPTY_FORM); setEditId(null); setShowForm(true); }
   function openEdit(c: Commission) {
     setForm({ title:c.title, artist:c.artist, x_id:c.x_id??"", ordered_at:c.ordered_at??"",
@@ -304,6 +384,7 @@ export default function CommissionApp() {
     setEditId(c.id); setShowForm(true); setDetailId(null);
   }
 
+  //  保存処理
   async function handleSave() {
     if (!form.title || !form.artist) return;
     setSaving(true);
@@ -314,24 +395,49 @@ export default function CommissionApp() {
         price:form.price?Number(form.price):undefined, currency:form.currency,
         status:form.status, rough_date:form.rough_date||undefined, notes:form.notes||undefined,
       };
-      if (editId) await updateCommission(editId, payload);
-      else await createCommission(payload);
-      await load(); setShowForm(false); setEditId(null);
+      if (editId) {
+        await updateCommission(editId, payload);
+      } else {
+        await createCommission(payload);
+      }
+      await load();
+      if (detailId) {
+        fetchCommissionById(detailId).then(setDetailItem).catch(() => setDetailItem(null));
+      }
+      setShowForm(false); setEditId(null);
     } catch { alert("保存に失敗しました"); }
     finally { setSaving(false); }
   }
 
+  // 削除処理
   async function handleDelete(id: string) {
-    try { await deleteCommission(id); await load(); }
+    try {
+      await deleteCommission(id);
+      await load();
+      if (detailId) {
+        fetchCommissionById(detailId).then(setDetailItem).catch(() => setDetailItem(null));
+      }
+    }
     catch { alert("削除に失敗しました"); }
     setDeleteConfirm(null); setDetailId(null);
   }
 
-  const detailItem = commissions.find(c => c.id === detailId);
+  // 詳細表示のための最新データ抽出
+  useEffect(() => {
+    if (!detailId) {
+      setDetailItem(null);
+      return;
+    }
+    // 一覧取得後の最新commissionから詳細を抽出
+    const item = commissions.find(c => c.id === detailId) ?? null;
+    setDetailItem(item);
+  }, [detailId, commissions]);
   const plan = (profile?.plan ?? "free") as Plan;
-  const userLabel = user?.user_metadata?.full_name ?? user?.email ?? "ユーザー";
+  const displayName = profile?.display_name;
+  const userLabel = displayName ?? user?.user_metadata?.full_name ?? (user?.email?.split("@")[0]) ?? "ユーザー";
   const userAvatar = user?.user_metadata?.avatar_url as string | undefined;
 
+  // ローディング中の表示
   if (loading) return (
     <div style={{ minHeight:"100vh", background:"#faf8f5", display:"flex", alignItems:"center", justifyContent:"center" }}>
       <div style={{ color:"#7c3aed", fontSize:16, fontWeight:700 }}>読み込み中…</div>
@@ -399,6 +505,12 @@ export default function CommissionApp() {
                   <div style={{ fontSize:12, color:"#888", marginBottom:4 }}>{user?.email}</div>
                   {profile && <PlanBadge plan={profile.plan} />}
                 </div>
+                <button onClick={() => { setNameInput(profile?.display_name ?? ""); setShowNameEdit(true); setShowUserMenu(false); }}
+                  style={{ width:"100%", padding:"11px 16px", background:"none", border:"none",
+                    borderBottom:"1px solid #f3f4f6", cursor:"pointer", fontSize:13,
+                    color:"#1a0a2e", fontWeight:600, textAlign:"left" }}>
+                  ✏️ 名前を変更
+                </button>
                 {profile?.is_admin && (
                   <button onClick={() => window.location.href = "/mgmt-c7f2a91e"}
                     style={{ width:"100%", padding:"11px 16px", background:"none", border:"none",
@@ -407,6 +519,12 @@ export default function CommissionApp() {
                     ⚙ 管理者ページ
                   </button>
                 )}
+                <button onClick={() => { setShowDeleteRequest(true); setShowUserMenu(false); }}
+                  style={{ width:"100%", padding:"11px 16px", background:"none", border:"none",
+                    borderTop:"1px solid #f3f4f6", cursor:"pointer", fontSize:13,
+                    color:"#ef4444", fontWeight:600, textAlign:"left" }}>
+                  🗑 アカウント削除を申請
+                </button>
                 <button onClick={handleLogout}
                   style={{ width:"100%", padding:"11px 16px", background:"none", border:"none",
                     cursor:"pointer", fontSize:13, color:"#ef4444", fontWeight:700, textAlign:"left" }}>
@@ -522,6 +640,93 @@ export default function CommissionApp() {
         </div>
       )}
 
+      {/* アカウント削除申請モーダル */}
+      {showDeleteRequest && (
+        <div style={{ position:"fixed", inset:0, background:"#0007", zIndex:200,
+          display:"flex", alignItems:"center", justifyContent:"center" }}
+          onClick={() => { if (!deleteRequesting) { setShowDeleteRequest(false); setDeleteRequestDone(false); } }}>
+          <div style={{ background:"#fff", borderRadius:20, padding:"32px", maxWidth:380,
+            width:"90%", boxShadow:"0 8px 48px #0004", textAlign:"center" }}
+            onClick={e => e.stopPropagation()}>
+            {deleteRequestDone ? (
+              <>
+                <div style={{ fontSize:48, marginBottom:12 }}>📨</div>
+                <div style={{ fontWeight:800, fontSize:17, color:"#1a0a2e", marginBottom:12 }}>
+                  申請を送信しました
+                </div>
+                <div style={{ fontSize:13, color:"#666", lineHeight:1.7, marginBottom:24 }}>
+                  管理者にメールで通知しました。<br />
+                  削除が完了するまで少しお待ちください。
+                </div>
+                <button onClick={() => { setShowDeleteRequest(false); setDeleteRequestDone(false); }}
+                  style={{ background:"linear-gradient(135deg,#7c3aed,#4f46e5)", color:"#fff",
+                    border:"none", borderRadius:10, padding:"11px 28px",
+                    fontWeight:700, cursor:"pointer", fontSize:14 }}>
+                  閉じる
+                </button>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize:40, marginBottom:12 }}>🗑</div>
+                <div style={{ fontWeight:800, fontSize:17, color:"#1a0a2e", marginBottom:12 }}>
+                  アカウント削除を申請する
+                </div>
+                <div style={{ fontSize:13, color:"#666", lineHeight:1.7, marginBottom:24 }}>
+                  管理者にメールで削除申請を送ります。<br />
+                  削除されると<strong>すべてのデータが失われます。</strong>
+                </div>
+                <div style={{ display:"flex", gap:10 }}>
+                  <button onClick={() => setShowDeleteRequest(false)} disabled={deleteRequesting}
+                    style={{ flex:1, background:"#f3f4f6", border:"none", borderRadius:10,
+                      padding:"11px", fontWeight:600, cursor:"pointer", fontSize:14 }}>
+                    キャンセル
+                  </button>
+                  <button onClick={handleDeleteRequest} disabled={deleteRequesting}
+                    style={{ flex:1, background: deleteRequesting ? "#fca5a5" : "#ef4444",
+                      color:"#fff", border:"none", borderRadius:10, padding:"11px",
+                      fontWeight:800, cursor: deleteRequesting ? "not-allowed" : "pointer", fontSize:14 }}>
+                    {deleteRequesting ? "送信中…" : "申請する"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 名前編集モーダル */}
+      {showNameEdit && (
+        <div style={{ position:"fixed", inset:0, background:"#0006", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center" }}
+          onClick={() => setShowNameEdit(false)}>
+          <div style={{ background:"#fff", borderRadius:20, padding:"32px", maxWidth:360, width:"90%", boxShadow:"0 8px 48px #0004" }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ fontWeight:800, fontSize:18, color:"#1a0a2e", marginBottom:20 }}>表示名を変更</div>
+            <input
+              value={nameInput}
+              onChange={e => setNameInput(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleSaveName()}
+              placeholder="例: ちな"
+              maxLength={30}
+              autoFocus
+              style={{ width:"100%", padding:"11px 14px", border:"1.5px solid #e5e7eb", borderRadius:12,
+                fontSize:15, outline:"none", color:"#1a0a2e", background:"#faf8f5",
+                boxSizing:"border-box", fontFamily:"inherit", marginBottom:16 }}
+            />
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={() => setShowNameEdit(false)}
+                style={{ flex:1, background:"#f3f4f6", border:"none", borderRadius:10, padding:"11px", fontWeight:600, cursor:"pointer" }}>
+                キャンセル
+              </button>
+              <button onClick={handleSaveName} disabled={!nameInput.trim()}
+                style={{ flex:2, background: nameInput.trim() ? "linear-gradient(135deg,#7c3aed,#4f46e5)" : "#c4b5fd",
+                  color:"#fff", border:"none", borderRadius:10, padding:"11px", fontWeight:800, cursor: nameInput.trim() ? "pointer" : "not-allowed", fontSize:14 }}>
+                保存する
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 削除確認 */}
       {deleteConfirm && (
         <div style={{ position:"fixed", inset:0, background:"#0006", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center" }}>
@@ -556,12 +761,7 @@ export default function CommissionApp() {
               </div>
               <Field label="ラフ提出日（任意）"><input type="date" value={form.rough_date} onChange={e => setForm({...form, rough_date:e.target.value})} style={inp} /></Field>
               <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:8, alignItems:"end" }}>
-                <Field label="金額"><input type="number" value={form.price} onChange={e => setForm({...form, price:e.target.value})} placeholder="例: 5000" style={inp} /></Field>
-                <Field label="通貨">
-                  <select value={form.currency} onChange={e => setForm({...form, currency:e.target.value})} style={{ ...inp, minWidth:80 }}>
-                    <option>JPY</option><option>USD</option><option>EUR</option>
-                  </select>
-                </Field>
+                <Field label="金額"><input type="number" min="0" value={form.price} onChange={e => setForm({...form, price:e.target.value})} placeholder="例: 5000" style={inp} /></Field>
               </div>
               <Field label="ステータス">
                 <select value={form.status} onChange={e => setForm({...form, status:e.target.value as CommissionStatus})} style={inp}>
