@@ -176,6 +176,11 @@ export default function LoginPage() {
               ← ログインに戻る
             </TextLink>
           )}
+          {mode === "login" && (
+            <TextLink onClick={() => window.location.href = "/contact"}>
+              ✉️ お問い合わせ
+            </TextLink>
+          )}
         </div>
       </div>
     </div>

@@ -511,6 +511,14 @@ export default function CommissionApp() {
                     color:"#1a0a2e", fontWeight:600, textAlign:"left" }}>
                   ✏️ 名前を変更
                 </button>
+                {!profile?.is_admin && (
+                  <button onClick={() => window.location.href = "/contact"}
+                    style={{ width:"100%", padding:"11px 16px", background:"none", border:"none",
+                      borderBottom:"1px solid #f3f4f6", cursor:"pointer", fontSize:13,
+                      color:"#1a0a2e", fontWeight:600, textAlign:"left" }}>
+                    ✉️ お問い合わせ
+                  </button>
+                )}
                 {profile?.is_admin && (
                   <button onClick={() => window.location.href = "/mgmt-c7f2a91e"}
                     style={{ width:"100%", padding:"11px 16px", background:"none", border:"none",
@@ -519,12 +527,14 @@ export default function CommissionApp() {
                     ⚙ 管理者ページ
                   </button>
                 )}
-                <button onClick={() => { setShowDeleteRequest(true); setShowUserMenu(false); }}
-                  style={{ width:"100%", padding:"11px 16px", background:"none", border:"none",
-                    borderTop:"1px solid #f3f4f6", cursor:"pointer", fontSize:13,
-                    color:"#ef4444", fontWeight:600, textAlign:"left" }}>
-                  🗑 アカウント削除を申請
-                </button>
+                {!profile?.is_admin && (
+                  <button onClick={() => { setShowDeleteRequest(true); setShowUserMenu(false); }}
+                    style={{ width:"100%", padding:"11px 16px", background:"none", border:"none",
+                      borderTop:"1px solid #f3f4f6", cursor:"pointer", fontSize:13,
+                      color:"#ef4444", fontWeight:600, textAlign:"left" }}>
+                    🗑 アカウント削除を申請
+                  </button>
+                )}
                 <button onClick={handleLogout}
                   style={{ width:"100%", padding:"11px 16px", background:"none", border:"none",
                     cursor:"pointer", fontSize:13, color:"#ef4444", fontWeight:700, textAlign:"left" }}>
@@ -705,7 +715,7 @@ export default function CommissionApp() {
               value={nameInput}
               onChange={e => setNameInput(e.target.value)}
               onKeyDown={e => e.key === "Enter" && handleSaveName()}
-              placeholder="例: ちな"
+              placeholder="例: 山田太郎"
               maxLength={30}
               autoFocus
               style={{ width:"100%", padding:"11px 14px", border:"1.5px solid #e5e7eb", borderRadius:12,
