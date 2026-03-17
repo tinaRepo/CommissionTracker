@@ -68,6 +68,33 @@ const inp: React.CSSProperties = {
   background: "#faf8f5", boxSizing: "border-box",
 };
 
+// --- 日付の入力フィールドスタイル ---
+const inp_date: React.CSSProperties = {
+  minWidth: 0, padding: "9px 8px", border: "1.5px solid #e5e7eb",
+  borderRadius: 10, fontSize: 14, outline: "none", color: "#1a0a2e",
+  background: "#faf8f5", boxSizing: "border-box",
+};
+
+// --- 日付入力フィールド ---
+function DateField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <Field label={label}>
+      <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+        <input type="date" value={value} onChange={e => onChange(e.target.value)}
+          style={{ ...inp_date, flex:1 }} />
+        {value && (
+          <button type="button" onClick={() => onChange("")}
+            style={{ flexShrink:0, background:"#f3f4f6", border:"1.5px solid #e5e7eb", borderRadius:8,
+              width:32, height:36, cursor:"pointer", fontSize:14, color:"#888", display:"flex",
+              alignItems:"center", justifyContent:"center" }}>
+            ×
+          </button>
+        )}
+      </div>
+    </Field>
+  );
+}
+
 // --- 画像アップロード前にプランの上限をチェック ---
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -765,14 +792,10 @@ export default function CommissionApp() {
               <Field label="件名 *"><input value={form.title} onChange={e => setForm({...form, title:e.target.value})} placeholder="例: アイコン用イラスト" style={inp} /></Field>
               <Field label="絵師名 *"><input value={form.artist} onChange={e => setForm({...form, artist:e.target.value})} placeholder="例: 花咲りん" style={inp} /></Field>
               <Field label="X ID（任意）"><input value={form.x_id} onChange={e => setForm({...form, x_id:e.target.value})} placeholder="例: @artist_name" style={inp} /></Field>
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
-                <Field label="依頼日"><input type="date" value={form.ordered_at} onChange={e => setForm({...form, ordered_at:e.target.value})} style={inp} /></Field>
-                <Field label="納期"><input type="date" value={form.deadline} onChange={e => setForm({...form, deadline:e.target.value})} style={inp} /></Field>
-              </div>
-              <Field label="ラフ提出日（任意）"><input type="date" value={form.rough_date} onChange={e => setForm({...form, rough_date:e.target.value})} style={inp} /></Field>
-              <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:8, alignItems:"end" }}>
+              <DateField label="依頼日" value={form.ordered_at} onChange={v => setForm({...form, ordered_at:v})} />
+              <DateField label="納期" value={form.deadline} onChange={v => setForm({...form, deadline:v})} />
+              <DateField label="ラフ提出日（任意）" value={form.rough_date} onChange={v => setForm({...form, rough_date:v})} />
                 <Field label="金額"><input type="number" min="0" value={form.price} onChange={e => setForm({...form, price:e.target.value})} placeholder="例: 5000" style={inp} /></Field>
-              </div>
               <Field label="ステータス">
                 <select value={form.status} onChange={e => setForm({...form, status:e.target.value as CommissionStatus})} style={inp}>
                   {STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
