@@ -31,7 +31,13 @@ export default function ContactPage() {
 
   // --- フォーム送信処理 ---
   async function handleSubmit() {
-    if (!name || !email || !subject || !body) return;
+    if (!name || !subject || !body) return;
+    // メールアドレスが入力されている場合は形式チェック
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError("メールアドレスの形式が正しくありません");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
