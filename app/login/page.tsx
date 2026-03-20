@@ -4,6 +4,24 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
+function toJapanese(msg: string): string {
+  if (!msg) return "エラーが発生しました";
+  const m = msg.toLowerCase();
+  if (m.includes("invalid login credentials"))    return "メールアドレスまたはパスワードが正しくありません";
+  if (m.includes("email not confirmed"))          return "メールアドレスの確認が完了していません。確認メールをご確認ください";
+  if (m.includes("user already registered"))      return "このメールアドレスはすでに登録されています";
+  if (m.includes("password should be at least"))  return "パスワードは6文字以上で入力してください";
+  if (m.includes("unable to validate email"))     return "メールアドレスの形式が正しくありません";
+  if (m.includes("email address is invalid"))     return "メールアドレスの形式が正しくありません";
+  if (m.includes("signup is disabled"))           return "現在新規登録は受け付けていません";
+  if (m.includes("email rate limit exceeded"))    return "しばらく時間をおいてから再度お試しください";
+  if (m.includes("over email send rate limit"))   return "メール送信の上限に達しました。しばらくお待ちください";
+  if (m.includes("token has expired"))            return "リンクの有効期限が切れています。もう一度お試しください";
+  if (m.includes("user not found"))               return "このメールアドレスは登録されていません";
+  if (m.includes("network"))                      return "ネットワークエラーが発生しました。接続を確認してください";
+  return "エラーが発生しました（" + msg + "）";
+}
+
 type Mode = "login" | "signup" | "reset";
 
 export default function LoginPage() {
@@ -41,7 +59,7 @@ export default function LoginPage() {
         setMessage({ type: "success", text: "パスワードリセットのメールを送りました。" });
       }
     } catch (e: any) {
-      setMessage({ type: "error", text: e.message ?? "エラーが発生しました" });
+      setMessage({ type: "error", text: toJapanese(e.message ?? "") });
     } finally {
       setLoading(false);
     }
@@ -54,7 +72,7 @@ export default function LoginPage() {
       provider,
       options: { redirectTo: `${location.origin}/auth/callback` },
     });
-    if (error) setMessage({ type: "error", text: error.message });
+    if (error) setMessage({ type: "error", text: toJapanese(error.message) });
     setLoading(false);
   }
   */
