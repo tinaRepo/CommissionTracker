@@ -1,9 +1,16 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: "Commission Tracker | 絵の依頼管理",
-  description: "イラスト依頼を一元管理するツール",
+export const metadata = {
+  title: "Commission Tracker",
+  description: "絵の依頼管理ツール",
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: '48x48' },
+      { url: '/favicon-96x96.png', sizes: '96x96' },
+    ],
+    apple: { url: '/apple-touch-icon.png', sizes: '180x180' },
+  },
 };
 
 export default function RootLayout({

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024"><defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a0a2e"></stop>
+      <stop offset="55%" style="stop-color:#2d1a4a"></stop>
+      <stop offset="100%" style="stop-color:#1a2a4a"></stop>
+    </linearGradient>
+    <linearGradient id="palette" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#a78bfa"></stop>
+      <stop offset="100%" style="stop-color:#7c3aed"></stop>
+    </linearGradient>
+    <linearGradient id="shine" x1="0%" y1="0%" x2="60%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.15"></stop>
+      <stop offset="100%" style="stop-color:#ffffff;stop-opacity:0"></stop>
+    </linearGradient>
+  </defs><rect width="1024" height="1024" rx="220" ry="220" fill="url(#bg)"></rect><rect width="1024" height="1024" rx="220" ry="220" fill="url(#shine)"></rect><ellipse cx="512" cy="530" rx="310" ry="270" fill="url(#palette)" opacity="0.95"></ellipse><ellipse cx="400" cy="310" rx="90" ry="80" fill="url(#bg)"></ellipse><ellipse cx="512" cy="530" rx="265" ry="228" fill="#1a0a2e" opacity="0.35"></ellipse><circle cx="370" cy="430" r="48" fill="#f87171" opacity="0.95"></circle><circle cx="512" cy="390" r="48" fill="#fbbf24" opacity="0.95"></circle><circle cx="654" cy="430" r="48" fill="#60a5fa" opacity="0.95"></circle><circle cx="690" cy="570" r="44" fill="#34d399" opacity="0.95"></circle><circle cx="340" cy="570" r="44" fill="#f472b6" opacity="0.95"></circle><g transform="rotate(-35, 640, 360)">
+    <!-- 筆の柄 -->
+    <rect x="620" y="200" width="28" height="220" rx="14" fill="#e2d9f3"></rect>
+    <!-- 筆の金属部分 -->
+    <rect x="618" y="400" width="32" height="36" rx="6" fill="#c4b5fd"></rect>
+    <!-- 筆先 -->
+    <ellipse cx="634" cy="460" rx="16" ry="36" fill="#7c3aed"></ellipse>
+    <ellipse cx="634" cy="488" rx="10" ry="14" fill="#4f46e5"></ellipse>
+  </g><circle cx="200" cy="200" r="18" fill="#ffffff" opacity="0.08"></circle><circle cx="820" cy="180" r="12" fill="#ffffff" opacity="0.06"></circle><circle cx="160" cy="700" r="10" fill="#a78bfa" opacity="0.15"></circle><circle cx="860" cy="750" r="14" fill="#a78bfa" opacity="0.12"></circle></svg>
