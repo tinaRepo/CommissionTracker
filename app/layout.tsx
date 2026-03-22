@@ -5,6 +5,7 @@ import { Analytics } from "@vercel/analytics/next";
 export const metadata = {
   title: "Commission Tracker",
   description: "絵の依頼管理ツール",
+  manifest: "/manifest.json",
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: '48x48' },
