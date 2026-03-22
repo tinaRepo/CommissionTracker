@@ -2,30 +2,30 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+const DemoApp = dynamic(() => import("@/components/DemoApp"), { ssr: false });
 
 function toJapanese(msg: string): string {
   if (!msg) return "エラーが発生しました";
   const m = msg.toLowerCase();
-  if (m.includes("invalid login credentials"))    return "メールアドレスまたはパスワードが正しくありません";
-  if (m.includes("email not confirmed"))          return "メールアドレスの確認が完了していません。確認メールをご確認ください";
-  if (m.includes("user already registered"))      return "このメールアドレスはすでに登録されています";
-  if (m.includes("password should be at least"))  return "パスワードは6文字以上で入力してください";
-  if (m.includes("unable to validate email"))     return "メールアドレスの形式が正しくありません";
-  if (m.includes("email address is invalid"))     return "メールアドレスの形式が正しくありません";
-  if (m.includes("signup is disabled"))           return "現在新規登録は受け付けていません";
-  if (m.includes("email rate limit exceeded"))    return "しばらく時間をおいてから再度お試しください";
-  if (m.includes("over email send rate limit"))   return "メール送信の上限に達しました。しばらくお待ちください";
-  if (m.includes("token has expired"))            return "リンクの有効期限が切れています。もう一度お試しください";
-  if (m.includes("user not found"))               return "このメールアドレスは登録されていません";
-  if (m.includes("network"))                      return "ネットワークエラーが発生しました。接続を確認してください";
+  if (m.includes("invalid login credentials")) return "メールアドレスまたはパスワードが正しくありません";
+  if (m.includes("email not confirmed")) return "メールアドレスの確認が完了していません。確認メールをご確認ください";
+  if (m.includes("user already registered")) return "このメールアドレスはすでに登録されています";
+  if (m.includes("password should be at least")) return "パスワードは6文字以上で入力してください";
+  if (m.includes("unable to validate email")) return "メールアドレスの形式が正しくありません";
+  if (m.includes("email address is invalid")) return "メールアドレスの形式が正しくありません";
+  if (m.includes("signup is disabled")) return "現在新規登録は受け付けていません";
+  if (m.includes("email rate limit exceeded")) return "しばらく時間をおいてから再度お試しください";
+  if (m.includes("over email send rate limit")) return "メール送信の上限に達しました。しばらくお待ちください";
+  if (m.includes("token has expired")) return "リンクの有効期限が切れています。もう一度お試しください";
+  if (m.includes("user not found")) return "このメールアドレスは登録されていません";
+  if (m.includes("network")) return "ネットワークエラーが発生しました。接続を確認してください";
   return "エラーが発生しました（" + msg + "）";
 }
 
 type Mode = "login" | "signup" | "reset";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [mode, setMode] = useState<Mode>("login");
 
 
@@ -33,6 +33,17 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
+  const [demoMode, setDemoMode] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) window.location.href = "/";
+    });
+  }, []);
+
+  if (demoMode) {
+    return <DemoApp onExit={() => setDemoMode(false)} />;
+  }
 
   async function handleEmail() {
     setLoading(true);
@@ -171,6 +182,21 @@ export default function LoginPage() {
         >
           {loading ? "処理中…" : titles[mode]}
         </button>
+
+        {/* デモボタン */}
+        {mode === "login" && (
+          <button
+            onClick={() => setDemoMode(true)}
+            style={{
+              width: "100%", padding: "12px", marginTop: 10,
+              background: "#fff", color: "#7c3aed",
+              border: "1.5px solid #c4b5fd", borderRadius: 12,
+              fontWeight: 700, fontSize: 14, cursor: "pointer",
+            }}
+          >
+            🎮 ログインせずにデモを試す
+          </button>
+        )}
 
         {/* モード切替リンク */}
         <div style={{ marginTop: 20, textAlign: "center", fontSize: 13, color: "#666", display: "flex", flexDirection: "column", gap: 8 }}>
