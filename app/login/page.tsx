@@ -226,6 +226,39 @@ export default function LoginPage() {
             </TextLink>
           )}
         </div>
+        {/* フッターリンク */}
+        <div style={{
+          marginTop: 28,
+          paddingTop: 20,
+          borderTop: "1px solid #f3f4f6",
+          display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "center",
+          gap: "4px 12px",
+        }}>
+          {[
+            { href: "/guide", label: "使い方" },
+            { href: "/terms", label: "利用規約" },
+            { href: "/privacy", label: "プライバシー" },
+            { href: "/tokusho", label: "特定商取引法" },
+            { href: "/version", label: "バージョン情報" },
+          ].map(link => (
+            <a
+              key={link.href}
+              href={link.href}
+              style={{
+                fontSize: 11,
+                color: "#aaa",
+                textDecoration: "none",
+                padding: "2px 4px",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.color = "#7c3aed")}
+              onMouseLeave={e => (e.currentTarget.style.color = "#aaa")}
+            >
+              {link.label}
+            </a>
+          ))}
+        </div>
       </div>
     </div>
   );
