@@ -181,11 +181,25 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [sortKey, setSortKey] = useState<"ordered_at" | "deadline" | "price" | "status">("ordered_at");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
-  const filtered = useMemo(() =>
-    filterStatus === "all" ? commissions : commissions.filter(c => c.status === filterStatus),
-    [commissions, filterStatus]
-  );
+  const filtered = useMemo(() => {
+    const list = filterStatus === "all" ? commissions : commissions.filter(c => c.status === filterStatus);
+    return [...list].sort((a, b) => {
+      let av: any, bv: any;
+      if (sortKey === "ordered_at") { av = a.ordered_at ?? ""; bv = b.ordered_at ?? ""; }
+      else if (sortKey === "deadline") { av = a.deadline ?? ""; bv = b.deadline ?? ""; }
+      else if (sortKey === "price") { av = a.price ?? 0; bv = b.price ?? 0; }
+      else if (sortKey === "status") {
+        const order = ["pending","rough","progress","done","cancelled"];
+        av = order.indexOf(a.status); bv = order.indexOf(b.status);
+      }
+      if (av < bv) return sortDir === "asc" ? -1 : 1;
+      if (av > bv) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [commissions, filterStatus, sortKey, sortDir]);
 
   const stats = useMemo(() => ({
     total: commissions.length,
@@ -298,8 +312,8 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
         </div>
       </header>
 
-      {/* フィルタ */}
-      <div style={{ padding: "16px 32px 0", display: "flex", gap: 8, flexWrap: "wrap" }}>
+      {/* フィルタ＋ソート */}
+      <div style={{ padding: "16px 32px 0", display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         {[{ key: "all", label: "すべて" } as const, ...STATUSES].map(s => (
           <button key={s.key} onClick={() => setFilterStatus(s.key as any)}
             style={{ background: filterStatus === s.key ? ("color" in s ? s.color : "#1a0a2e") : "#fff",
@@ -309,6 +323,23 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
             {s.label}
           </button>
         ))}
+        {/* 並び替え */}
+        <div style={{ display: "flex", gap: 6, alignItems: "center", marginLeft: "auto" }}>
+          <select
+            value={sortKey}
+            onChange={e => setSortKey(e.target.value as any)}
+            style={{ padding: "5px 10px", border: "1.5px solid #e5e7eb", borderRadius: 10, fontSize: 12, outline: "none", background: "#fff", color: "#555", cursor: "pointer" }}>
+            <option value="ordered_at">依頼日順</option>
+            <option value="deadline">納期順</option>
+            <option value="price">金額順</option>
+            <option value="status">ステータス順</option>
+          </select>
+          <button
+            onClick={() => setSortDir(d => d === "asc" ? "desc" : "asc")}
+            style={{ padding: "5px 10px", border: "1.5px solid #e5e7eb", borderRadius: 10, fontSize: 12, background: "#fff", color: "#555", cursor: "pointer", fontWeight: 700 }}>
+            {sortDir === "asc" ? "↑ 昇順" : "↓ 降順"}
+          </button>
+        </div>
       </div>
 
       {/* リスト */}
@@ -464,6 +495,25 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
           </div>
         </div>
       )}
+
+      {/* フッター */}
+      <footer style={{ borderTop:"1px solid #e5e7eb", padding:"24px 32px", textAlign:"center" }}>
+        <div style={{ display:"flex", flexWrap:"wrap", justifyContent:"center", gap:"4px 16px" }}>
+          {[
+            { href:"/guide", label:"使い方" },
+            { href:"/terms", label:"利用規約" },
+            { href:"/privacy", label:"プライバシーポリシー" },
+            { href:"/tokusho", label:"特定商取引法" },
+            { href:"/version", label:"バージョン情報" },
+          ].map(link => (
+            <a key={link.href} href={link.href}
+              style={{ fontSize:12, color:"#aaa", textDecoration:"none", padding:"2px 4px" }}>
+              {link.label}
+            </a>
+          ))}
+        </div>
+        <div style={{ fontSize:11, color:"#ccc", marginTop:10 }}>© 2026 Commission Tracker</div>
+      </footer>
     </div>
   );
 }
