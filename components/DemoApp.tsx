@@ -39,10 +39,10 @@ const EMPTY_FORM: FormValues = {
 };
 
 const STATUSES = [
-  { key: "pending"   as CommissionStatus, label: "依頼済み",   color: "#f59e0b", bg: "#fef3c7" },
-  { key: "rough"     as CommissionStatus, label: "ラフ確認中", color: "#8b5cf6", bg: "#ede9fe" },
-  { key: "progress"  as CommissionStatus, label: "制作中",     color: "#3b82f6", bg: "#dbeafe" },
-  { key: "done"      as CommissionStatus, label: "完成",       color: "#10b981", bg: "#d1fae5" },
+  { key: "pending" as CommissionStatus, label: "依頼済み", color: "#f59e0b", bg: "#fef3c7" },
+  { key: "rough" as CommissionStatus, label: "ラフ確認中", color: "#8b5cf6", bg: "#ede9fe" },
+  { key: "progress" as CommissionStatus, label: "制作中", color: "#3b82f6", bg: "#dbeafe" },
+  { key: "done" as CommissionStatus, label: "完成", color: "#10b981", bg: "#d1fae5" },
   { key: "cancelled" as CommissionStatus, label: "キャンセル", color: "#6b7280", bg: "#f3f4f6" },
 ];
 
@@ -54,11 +54,11 @@ const IMAGE_TYPES: { key: ImageType; label: string }[] = [
 const DEMO_MAX_IMAGES = 3;
 
 function uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
-function fmtDate(d?: string) { if (!d) return "—"; const [y,m,day] = d.split("-"); return `${y}/${m}/${day}`; }
+function fmtDate(d?: string) { if (!d) return "—"; const [y, m, day] = d.split("-"); return `${y}/${m}/${day}`; }
 function fmtPrice(price?: number) { if (!price) return "—"; return `¥${price.toLocaleString()}`; }
 function daysUntil(d?: string) {
   if (!d) return null;
-  const today = new Date(); today.setHours(0,0,0,0);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
   return Math.ceil((new Date(d).getTime() - today.getTime()) / 86400000);
 }
 
@@ -76,8 +76,10 @@ const inp_date: React.CSSProperties = {
 function StatusBadge({ status }: { status: CommissionStatus }) {
   const s = STATUSES.find(x => x.key === status) ?? STATUSES[0];
   return (
-    <span style={{ background: s.bg, color: s.color, border: `1px solid ${s.color}40`,
-      borderRadius: 999, padding: "2px 10px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
+    <span style={{
+      background: s.bg, color: s.color, border: `1px solid ${s.color}40`,
+      borderRadius: 999, padding: "2px 10px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap"
+    }}>
       {s.label}
     </span>
   );
@@ -99,9 +101,11 @@ function DateField({ label, value, onChange }: { label: string; value: string; o
         <input type="date" value={value} onChange={e => onChange(e.target.value)} style={{ ...inp_date, flex: 1 }} />
         {value && (
           <button type="button" onClick={() => onChange("")}
-            style={{ flexShrink: 0, background: "#f3f4f6", border: "1.5px solid #e5e7eb", borderRadius: 8,
+            style={{
+              flexShrink: 0, background: "#f3f4f6", border: "1.5px solid #e5e7eb", borderRadius: 8,
               width: 32, height: 36, cursor: "pointer", fontSize: 14, color: "#888",
-              display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
+              display: "flex", alignItems: "center", justifyContent: "center"
+            }}>×</button>
         )}
       </div>
     </Field>
@@ -155,10 +159,12 @@ function DemoImageSection({ commission, onChange }: {
           style={{ ...inp, width: "auto", padding: "6px 10px" }}>
           {IMAGE_TYPES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
         </select>
-        <label style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+        <label style={{
+          flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
           padding: "8px 14px", border: `1.5px dashed ${atLimit ? "#fca5a5" : "#c4b5fd"}`,
           borderRadius: 10, cursor: atLimit ? "not-allowed" : "pointer", fontSize: 13,
-          color: atLimit ? "#ef4444" : "#7c3aed", fontWeight: 600, background: atLimit ? "#f3f4f6" : "#fff" }}>
+          color: atLimit ? "#ef4444" : "#7c3aed", fontWeight: 600, background: atLimit ? "#f3f4f6" : "#fff"
+        }}>
           {atLimit ? `上限に達しました（${DEMO_MAX_IMAGES}枚）` : "＋ 画像を追加"}
           <input type="file" accept="image/*" onChange={handleUpload} disabled={atLimit} style={{ display: "none" }} />
         </label>
@@ -211,9 +217,11 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
 
   function openNew() { setForm(EMPTY_FORM); setEditId(null); setShowForm(true); }
   function openEdit(c: DemoCommission) {
-    setForm({ title: c.title, artist: c.artist, x_id: c.x_id ?? "", ordered_at: c.ordered_at ?? "",
+    setForm({
+      title: c.title, artist: c.artist, x_id: c.x_id ?? "", ordered_at: c.ordered_at ?? "",
       deadline: c.deadline ?? "", rough_date: c.rough_date ?? "",
-      price: c.price?.toString() ?? "", status: c.status, notes: c.notes ?? "" });
+      price: c.price?.toString() ?? "", status: c.status, notes: c.notes ?? ""
+    });
     setEditId(c.id); setShowForm(true); setDetailId(null);
   }
 
@@ -251,20 +259,26 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
     <div style={{ minHeight: "100vh", background: "#faf8f5" }} onClick={() => setShowUserMenu(false)}>
 
       {/* デモバナー */}
-      <div style={{ background: "linear-gradient(90deg,#7c3aed,#4f46e5)", color: "#fff",
-        textAlign: "center", padding: "10px 16px", fontSize: 13, fontWeight: 600 }}>
+      <div style={{
+        background: "linear-gradient(90deg,#7c3aed,#4f46e5)", color: "#fff",
+        textAlign: "center", padding: "10px 16px", fontSize: 13, fontWeight: 600
+      }}>
         🎮 デモモード中 — データはリロードで消えます。
         <button onClick={onExit}
-          style={{ marginLeft: 16, background: "#fff", color: "#7c3aed", border: "none",
-            borderRadius: 8, padding: "4px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+          style={{
+            marginLeft: 16, background: "#fff", color: "#7c3aed", border: "none",
+            borderRadius: 8, padding: "4px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer"
+          }}>
           登録してはじめる →
         </button>
       </div>
 
       {/* Header */}
-      <header style={{ background: "linear-gradient(135deg,#1a0a2e 0%,#2d1a4a 60%,#1a2a4a 100%)",
+      <header style={{
+        background: "linear-gradient(135deg,#1a0a2e 0%,#2d1a4a 60%,#1a2a4a 100%)",
         padding: "20px 32px", display: "flex", alignItems: "center", justifyContent: "space-between",
-        boxShadow: "0 4px 32px #0004", flexWrap: "wrap", gap: 12 }}>
+        boxShadow: "0 4px 32px #0004", flexWrap: "wrap", gap: 12
+      }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span style={{ fontSize: 24, filter: "drop-shadow(0 0 8px #a78bfa)" }}>🎨</span>
@@ -279,31 +293,41 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
               <div style={{ color: "#a78bfa", fontSize: 10 }}>{l}</div>
             </div>
           ))}
-          <button onClick={openNew} style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)",
+          <button onClick={openNew} style={{
+            background: "linear-gradient(135deg,#7c3aed,#4f46e5)",
             color: "#fff", border: "none", borderRadius: 12, padding: "9px 18px", fontWeight: 700,
-            fontSize: 13, cursor: "pointer", boxShadow: "0 2px 16px #7c3aed60" }}>
+            fontSize: 13, cursor: "pointer", boxShadow: "0 2px 16px #7c3aed60"
+          }}>
             ＋ 新規登録
           </button>
           <div style={{ position: "relative" }} onClick={e => e.stopPropagation()}>
             <button onClick={() => setShowUserMenu(v => !v)}
-              style={{ display: "flex", alignItems: "center", gap: 8, background: "#ffffff18",
+              style={{
+                display: "flex", alignItems: "center", gap: 8, background: "#ffffff18",
                 border: "1px solid #ffffff30", borderRadius: 99, padding: "6px 12px 6px 6px",
-                cursor: "pointer", color: "#fff", fontSize: 13, fontWeight: 600 }}>
-              <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,#7c3aed,#4f46e5)",
-                display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800 }}>D</div>
+                cursor: "pointer", color: "#fff", fontSize: 13, fontWeight: 600
+              }}>
+              <div style={{
+                width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,#7c3aed,#4f46e5)",
+                display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800
+              }}>D</div>
               <span>デモユーザー</span>
               <span style={{ fontSize: 10, opacity: 0.7 }}>▼</span>
             </button>
             {showUserMenu && (
-              <div style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", background: "#fff",
-                borderRadius: 12, boxShadow: "0 8px 32px #0003", minWidth: 180, overflow: "hidden", zIndex: 99 }}>
+              <div style={{
+                position: "absolute", right: 0, top: "calc(100% + 8px)", background: "#fff",
+                borderRadius: 12, boxShadow: "0 8px 32px #0003", minWidth: 180, overflow: "hidden", zIndex: 99
+              }}>
                 <div style={{ padding: "12px 16px", borderBottom: "1px solid #f3f4f6" }}>
                   <div style={{ fontSize: 12, color: "#888", marginBottom: 4 }}>デモモード</div>
                   <span style={{ background: "#ede9fe", color: "#7c3aed", borderRadius: 999, padding: "2px 10px", fontSize: 11, fontWeight: 700 }}>無料プラン相当</span>
                 </div>
                 <button onClick={onExit}
-                  style={{ width: "100%", padding: "11px 16px", background: "none", border: "none",
-                    cursor: "pointer", fontSize: 13, color: "#7c3aed", fontWeight: 700, textAlign: "left" }}>
+                  style={{
+                    width: "100%", padding: "11px 16px", background: "none", border: "none",
+                    cursor: "pointer", fontSize: 13, color: "#7c3aed", fontWeight: 700, textAlign: "left"
+                  }}>
                   🚀 アカウント登録する
                 </button>
               </div>
@@ -316,10 +340,12 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
       <div style={{ padding: "16px 32px 0", display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         {[{ key: "all", label: "すべて" } as const, ...STATUSES].map(s => (
           <button key={s.key} onClick={() => setFilterStatus(s.key as any)}
-            style={{ background: filterStatus === s.key ? ("color" in s ? s.color : "#1a0a2e") : "#fff",
+            style={{
+              background: filterStatus === s.key ? ("color" in s ? s.color : "#1a0a2e") : "#fff",
               color: filterStatus === s.key ? "#fff" : "#555",
               border: `1.5px solid ${filterStatus === s.key ? ("color" in s ? s.color : "#1a0a2e") : "#e5e7eb"}`,
-              borderRadius: 999, padding: "5px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+              borderRadius: 999, padding: "5px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer"
+            }}>
             {s.label}
           </button>
         ))}
@@ -357,11 +383,13 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
             const urgent = days !== null && days <= 7 && c.status !== "done" && c.status !== "cancelled";
             return (
               <div key={c.id} onClick={() => setDetailId(c.id)}
-                style={{ background: "#fff", borderRadius: 16, padding: "18px 22px",
+                style={{
+                  background: "#fff", borderRadius: 16, padding: "18px 22px",
                   boxShadow: urgent ? "0 0 0 2px #ef444460,0 2px 12px #0001" : "0 1px 6px #0001,0 2px 12px #0001",
                   border: urgent ? "1.5px solid #fca5a5" : "1.5px solid transparent",
                   cursor: "pointer", display: "grid", gridTemplateColumns: "1fr auto", gap: "4px 16px", alignItems: "center",
-                  transition: "transform 0.1s" }}
+                  transition: "transform 0.1s"
+                }}
                 onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)"; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)"; }}>
                 <div>
@@ -396,8 +424,10 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
       {detailItem && (
         <div style={{ position: "fixed", inset: 0, background: "#0006", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}
           onClick={() => setDetailId(null)}>
-          <div style={{ background: "#fff", borderRadius: 20, padding: "32px 36px", maxWidth: 520, width: "92%",
-            maxHeight: "88vh", overflowY: "auto", boxShadow: "0 8px 48px #0003" }}
+          <div style={{
+            background: "#fff", borderRadius: 20, padding: "32px 36px", maxWidth: 520, width: "92%",
+            maxHeight: "88vh", overflowY: "auto", boxShadow: "0 8px 48px #0003"
+          }}
             onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
               <div>
@@ -430,11 +460,15 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
             />
             <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
               <button onClick={() => openEdit(detailItem)}
-                style={{ flex: 1, background: "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "#fff",
-                  border: "none", borderRadius: 10, padding: "10px", fontWeight: 700, cursor: "pointer" }}>編集</button>
+                style={{
+                  flex: 1, background: "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "#fff",
+                  border: "none", borderRadius: 10, padding: "10px", fontWeight: 700, cursor: "pointer"
+                }}>編集</button>
               <button onClick={() => setDeleteConfirm(detailItem.id)}
-                style={{ flex: 1, background: "#fff", color: "#ef4444", border: "1.5px solid #fca5a5",
-                  borderRadius: 10, padding: "10px", fontWeight: 700, cursor: "pointer" }}>削除</button>
+                style={{
+                  flex: 1, background: "#fff", color: "#ef4444", border: "1.5px solid #fca5a5",
+                  borderRadius: 10, padding: "10px", fontWeight: 700, cursor: "pointer"
+                }}>削除</button>
             </div>
           </div>
         </div>
@@ -458,8 +492,10 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
       {/* フォームモーダル */}
       {showForm && (
         <div style={{ position: "fixed", inset: 0, background: "#0007", zIndex: 150, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ background: "#fff", borderRadius: 20, padding: "32px 36px", maxWidth: 520, width: "92%",
-            maxHeight: "90vh", overflowY: "auto", boxShadow: "0 8px 48px #0004" }}
+          <div style={{
+            background: "#fff", borderRadius: 20, padding: "32px 36px", maxWidth: 520, width: "92%",
+            maxHeight: "90vh", overflowY: "auto", boxShadow: "0 8px 48px #0004"
+          }}
             onClick={e => e.stopPropagation()}>
             <div style={{ fontWeight: 800, fontSize: 20, color: "#1a0a2e", marginBottom: 24 }}>
               {editId ? "依頼を編集" : "新規依頼を登録"}
@@ -471,7 +507,19 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
               <DateField label="依頼日" value={form.ordered_at} onChange={v => setForm({ ...form, ordered_at: v })} />
               <DateField label="納期" value={form.deadline} onChange={v => setForm({ ...form, deadline: v })} />
               <DateField label="ラフ提出日（任意）" value={form.rough_date} onChange={v => setForm({ ...form, rough_date: v })} />
-              <Field label="金額（円）"><input type="number" min="0" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} placeholder="例: 5000" style={inp} /></Field>
+              <Field label="金額（円）">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={form.price ? Number(form.price.replace(/,/g, "")).toLocaleString() : ""}
+                  onChange={e => {
+                    const raw = e.target.value.replace(/,/g, "").replace(/[^0-9]/g, "");
+                    setForm({ ...form, price: raw });
+                  }}
+                  placeholder="例: 5,000"
+                  style={inp}
+                />
+              </Field>
               <Field label="ステータス">
                 <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value as CommissionStatus })} style={inp}>
                   {STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
@@ -486,9 +534,11 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
               <button onClick={() => { setShowForm(false); setEditId(null); }}
                 style={{ flex: 1, background: "#f3f4f6", border: "none", borderRadius: 10, padding: "12px", fontWeight: 600, cursor: "pointer" }}>キャンセル</button>
               <button onClick={handleSave} disabled={!form.title || !form.artist}
-                style={{ flex: 2, background: (!form.title || !form.artist) ? "#c4b5fd" : "linear-gradient(135deg,#7c3aed,#4f46e5)",
+                style={{
+                  flex: 2, background: (!form.title || !form.artist) ? "#c4b5fd" : "linear-gradient(135deg,#7c3aed,#4f46e5)",
                   color: "#fff", border: "none", borderRadius: 10, padding: "12px",
-                  fontWeight: 800, cursor: (!form.title || !form.artist) ? "not-allowed" : "pointer", fontSize: 15 }}>
+                  fontWeight: 800, cursor: (!form.title || !form.artist) ? "not-allowed" : "pointer", fontSize: 15
+                }}>
                 {editId ? "更新する" : "登録する"}
               </button>
             </div>
