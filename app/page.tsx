@@ -1,7 +1,14 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import { supabase } from "@/lib/supabase";
 
 export default function LandingPage() {
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) window.location.href = "/app";
+    });
+  }, []);
+  
   const [scrollY, setScrollY] = useState(0);
   const [visible, setVisible] = useState<Record<string, boolean>>({});
 
