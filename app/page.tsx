@@ -1,14 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { supabase } from "@/lib/supabase";
 
 export default function LandingPage() {
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) window.location.href = "/app";
-    });
-  }, []);
-  
   const [scrollY, setScrollY] = useState(0);
   const [visible, setVisible] = useState<Record<string, boolean>>({});
 
@@ -220,6 +213,18 @@ export default function LandingPage() {
               シンプルな料金プラン
             </h2>
             <p style={{ color: "#7c6a99", fontSize: 15 }}>まずは無料で試してみてください</p>
+          <div style={{ display:"flex", justifyContent:"center", gap:24, marginTop:20, flexWrap:"wrap" }}>
+            {[
+              { label:"無料プラン", price:"¥0", color:"#6b7280" },
+              { label:"スタンダード", price:"¥300/月", color:"#3b82f6" },
+              { label:"プレミアム", price:"¥800/月", color:"#7c3aed" },
+            ].map(p => (
+              <div key={p.label} style={{ textAlign:"center" }}>
+                <div style={{ fontSize:11, color:p.color, fontWeight:700, marginBottom:2 }}>{p.label}</div>
+                <div style={{ fontSize:20, fontWeight:900, color:"#fff" }}>{p.price}</div>
+              </div>
+            ))}
+          </div>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 20 }}>
