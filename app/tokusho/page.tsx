@@ -11,11 +11,11 @@ export default function TokushoPage() {
         <table style={{ width:"100%", borderCollapse:"collapse", fontSize:14 }}>
           <tbody>
             {[
-              ["販売業者", "中沢拓真"],
-              ["運営責任者", "中沢拓真"],
-              ["所在地", "神奈川県横浜市旭区\n※詳細住所はお問い合わせいただいた場合に遅滞なく開示いたします"],
+              ["販売業者", "請求があった場合は遅滞なく開示します"],
+              ["運営責任者", "請求があった場合は遅滞なく開示します"],
+              ["所在地", "請求があった場合は遅滞なく開示します"],
               ["電話番号", "お問い合わせいただいた場合に遅滞なく開示いたします"],
-              ["メールアドレス・お問い合わせ", "https://commission-tracker-nine.vercel.app/contact"],
+              ["メールアドレス・お問い合わせ", "amukat0823@gmail.com"],
               ["サービス名", "Commission Tracker"],
               ["サービスURL", "https://commission-tracker-nine.vercel.app"],
               ["販売価格",
