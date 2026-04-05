@@ -1,9 +1,20 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import { supabase } from "@/lib/supabase";
 
 export default function LandingPage() {
   const [scrollY, setScrollY] = useState(0);
   const [visible, setVisible] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) {
+        window.location.href = "/app";
+      } else {
+        window.location.href = "/login";
+      }
+    });
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
@@ -175,8 +186,10 @@ export default function LandingPage() {
       {/* 機能紹介 */}
       <section style={{ padding: "100px 24px", maxWidth: 1000, margin: "0 auto" }}>
         <div id="features" data-animate style={{ textAlign: "center", marginBottom: 60, ...fadeIn("features") }}>
-          <h2 style={{ fontSize: "clamp(24px, 4vw, 40px)", fontWeight: 900, marginBottom: 16,
-            background: "linear-gradient(135deg,#fff,#c4b5fd)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+          <h2 style={{
+            fontSize: "clamp(24px, 4vw, 40px)", fontWeight: 900, marginBottom: 16,
+            background: "linear-gradient(135deg,#fff,#c4b5fd)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent"
+          }}>
             依頼管理に必要な機能が全部揃ってる
           </h2>
           <p style={{ color: "#7c6a99", fontSize: 15 }}>シンプルで使いやすい、絵の依頼専用ツール</p>
@@ -208,23 +221,25 @@ export default function LandingPage() {
       <section style={{ padding: "100px 24px", background: "rgba(124,58,237,0.05)", borderTop: "1px solid rgba(124,58,237,0.1)", borderBottom: "1px solid rgba(124,58,237,0.1)" }}>
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
           <div id="pricing" data-animate style={{ textAlign: "center", marginBottom: 60, ...fadeIn("pricing") }}>
-            <h2 style={{ fontSize: "clamp(24px, 4vw, 40px)", fontWeight: 900, marginBottom: 16,
-              background: "linear-gradient(135deg,#fff,#c4b5fd)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+            <h2 style={{
+              fontSize: "clamp(24px, 4vw, 40px)", fontWeight: 900, marginBottom: 16,
+              background: "linear-gradient(135deg,#fff,#c4b5fd)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent"
+            }}>
               シンプルな料金プラン
             </h2>
             <p style={{ color: "#7c6a99", fontSize: 15 }}>まずは無料で試してみてください</p>
-          <div style={{ display:"flex", justifyContent:"center", gap:24, marginTop:20, flexWrap:"wrap" }}>
-            {[
-              { label:"無料プラン", price:"¥0", color:"#6b7280" },
-              { label:"スタンダード", price:"¥300/月", color:"#3b82f6" },
-              { label:"プレミアム", price:"¥800/月", color:"#7c3aed" },
-            ].map(p => (
-              <div key={p.label} style={{ textAlign:"center" }}>
-                <div style={{ fontSize:11, color:p.color, fontWeight:700, marginBottom:2 }}>{p.label}</div>
-                <div style={{ fontSize:20, fontWeight:900, color:"#fff" }}>{p.price}</div>
-              </div>
-            ))}
-          </div>
+            <div style={{ display: "flex", justifyContent: "center", gap: 24, marginTop: 20, flexWrap: "wrap" }}>
+              {[
+                { label: "無料プラン", price: "¥0", color: "#6b7280" },
+                { label: "スタンダード", price: "¥300/月", color: "#3b82f6" },
+                { label: "プレミアム", price: "¥800/月", color: "#7c3aed" },
+              ].map(p => (
+                <div key={p.label} style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: 11, color: p.color, fontWeight: 700, marginBottom: 2 }}>{p.label}</div>
+                  <div style={{ fontSize: 20, fontWeight: 900, color: "#fff" }}>{p.price}</div>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 20 }}>
@@ -278,8 +293,10 @@ export default function LandingPage() {
       {/* FAQ */}
       <section style={{ padding: "100px 24px", maxWidth: 720, margin: "0 auto" }}>
         <div id="faq" data-animate style={{ textAlign: "center", marginBottom: 60, ...fadeIn("faq") }}>
-          <h2 style={{ fontSize: "clamp(24px, 4vw, 40px)", fontWeight: 900, marginBottom: 16,
-            background: "linear-gradient(135deg,#fff,#c4b5fd)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+          <h2 style={{
+            fontSize: "clamp(24px, 4vw, 40px)", fontWeight: 900, marginBottom: 16,
+            background: "linear-gradient(135deg,#fff,#c4b5fd)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent"
+          }}>
             よくある質問
           </h2>
         </div>
@@ -305,8 +322,10 @@ export default function LandingPage() {
           pointerEvents: "none",
         }} />
         <div id="cta" data-animate style={{ position: "relative", zIndex: 1, ...fadeIn("cta") }}>
-          <h2 style={{ fontSize: "clamp(28px, 5vw, 52px)", fontWeight: 900, marginBottom: 20,
-            background: "linear-gradient(135deg,#fff,#c4b5fd)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+          <h2 style={{
+            fontSize: "clamp(28px, 5vw, 52px)", fontWeight: 900, marginBottom: 20,
+            background: "linear-gradient(135deg,#fff,#c4b5fd)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent"
+          }}>
             今すぐ無料で始めよう
           </h2>
           <p style={{ color: "#7c6a99", fontSize: 15, marginBottom: 40 }}>登録1分・クレジットカード不要</p>
