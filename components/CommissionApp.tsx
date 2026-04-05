@@ -578,6 +578,14 @@ export default function CommissionApp() {
                   <div style={{ fontSize: 12, color: "#888", marginBottom: 4 }}>{user?.email}</div>
                   {profile && <PlanBadge plan={profile.plan} />}
                 </div>
+                <button onClick={() => window.location.href = "/pricing"}
+                  style={{
+                    width: "100%", padding: "11px 16px", background: "none", border: "none",
+                    borderBottom: "1px solid #f3f4f6", cursor: "pointer", fontSize: 13,
+                    color: "#7c3aed", fontWeight: 700, textAlign: "left"
+                  }}>
+                  ⭐ プランをアップグレード
+                </button>
                 <button onClick={() => { setNameInput(profile?.display_name ?? ""); setShowNameEdit(true); setShowUserMenu(false); }}
                   style={{
                     width: "100%", padding: "11px 16px", background: "none", border: "none",
@@ -943,22 +951,22 @@ export default function CommissionApp() {
       )}
 
       {/* フッター */}
-      <footer style={{ borderTop:"1px solid #e5e7eb", padding:"24px 32px", textAlign:"center" }}>
-        <div style={{ display:"flex", flexWrap:"wrap", justifyContent:"center", gap:"4px 16px" }}>
+      <footer style={{ borderTop: "1px solid #e5e7eb", padding: "24px 32px", textAlign: "center" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "4px 16px" }}>
           {[
-            { href:"/guide", label:"使い方" },
-            { href:"/terms", label:"利用規約" },
-            { href:"/privacy", label:"プライバシーポリシー" },
-            { href:"/tokusho", label:"特定商取引法" },
-            { href:"/version", label:"バージョン情報" },
+            { href: "/guide", label: "使い方" },
+            { href: "/terms", label: "利用規約" },
+            { href: "/privacy", label: "プライバシーポリシー" },
+            { href: "/tokusho", label: "特定商取引法" },
+            { href: "/version", label: "バージョン情報" },
           ].map(link => (
             <a key={link.href} href={link.href}
-              style={{ fontSize:12, color:"#aaa", textDecoration:"none", padding:"2px 4px" }}>
+              style={{ fontSize: 12, color: "#aaa", textDecoration: "none", padding: "2px 4px" }}>
               {link.label}
             </a>
           ))}
         </div>
-        <div style={{ fontSize:11, color:"#ccc", marginTop:10 }}>© 2026 Commission Tracker</div>
+        <div style={{ fontSize: 11, color: "#ccc", marginTop: 10 }}>© 2026 Commission Tracker</div>
       </footer>
     </div>
   );
