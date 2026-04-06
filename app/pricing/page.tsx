@@ -4,7 +4,6 @@ export const dynamic = "force-dynamic";
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { useSearchParams } from "next/navigation";
 
 const PLANS = [
   {
@@ -40,10 +39,12 @@ export default function PricingPage() {
   const [currentPlan, setCurrentPlan] = useState<string>("free");
   const [loading, setLoading] = useState<string | null>(null);
   const [hasSubscription, setHasSubscription] = useState(false);
-  const searchParams = useSearchParams();
-  const checkoutStatus = searchParams.get("checkout");
-
+  const [checkoutStatus, setCheckoutStatus] = useState<string | null>(null);
+  
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setCheckoutStatus(params.get("checkout"));
+    
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) { window.location.href = "/login"; return; }
       const { data } = await supabase
