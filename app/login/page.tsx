@@ -37,7 +37,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) window.location.href = "/app";
+      if (data.session) window.location.href = "/";
     });
 
     const params = new URLSearchParams(window.location.search);
@@ -57,11 +57,11 @@ export default function LoginPage() {
         if (error) throw error;
         // セッションが反映されるまで少し待ってからリダイレクト
         await new Promise(resolve => setTimeout(resolve, 500));
-        window.location.href = "/app";
+        window.location.href = "/";
       } else if (mode === "signup") {
         const { error } = await supabase.auth.signUp({
           email, password,
-          options: { emailRedirectTo: `${location.origin}/app` }
+          options: { emailRedirectTo: `${location.origin}/` }
         });
         if (error) throw error;
         setMessage({ type: "success", text: "確認メールを送りました。メールのリンクをクリックしてください。" });
