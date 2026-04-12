@@ -40,7 +40,7 @@ export default function PricingPage() {
   const [loading, setLoading] = useState<string | null>(null);
   const [hasSubscription, setHasSubscription] = useState(false);
   const [checkoutStatus, setCheckoutStatus] = useState<string | null>(null);
-  
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setCheckoutStatus(params.get("checkout"));
