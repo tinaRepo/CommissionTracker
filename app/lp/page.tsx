@@ -349,6 +349,7 @@ export default function LandingPage() {
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 16px" }}>
             {[
+              { href: "/lp", label: "サービス紹介" },
               { href: "/guide", label: "使い方" },
               { href: "/terms", label: "利用規約" },
               { href: "/privacy", label: "プライバシー" },

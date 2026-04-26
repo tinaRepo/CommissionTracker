@@ -954,6 +954,7 @@ export default function CommissionApp() {
       <footer style={{ borderTop: "1px solid #e5e7eb", padding: "24px 32px", textAlign: "center" }}>
         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "4px 16px" }}>
           {[
+            { href: "/lp", label: "サービス紹介" },
             { href: "/guide", label: "使い方" },
             { href: "/terms", label: "利用規約" },
             { href: "/privacy", label: "プライバシーポリシー" },
