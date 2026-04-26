@@ -240,6 +240,7 @@ export default function LoginPage() {
           gap: "4px 12px",
         }}>
           {[
+            { href: "/lp", label: "サービス紹介" },
             { href: "/guide", label: "使い方" },
             { href: "/terms", label: "利用規約" },
             { href: "/privacy", label: "プライバシー" },
