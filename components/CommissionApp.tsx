@@ -12,6 +12,7 @@ import {
 } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
+import PushNotificationToggle from "./PushNotificationToggle";
 
 // ---- 定数とユーティリティ ----
 const STATUSES: { key: CommissionStatus; label: string; color: string; bg: string }[] = [
@@ -586,6 +587,7 @@ export default function CommissionApp() {
                   }}>
                   ⭐ プランをアップグレード
                 </button>
+                <PushNotificationToggle />
                 <button onClick={() => { setNameInput(profile?.display_name ?? ""); setShowNameEdit(true); setShowUserMenu(false); }}
                   style={{
                     width: "100%", padding: "11px 16px", background: "none", border: "none",
