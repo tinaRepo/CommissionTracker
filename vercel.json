@@ -2,8 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/deadline-notify",
-      "schedule": "0 8 * * *",
-      "timezone": "Asia/Tokyo"
+      "schedule": "0 23 * * *"
     }
   ]
 }
