@@ -1,3 +1,4 @@
+import Script from "next/script";
 import type { Metadata } from "next";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
@@ -5,7 +6,7 @@ import { Analytics } from "@vercel/analytics/next";
 export const metadata = {
   title: "Commission Tracker | 絵の依頼管理ツール",
   description: "イラスト・絵の依頼を一元管理できる無料Webアプリ。依頼状況・納期・金額・ラフ画像をまとめて管理。絵師への依頼をもう迷子にしない。",
-  keywords: "イラスト依頼, 絵の依頼, 依頼管理, コミッション, 納期管理",
+  keywords: "イラスト依頼, 絵の依頼, 依頼管理, 管理ツール, 納期管理",
   manifest: "/manifest.json",
   icons: {
     icon: [
@@ -23,12 +24,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ja">
-      <head>
-        <link rel="apple-touch-icon" href="/apple-icon.png" />
-      </head>
       <body>
         {children}
         <Analytics />
+        <Script id="register-sw" strategy="afterInteractive">{`
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js');
+          }
+        `}</Script>
       </body>
     </html>
   );
