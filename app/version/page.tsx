@@ -1,9 +1,17 @@
 "use client";
 
-const VERSION = "1.0.0";
-const RELEASE_DATE = "2026年3月";
+const VERSION = "1.0.1";
+const RELEASE_DATE = "2026年4月";
 
 const CHANGELOG = [
+  {
+    version: "1.0.1",
+    date: "2026年4月",
+    changes: [
+      "プッシュ通知の追加（納期7日前アラート）",
+      "LP画面の遷移リンクの追加（サービス紹介と登録誘導）",
+    ],
+  },
   {
     version: "1.0.0",
     date: "2026年3月",
