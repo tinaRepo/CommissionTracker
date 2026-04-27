@@ -58,8 +58,11 @@ function fmtDate(d?: string) { if (!d) return "—"; const [y, m, day] = d.split
 function fmtPrice(price?: number) { if (!price) return "—"; return `¥${price.toLocaleString()}`; }
 function daysUntil(d?: string) {
   if (!d) return null;
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  return Math.ceil((new Date(d).getTime() - today.getTime()) / 86400000);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const [y, m, day] = d.split("-").map(Number);
+  const deadline = new Date(y, m - 1, day);
+  return Math.ceil((deadline.getTime() - today.getTime()) / 86400000);
 }
 
 const inp: React.CSSProperties = {
