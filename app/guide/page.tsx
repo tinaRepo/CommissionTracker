@@ -53,7 +53,7 @@ export default function GuidePage() {
         </Section>
 
         <Section title="⚠️ 納期アラート">
-          <p>納期が7日以内に迫った依頼は自動でハイライト表示されます。</p>
+          <p>納期が7日以内に迫った依頼は<strong>アプリ内でハイライト表示</strong>されます。</p>
           <div style={{ background:"#fee2e2", border:"1.5px solid #fca5a5", borderRadius:12, padding:"14px 16px", margin:"12px 0", fontSize:13, color:"#b91c1c" }}>
             <strong>⚠ あとN日</strong> と表示され、カード全体が赤くなります
           </div>
@@ -62,8 +62,25 @@ export default function GuidePage() {
             <li>納期まで<strong>7日以内</strong>（当日含む）</li>
             <li>ステータスが<strong>完成・キャンセル以外</strong>の依頼</li>
           </ul>
-          <div style={{ background:"#fef3c7", border:"1.5px solid #fbbf24", borderRadius:12, padding:"14px 16px", marginTop:12, fontSize:13, color:"#92400e" }}>
-            💡 これはアプリ内の表示が変わるだけです。メールやプッシュ通知は届きません。
+        </Section>
+
+        <Section title="🔔 プッシュ通知">
+          <p>納期が近い依頼を<strong>毎朝8時にプッシュ通知</strong>でお知らせします。</p>
+          <div style={{ background:"#d1fae5", border:"1.5px solid #6ee7b7", borderRadius:12, padding:"14px 16px", margin:"12px 0", fontSize:13, color:"#065f46" }}>
+            📱ホーム画面に追加したPWAでも通知が届きます（iOS 16.4以降）
+          </div>
+          <p style={{ marginTop:8 }}>通知の設定方法：</p>
+          <Step num={1} title="通知をオンにする">
+            右上のユーザーメニュー →「🔕 通知オフ（タップでオン」をタップして通知を許可してください。
+          </Step>
+          <Step num={2} title="通知が届くタイミング">
+            納期まで7日以内の依頼がある場合、毎朝8時に通知が届きます。納期当日まで毎日届きます。
+          </Step>
+          <Step num={3} title="通知をオフにするには">
+            ユーザーメニュー →「🔔 通知オン（タップでオフ」をタップして通知を許可してください。
+          </Step>
+          <div style={{ background:"#fef3c7", border:"1.5px solid #fbbf24", borderRadius:12, padding:"14px 16px", margin:"12px 0", fontSize:13, color:"#92400e" }}>
+            ⚠ iOSのSafariでは、ブラウザの通知設定で「常に許可」にしていても、ホーム画面に追加したPWAでないと通知が届きません。必ず「ホーム画面に追加」してお使いください。
           </div>
         </Section>
 
