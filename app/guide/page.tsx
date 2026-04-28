@@ -53,7 +53,18 @@ export default function GuidePage() {
         </Section>
 
         <Section title="⚠️ 納期アラート">
-          <p>納期が7日以内に迫った依頼はカードが赤くハイライトされ、「⚠ あとN日」と表示されます。完成・キャンセルの依頼にはアラートは表示されません。</p>
+          <p>納期が7日以内に迫った依頼は自動でハイライト表示されます。</p>
+          <div style={{ background:"#fee2e2", border:"1.5px solid #fca5a5", borderRadius:12, padding:"14px 16px", margin:"12px 0", fontSize:13, color:"#b91c1c" }}>
+            <strong>⚠ あとN日</strong> と表示され、カード全体が赤くなります
+          </div>
+          <p style={{ marginTop:8 }}>アラートが表示される条件：</p>
+          <ul style={{ paddingLeft:20, fontSize:13, color:"#666", lineHeight:2 }}>
+            <li>納期まで<strong>7日以内</strong>（当日含む）</li>
+            <li>ステータスが<strong>完成・キャンセル以外</strong>の依頼</li>
+          </ul>
+          <div style={{ background:"#fef3c7", border:"1.5px solid #fbbf24", borderRadius:12, padding:"14px 16px", marginTop:12, fontSize:13, color:"#92400e" }}>
+            💡 これはアプリ内の表示が変わるだけです。メールやプッシュ通知は届きません。
+          </div>
         </Section>
 
         <Section title="📷 画像のプラン制限">
@@ -70,6 +81,9 @@ export default function GuidePage() {
               </div>
             ))}
           </div>
+          <p style={{ marginTop:12, fontSize:13, color:"#888" }}>
+            プランのアップグレードは右上のユーザーメニュー →「⭐ プランをアップグレード」から行えます。
+          </p>
         </Section>
 
         <Section title="📱 スマホで使う">
