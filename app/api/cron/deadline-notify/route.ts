@@ -28,12 +28,12 @@ export async function GET(request: NextRequest) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
 
     // 今日から7日後までの納期がある依頼を取得
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const in7days = new Date(today);
-    in7days.setDate(in7days.getDate() + 7);
+    const now = new Date();
+    const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+    jst.setHours(0, 0, 0, 0);
+    const in7days = new Date(jst.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-    const todayStr = today.toISOString().split("T")[0];
+    const todayStr = jst.toISOString().split("T")[0];
     const in7daysStr = in7days.toISOString().split("T")[0];
 
     // 納期が今日〜7日後で完成・キャンセル以外の依頼を取得
@@ -71,8 +71,11 @@ export async function GET(request: NextRequest) {
       // 通知内容を作成
       const count = items.length;
       const first = items[0];
+      const [dy, dm, dd] = first.deadline.split("-").map(Number);
+      const deadlineDate = new Date(dy, dm - 1, dd);
+      const todayLocal = new Date(jst.getFullYear(), jst.getMonth(), jst.getDate());
       const daysLeft = Math.ceil(
-        (new Date(first.deadline).getTime() - today.getTime()) / 86400000
+          (deadlineDate.getTime() - todayLocal.getTime()) / 86400000
       );
 
       const body = count === 1
