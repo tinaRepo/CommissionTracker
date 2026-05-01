@@ -13,7 +13,8 @@ webpush.setVapidDetails(
 // 納期が近い依頼のユーザーにWeb Push通知を送るCron JobのAPIルート
 export async function GET(request: NextRequest) {
   // Cron Jobの認証チェック
-  const secret = request.headers.get("x-cron-secret");
+  const { searchParams } = new URL(request.url);
+  const secret = searchParams.get("secret");
   if (secret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
