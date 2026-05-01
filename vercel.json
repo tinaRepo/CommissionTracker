@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/deadline-notify?secret=8hGk29sLxQp4ZrT7vWmYcD1eF3uBnA",
-      "schedule": "0 23 * * *"
+      "schedule": "50 23 * * *"
     }
   ]
 }
