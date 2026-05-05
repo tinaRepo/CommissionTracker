@@ -1,7 +1,7 @@
 import Script from "next/script";
+import { PageViewTracker } from '../components/PageViewTracker';
 import type { Metadata } from "next";
 import "./globals.css";
-import { Analytics } from "@vercel/analytics/next";
 
 export const metadata = {
   title: "Commission Tracker | 絵の依頼管理ツール",
@@ -35,12 +35,27 @@ export default function RootLayout({
       </head>
       <body>
         {children}
-        <Analytics />
-        <Script id="register-sw" strategy="afterInteractive">{`
-          if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js');
-          }
-        `}</Script>
+        <PageViewTracker />
+
+        {/* GA本体 */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-VL43MH743Z"
+          strategy="afterInteractive"
+          crossOrigin="anonymous"
+        />
+
+        {/* 初期化 */}
+        <Script id="ga-init" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            window.gtag = gtag;
+            gtag('js', new Date());
+            gtag('config', 'G-VL43MH743Z', {
+                send_page_view: false
+            });
+          `}
+        </Script>
       </body>
     </html>
   );
