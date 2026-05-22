@@ -26,14 +26,16 @@ export default function RootLayout({
     <html lang="ja">
       <head>
         <link rel="apple-touch-icon" href="/apple-icon.png" />
-        {/* Google AdSense */}
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4461599437148086"
-          crossOrigin="anonymous"
-        />
       </head>
       <body>
+        {/* AdSense */}
+        <Script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4461599437148086"
+          strategy="afterInteractive"
+          crossOrigin="anonymous"
+        />
+
         {children}
         <PageViewTracker />
 
