@@ -8,6 +8,11 @@ export const metadata = {
   description: "イラスト・絵の依頼を一元管理できる無料Webアプリ。依頼状況・納期・金額・ラフ画像をまとめて管理。絵師への依頼をもう迷子にしない。",
   keywords: "イラスト依頼, 絵の依頼, 依頼管理, 管理ツール, 納期管理",
   manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    title: "Commission Tracker",
+    statusBarStyle: "default",
+  },
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: '48x48' },
@@ -24,9 +29,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ja">
-      <head>
-        <link rel="apple-touch-icon" href="/apple-icon.png" />
-      </head>
       <body>
         {/* AdSense */}
         <Script
