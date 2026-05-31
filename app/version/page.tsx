@@ -1,9 +1,16 @@
 "use client";
 
-const VERSION = "1.0.1";
-const RELEASE_DATE = "2026年4月";
+const VERSION = "1.0.2";
+const RELEASE_DATE = "2026年5月";
 
 const CHANGELOG = [
+    {
+    version: "1.0.2",
+    date: "2026年5月",
+    changes: [
+      "文字入力時の自動ズームインの抑制（特にモバイルでのユーザビリティ向上）",
+    ],
+  },
   {
     version: "1.0.1",
     date: "2026年4月",
