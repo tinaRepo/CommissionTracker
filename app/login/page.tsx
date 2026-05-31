@@ -79,7 +79,7 @@ export default function LoginPage() {
     }
   }
 
-  // Googleのログイン機能の追加
+  /* 一時無効化
   async function handleOAuth(provider: "google" | "twitter") {
     setLoading(true);
     const { error } = await supabase.auth.signInWithOAuth({
@@ -89,6 +89,7 @@ export default function LoginPage() {
     if (error) setMessage({ type: "error", text: toJapanese(error.message) });
     setLoading(false);
   }
+  */
 
   const titles: Record<Mode, string> = {
     login: "ログイン",
@@ -128,7 +129,9 @@ export default function LoginPage() {
           </div>
         )}
 
-        {mode !== "reset" && (
+        {/* SNSログイン（resetモード以外） */}
+        {/* 一時無効化
+        mode !== "reset" && (
           <>
             <div style={{ display: "grid", gap: 10, marginBottom: 20 }}>
               <OAuthButton
@@ -138,7 +141,6 @@ export default function LoginPage() {
                 label="Googleでログイン"
                 color="#4285f4"
               />
-              {/* 一時無効化
               <OAuthButton
                 onClick={() => handleOAuth("twitter")}
                 disabled={loading}
@@ -146,11 +148,10 @@ export default function LoginPage() {
                 label="X (Twitter) でログイン"
                 color="#000"
               />
-              */}
             </div>
             <Divider />
           </>
-        )}
+        )*/}
 
         {/* メール入力 */}
         <form onSubmit={(e) => { e.preventDefault(); handleEmail(); }}
