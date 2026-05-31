@@ -299,9 +299,9 @@ function InputField({ type, placeholder, value, onChange }: {
       autoComplete={autoComplete}
       onChange={e => onChange(e.target.value)}
       style={{
-        width: "100%", padding: "11px 14px",
+        width: "100%", padding: "10px 12px",
         border: "1.5px solid #e5e7eb", borderRadius: 12,
-        fontSize: 14, outline: "none", color: "#1a0a2e",
+        fontSize: 16, outline: "none", color: "#1a0a2e",
         background: "#faf8f5", boxSizing: "border-box",
         fontFamily: "inherit",
       }}
