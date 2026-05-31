@@ -65,17 +65,17 @@ function daysUntil(d?: string) {
   return Math.ceil((deadline.getTime() - today.getTime()) / 86400000);
 }
 
-// --- 締切までの日数スタイル ---
+// --- テキストボックスのスタイル ---
 const inp: React.CSSProperties = {
-  width: "100%", padding: "9px 12px", border: "1.5px solid #e5e7eb",
-  borderRadius: 10, fontSize: 14, outline: "none", color: "#1a0a2e",
+  width: "100%", padding: "8px 10px", border: "1.5px solid #e5e7eb",
+  borderRadius: 10, fontSize: 16, outline: "none", color: "#1a0a2e",
   background: "#faf8f5", boxSizing: "border-box",
 };
 
 // --- 日付の入力フィールドスタイル ---
 const inp_date: React.CSSProperties = {
   minWidth: 0, padding: "9px 8px", border: "1.5px solid #e5e7eb",
-  borderRadius: 10, fontSize: 14, outline: "none", color: "#1a0a2e",
+  borderRadius: 10, fontSize: 16, outline: "none", color: "#1a0a2e",
   background: "#faf8f5", boxSizing: "border-box",
 };
 
