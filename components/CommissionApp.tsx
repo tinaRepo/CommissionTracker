@@ -852,8 +852,8 @@ export default function CommissionApp() {
               maxLength={30}
               autoFocus
               style={{
-                width: "100%", padding: "11px 14px", border: "1.5px solid #e5e7eb", borderRadius: 12,
-                fontSize: 15, outline: "none", color: "#1a0a2e", background: "#faf8f5",
+                width: "100%", padding: "10px 13px", border: "1.5px solid #e5e7eb", borderRadius: 12,
+                fontSize: 16, outline: "none", color: "#1a0a2e", background: "#faf8f5",
                 boxSizing: "border-box", fontFamily: "inherit", marginBottom: 16
               }}
             />
