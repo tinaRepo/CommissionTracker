@@ -79,7 +79,7 @@ export default function LoginPage() {
     }
   }
 
-  /* 一時無効化
+  // Googleのログイン機能の追加
   async function handleOAuth(provider: "google" | "twitter") {
     setLoading(true);
     const { error } = await supabase.auth.signInWithOAuth({
@@ -89,7 +89,6 @@ export default function LoginPage() {
     if (error) setMessage({ type: "error", text: toJapanese(error.message) });
     setLoading(false);
   }
-  */
 
   const titles: Record<Mode, string> = {
     login: "ログイン",
@@ -129,9 +128,7 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* SNSログイン（resetモード以外） */}
-        {/* 一時無効化
-        mode !== "reset" && (
+        {mode !== "reset" && (
           <>
             <div style={{ display: "grid", gap: 10, marginBottom: 20 }}>
               <OAuthButton
@@ -141,6 +138,7 @@ export default function LoginPage() {
                 label="Googleでログイン"
                 color="#4285f4"
               />
+              {/* 一時無効化
               <OAuthButton
                 onClick={() => handleOAuth("twitter")}
                 disabled={loading}
@@ -148,10 +146,11 @@ export default function LoginPage() {
                 label="X (Twitter) でログイン"
                 color="#000"
               />
+              */}
             </div>
             <Divider />
           </>
-        )*/}
+        )}
 
         {/* メール入力 */}
         <form onSubmit={(e) => { e.preventDefault(); handleEmail(); }}
@@ -299,9 +298,9 @@ function InputField({ type, placeholder, value, onChange }: {
       autoComplete={autoComplete}
       onChange={e => onChange(e.target.value)}
       style={{
-        width: "100%", padding: "11px 14px",
+        width: "100%", padding: "10px 12px",
         border: "1.5px solid #e5e7eb", borderRadius: 12,
-        fontSize: 14, outline: "none", color: "#1a0a2e",
+        fontSize: 16, outline: "none", color: "#1a0a2e",
         background: "#faf8f5", boxSizing: "border-box",
         fontFamily: "inherit",
       }}

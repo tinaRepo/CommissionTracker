@@ -2,6 +2,13 @@
   "name": "Commission Tracker",
   "short_name": "Commission Tracker",
   "description": "イラスト依頼を一元管理するツール",
+  "lang": "ja",
+  "display": "standalone",
+  "start_url": "/",
+  "scope": "/",
+  "theme_color": "#1a0a2e",
+  "background_color": "#1a0a2e",
+  "orientation": "portrait",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",
@@ -15,9 +22,5 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ],
-  "theme_color": "#1a0a2e",
-  "background_color": "#1a0a2e",
-  "display": "standalone",
-  "start_url": "/"
+  ]
 }
