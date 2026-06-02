@@ -10,7 +10,7 @@ function toJapanese(msg: string): string {
   const m = msg.toLowerCase();
   if (m.includes("invalid login credentials")) return "メールアドレスまたはパスワードが正しくありません";
   if (m.includes("email not confirmed")) return "メールアドレスの確認が完了していません。確認メールをご確認ください";
-  if (m.includes("user already registered")) return "このメールアドレスはすでに登録されています";
+  if (m.includes("user already registered")) return "メールアドレスまたはパスワードが正しくありません";
   if (m.includes("password should be at least")) return "パスワードは6文字以上で入力してください";
   if (m.includes("unable to validate email")) return "メールアドレスの形式が正しくありません";
   if (m.includes("email address is invalid")) return "メールアドレスの形式が正しくありません";
@@ -18,7 +18,7 @@ function toJapanese(msg: string): string {
   if (m.includes("email rate limit exceeded")) return "しばらく時間をおいてから再度お試しください";
   if (m.includes("over email send rate limit")) return "メール送信の上限に達しました。しばらくお待ちください";
   if (m.includes("token has expired")) return "リンクの有効期限が切れています。もう一度お試しください";
-  if (m.includes("user not found")) return "このメールアドレスは登録されていません";
+  if (m.includes("user not found")) return "メールアドレスまたはパスワードが正しくありません";
   if (m.includes("network")) return "ネットワークエラーが発生しました。接続を確認してください";
   return "エラーが発生しました（" + msg + "）";
 }
@@ -79,17 +79,42 @@ export default function LoginPage() {
     }
   }
 
-  /* 一時無効化
+  // Googleのログイン機能の追加
   async function handleOAuth(provider: "google" | "twitter") {
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: { redirectTo: `${location.origin}/auth/callback` },
-    });
-    if (error) setMessage({ type: "error", text: toJapanese(error.message) });
-    setLoading(false);
+    try {
+      setLoading(true);
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${location.origin}/auth/callback`,
+          queryParams: {
+            prompt: "select_account",
+          },
+        },
+      });
+
+      if (error) {
+        setMessage({
+          type: "error",
+          text: toJapanese(error.message),
+        });
+        return;
+      }
+
+    } catch (e: any) {
+      console.error("oauth exception", e);
+
+      setMessage({
+        type: "error",
+        text:
+          e?.message ??
+          "Googleログイン中に予期しないエラーが発生しました",
+      });
+    } finally {
+      setLoading(false);
+    }
   }
-  */
 
   const titles: Record<Mode, string> = {
     login: "ログイン",
@@ -129,18 +154,17 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* SNSログイン（resetモード以外） */}
-        {/* 一時無効化
-        mode !== "reset" && (
+        {mode !== "reset" && (
           <>
             <div style={{ display: "grid", gap: 10, marginBottom: 20 }}>
               <OAuthButton
                 onClick={() => handleOAuth("google")}
                 disabled={loading}
                 icon="G"
-                label="Googleでログイン"
+                label="Googleで続ける"
                 color="#4285f4"
               />
+              {/* 一時無効化
               <OAuthButton
                 onClick={() => handleOAuth("twitter")}
                 disabled={loading}
@@ -148,10 +172,11 @@ export default function LoginPage() {
                 label="X (Twitter) でログイン"
                 color="#000"
               />
+              */}
             </div>
             <Divider />
           </>
-        )*/}
+        )}
 
         {/* メール入力 */}
         <form onSubmit={(e) => { e.preventDefault(); handleEmail(); }}

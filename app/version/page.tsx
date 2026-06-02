@@ -1,10 +1,18 @@
 "use client";
 
-const VERSION = "1.0.2";
-const RELEASE_DATE = "2026年3月";
+const VERSION = "1.0.3";
+const RELEASE_DATE = "2026年4月";
 
 const CHANGELOG = [
     {
+    version: "1.0.3",
+    date: "2026年6月",
+    changes: [
+      "Googleアカウントでのログインに対応",
+      "パスワード再設定機能の改善",
+    ],
+  },
+  {
     version: "1.0.2",
     date: "2026年5月",
     changes: [

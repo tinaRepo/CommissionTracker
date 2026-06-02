@@ -1,20 +1,51 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+
+function toJapanese(msg: string): string {
+  const m = msg.toLowerCase();
+
+  if (m.includes("auth session missing")) {
+    return "パスワード再設定リンクの有効期限が切れています。もう一度メールを送信してください。";
+  }
+
+  if (m.includes("password should be at least")) {
+    return "パスワードは6文字以上で入力してください。";
+  }
+
+  return msg;
+}
 
 export default function UpdatePasswordPage() {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [sessionValid, setSessionValid] = useState(false);
+
+  useEffect(() => {
+    async function checkSession() {
+      const { data } = await supabase.auth.getSession();
+
+      if (!data.session) {
+        setMessage(
+          "パスワード再設定リンクの有効期限が切れています。もう一度メールを送信してください。"
+        );
+      } else {
+        setSessionValid(true);
+      }
+    }
+
+    checkSession();
+  }, []);
 
   async function handleUpdate() {
     setLoading(true);
     const { error } = await supabase.auth.updateUser({ password });
     if (error) {
-      setMessage(error.message);
+      setMessage(toJapanese(error.message));
     } else {
       router.push("/");
     }
@@ -45,10 +76,14 @@ export default function UpdatePasswordPage() {
         />
         <button
           onClick={handleUpdate}
-          disabled={loading || password.length < 6}
+          disabled={
+            loading ||
+            password.length < 6 ||
+            !sessionValid
+          }
           style={{
             width: "100%", padding: "12px",
-            background: (loading || password.length < 6) ? "#c4b5fd" : "linear-gradient(135deg,#7c3aed,#4f46e5)",
+            background: (loading || password.length < 6 || !sessionValid) ? "#c4b5fd" : "linear-gradient(135deg,#7c3aed,#4f46e5)",
             color: "#fff", border: "none", borderRadius: 12,
             fontWeight: 800, fontSize: 15, cursor: "pointer",
           }}
