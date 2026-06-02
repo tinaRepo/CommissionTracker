@@ -1,7 +1,7 @@
 "use client";
 
 const VERSION = "1.0.3";
-const RELEASE_DATE = "2026年4月";
+const RELEASE_DATE = "2026年3月";
 
 const CHANGELOG = [
     {
