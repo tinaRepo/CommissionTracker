@@ -67,7 +67,7 @@ export default function LoginPage() {
         setMessage({ type: "success", text: "確認メールを送りました。メールのリンクをクリックしてください。" });
       } else {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${location.origin}/auth/callback?next=/update-password`,
+          redirectTo: `${location.origin}/auth/confirm`,
         });
         if (error) throw error;
         setMessage({ type: "success", text: "パスワードリセットのメールを送りました。" });
