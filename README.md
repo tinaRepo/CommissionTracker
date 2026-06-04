@@ -28,7 +28,6 @@ Dashboard → SQL Editor → 以下を**順番に**実行してください。
 Dashboard → Authentication → Providers で有効化：
 - **Email** → デフォルトで有効（Confirm emailはオフ推奨）
 - **Google** → Google Cloud ConsoleでOAuthアプリを作成してClient ID/Secretを設定
-- **Twitter(X)** → Twitter Developer PortalでOAuth2アプリを作成して設定
 
 各OAuthの「Redirect URL」: `https://your-project.supabase.co/auth/v1/callback`
 

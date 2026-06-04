@@ -65,6 +65,10 @@ components/
 ├── DemoApp.tsx                 # デモモード（Supabase不使用・メモリのみ）
 └── PushNotificationToggle.tsx  # プッシュ通知オン/オフトグル
 
+docs/
+├── sql/         # Supabase適応のSQLファイル
+└──handover.md   # 引き継ぎ資料
+
 lib/
 └── supabase.ts                 # Supabaseクライアント・各種API関数
 
@@ -76,10 +80,6 @@ public/
 ├── icon0.svg
 ├── web-app-manifest-192x192.png
 └── web-app-manifest-512x512.png
-
-supabase/
-├── schema.sql                  # テーブル定義
-└── policy.sql                  # RLSポリシー・トリガー定義
 
 vercel.json                     # Cron Job設定（毎日UTC23時=JST8時）
 ```
