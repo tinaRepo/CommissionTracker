@@ -1,163 +1,239 @@
-# 🎨 Commission Tracker - セットアップガイド
+# 🎨 Commission Tracker
 
-絵の依頼管理Webアプリ。Next.js + Supabase + Vercel構成です。
+絵の依頼をまとめて管理できる Web アプリです。依頼する側・受ける側（絵師）の両方を対象としています。
 
-## プラン制限
-
-| プラン | 画像保存（アカウント合計） |
-|--------|--------------------------|
-| 無料         | 10枚まで |
-| スタンダード  | 50枚まで |
-| プレミアム   | 無制限   |
+**技術構成:** Next.js 14 (App Router) + Supabase + Vercel
 
 ---
 
-## 手順1: Supabase セットアップ
+## 目次
+
+1. [Supabase セットアップ](#1-supabase-セットアップ)
+2. [ローカル動作確認（任意）](#2-ローカル動作確認任意)
+3. [Vercel デプロイ](#3-vercel-デプロイ)
+4. [外部サービス設定](#4-外部サービス設定)
+5. [管理者設定](#5-管理者設定)
+6. [機能一覧](#6-機能一覧)
+7. [プラン制限](#7-プラン制限)
+
+---
+
+## 1. Supabase セットアップ
 
 ### 1-1. プロジェクト作成
-https://supabase.com → New project
 
-### 1-2. テーブル・RLS・Storageを作成
-Dashboard → SQL Editor → 以下を**順番に**実行してください。
+[supabase.com](https://supabase.com) → **New project** でプロジェクトを作成します。
 
-#### ① テーブル作成（schema.sql の内容を貼り付けて実行）
+### 1-2. DB・RLS・Storage の構築
 
-#### ② RLSポリシー,signupトリガーを正しく作成（policy.sql　の内容を張り付けて実行）
+**Dashboard → SQL Editor** を開き、`supabase/` 配下のファイルを**以下の順番で**貼り付けて実行してください。
 
-### 1-3. Authentication設定
-Dashboard → Authentication → Providers で有効化：
-- **Email** → デフォルトで有効（Confirm emailはオフ推奨）
-- **Google** → Google Cloud ConsoleでOAuthアプリを作成してClient ID/Secretを設定
+| 順番 | ファイル | 内容 |
+|:---:|----------|------|
+| ① | `schema.sql` | テーブル作成 |
+| ② | `policy.sql` | RLS ポリシー・サインアップトリガー |
+| ③ | `migrations/migration_add_notifications.sql` | お知らせ・バージョン管理テーブル |
 
-各OAuthの「Redirect URL」: `https://your-project.supabase.co/auth/v1/callback`
+> ⚠️ 順番を守らないと外部キー制約エラーが発生します。
 
-### 1-4. URL Configurationを設定
-Dashboard → Authentication → URL Configuration：
-- **Site URL**: `https://your-app.vercel.app`
-- **Redirect URLs**: `https://your-app.vercel.app/**`
+### 1-3. 認証プロバイダーの設定
 
-### 1-5. APIキーをメモ
-Dashboard → Project Settings → Data API：
-- `Project URL` → NEXT_PUBLIC_SUPABASE_URL
-- `anon public` key → NEXT_PUBLIC_SUPABASE_ANON_KEY
+**Dashboard → Authentication → Providers** で以下を有効化します。
+
+**Email**
+- デフォルトで有効
+- *Confirm email* はオフ推奨（開発中）
+
+**Google**
+1. [Google Cloud Console](https://console.cloud.google.com) で OAuth アプリを作成
+2. Client ID / Secret を Supabase の Google プロバイダー設定に入力
+3. Redirect URL: `https://your-project.supabase.co/auth/v1/callback`
+
+### 1-4. URL Configuration
+
+**Dashboard → Authentication → URL Configuration** で設定します。
+
+| 項目 | 値 |
+|------|----|
+| Site URL | `https://your-app.vercel.app` |
+| Redirect URLs | `https://your-app.vercel.app/**` |
+
+### 1-5. API キーの確認
+
+**Dashboard → Project Settings → Data API** で以下をメモしておきます。
+
+| 項目 | 環境変数名 |
+|------|-----------|
+| Project URL | `NEXT_PUBLIC_SUPABASE_URL` |
+| anon public key | `NEXT_PUBLIC_SUPABASE_ANON_KEY` |
+| service_role key | `SUPABASE_SERVICE_ROLE_KEY` ⚠️ 外部に漏らさないこと |
 
 ---
 
-## 手順2: ローカル確認（任意）
+## 2. ローカル動作確認（任意）
 
-毎回コミット → デプロイしなくても、`vercel dev` を使えばローカルでAPIもフロントも動作確認できます。
+`vercel dev` を使うと、コミット・デプロイなしでローカルから本番 DB に接続してアプリを確認できます。
 
-### 初回セットアップ（1回だけ）
-
-**① Vercel CLIをインストール**
+### 初回セットアップ（1 回だけ）
 
 ```bash
+# 1. Vercel CLI をインストール
 npm i -g vercel
-```
 
-**② 依存パッケージをインストール**
-
-```bash
+# 2. 依存パッケージをインストール
 npm install
-```
 
-**③ プロジェクトをVercelと紐付け**
-
-```bash
+# 3. Vercel プロジェクトと紐付け（ブラウザでログイン・プロジェクト選択）
 vercel link
-```
 
-ブラウザが開いてVercelにログインを求められます。ログイン後、対象プロジェクトを選択してください。
-
-**④ 環境変数をローカルに取得**
-
-```bash
+# 4. 環境変数をローカルに取得（手入力不要）
 vercel env pull .env.local
-```
 
-Vercelに設定済みの環境変数が `.env.local` に自動で書き出されます。手入力不要です。
-
-**⑤ `.gitignore` に `.env.local` を追加**
-
-```bash
+# 5. .env.local を Git 管理対象外にする
 echo ".env.local" >> .gitignore
 ```
 
-> ⚠️ `.env.local` には本番DBの接続情報が含まれるため、絶対にコミットしないでください。
+> ⚠️ `.env.local` には本番 DB の接続情報が含まれるため、**絶対にコミットしないでください。**
 
----
-
-### 毎回の起動
+### 起動
 
 ```bash
 vercel dev
 ```
 
-`http://localhost:3000` でアプリが起動します。HTMLもAPIも全てローカルで動作します。
+`http://localhost:3000` でアプリが起動します。HTML も API も全てローカルで動作します。
 
 ---
 
-## 手順3: Vercel デプロイ
+## 3. Vercel デプロイ
 
-1. GitHubにpush
-2. Vercel → Add New Project → リポジトリを選択
-3. **Environment Variables** に以下を追加：
+1. GitHub にリポジトリを push する
+2. [Vercel](https://vercel.com) → **Add New Project** → リポジトリを選択
+3. **Environment Variables** に以下を追加してデプロイ
 
-| キー | 値 |
-|------|-----|
-| `NEXT_PUBLIC_SUPABASE_URL` | SupabaseのProject URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabaseのanon key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Project Settings → API Keys → `service_role` ⚠️ 絶対に公開しないこと |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabaseのservice_role key |
-| `RESEND_API_KEY` | ResendのAPIキー |
-| `ADMIN_EMAIL` | 削除申請メールの送信先アドレス |
-| `NEXT_PUBLIC_APP_URL` | VercelのデプロイURL（例: https://your-app.vercel.app） |
-
-4. Deploy → 完成！🎉
+| 環境変数 | 値 | 備考 |
+|----------|----|------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase の Project URL | |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase の anon key | |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase の service_role key | ⚠️ サーバーサイド専用 |
+| `RESEND_API_KEY` | Resend の API キー | |
+| `ADMIN_EMAIL` | 削除申請メールの受信アドレス | |
+| `NEXT_PUBLIC_APP_URL` | Vercel のデプロイ URL | 例: `https://your-app.vercel.app` |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe の公開鍵 | |
+| `STRIPE_SECRET_KEY` | Stripe の秘密鍵 | ⚠️ サーバーサイド専用 |
+| `STRIPE_WEBHOOK_SECRET` | Stripe Webhook のシークレット | |
+| `STRIPE_STANDARD_PRICE_ID` | スタンダードプランの Price ID | サーバーサイド用 |
+| `STRIPE_PREMIUM_PRICE_ID` | プレミアムプランの Price ID | サーバーサイド用 |
+| `NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID` | スタンダードプランの Price ID | フロント用 |
+| `NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID` | プレミアムプランの Price ID | フロント用 |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Web Push の公開鍵 | |
+| `VAPID_PRIVATE_KEY` | Web Push の秘密鍵 | |
+| `VAPID_EMAIL` | Web Push 送信元メール | 例: `mailto:xxx@example.com` |
+| `CRON_SECRET` | Cron Job 認証用シークレット | |
 
 > ⚠️ 環境変数を追加・変更した後は必ず **Redeploy** すること
 
 ---
 
-## 手順4: Resend セットアップ（メール送信）
+## 4. 外部サービス設定
 
-ユーザーからのアカウント削除申請をメールで受け取るために設定します。
+### Resend（メール送信）
 
-1. https://resend.com でアカウント作成（無料・月3,000通まで）
-2. Dashboard → API Keys → **Create API Key**
-3. 作成したAPIキーを `RESEND_API_KEY` としてVercelの環境変数に追加
-4. `ADMIN_EMAIL` に削除申請を受け取りたいメールアドレスを設定
+アカウント削除申請の通知メールに使用します。
 
-> ⚠️ 無料プランでは **Resendが発行したドメイン（onboarding@resend.dev）** からの送信のみ可能です。
-> 独自ドメインで送信したい場合はDNS設定が必要です（任意）。
+1. [resend.com](https://resend.com) でアカウント作成（無料・月 3,000 通まで）
+2. **Dashboard → API Keys → Create API Key** で発行
+3. 発行したキーを `RESEND_API_KEY` として Vercel に設定
+4. `ADMIN_EMAIL` に受信先アドレスを設定
+
+> 無料プランは `onboarding@resend.dev` からの送信のみ。独自ドメインで送信したい場合は DNS 設定が必要です。
+
+### Stripe（サブスクリプション）
+
+月額課金（スタンダード・プレミアム）に使用します。
+
+1. [stripe.com](https://stripe.com) でアカウント作成
+2. **Products** でスタンダード（¥300/月）・プレミアム（¥800/月）の商品を作成
+3. 各 Price ID を環境変数に設定
+4. **Webhooks** に `https://your-app.vercel.app/api/stripe/webhook` を登録し、`checkout.session.completed` / `customer.subscription.deleted` イベントを有効化
+
+> テストキー（`sk_test_`）と本番キー（`sk_live_`）を混在させないこと。
+
+### Web Push（プッシュ通知）
+
+毎朝 8 時の納期リマインダー通知に使用します。
+
+```bash
+# VAPID キーペアの生成
+npx web-push generate-vapid-keys
+```
+
+生成された公開鍵・秘密鍵をそれぞれ `NEXT_PUBLIC_VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` に設定します。
+
+> iOS でのプッシュ通知はホーム画面追加（PWA）が必須です（iOS 16.4 以降）。
 
 ---
 
-## 手順5: 管理者ユーザーの設定
+## 5. 管理者設定
 
 1. アプリにアクセスして**新規登録**する
-2. Supabase → Authentication → Users から自分のUUIDをコピー
-3. SQL Editorで以下を実行：
+2. **Dashboard → Authentication → Users** から自分の UUID をコピー
+3. **SQL Editor** で以下を実行：
 
 ```sql
-update user_profiles set is_admin = true
-where id = 'ここに自分のUUIDを貼る';
+update user_profiles
+set is_admin = true
+where id = 'ここに UUID を貼る';
 ```
 
 4. ログイン後、右上のユーザーメニュー → **「⚙ 管理者ページ」** から管理画面へ
 
+管理者ページ URL: `/mgmt-c7f2a91e`（推測されにくい形式）
+
 ---
 
-## 機能一覧
+## 6. 機能一覧
 
-- ✅ メール/パスワード・Google・Xログイン
-- ✅ パスワードリセット（メール送信）
-- ✅ ユーザーごとにデータが完全分離（RLS）
+**依頼管理**
 - ✅ 依頼の登録・編集・削除
-- ✅ ステータス管理（依頼済み/ラフ確認中/制作中/完成/キャンセル）
-- ✅ ラフ・完成画像のアップロード（Supabase Storage）
+- ✅ ステータス管理（依頼済み / ラフ確認中 / 制作中 / 完成 / キャンセル）
+- ✅ 納期 7 日前の警告表示
+- ✅ ステータス・並び替えフィルタ
+- ✅ カレンダービュー（月・週）
+
+**画像**
+- ✅ ラフ・作業中・完成・その他の画像アップロード（Supabase Storage）
 - ✅ 画像の拡大プレビュー・削除
-- ✅ プランごとの画像枚数制限（無料10枚/スタンダード50枚/プレミアム無制限）
-- ✅ 納期7日前の警告表示
-- ✅ ステータスフィルタリング
-- ✅ 管理者ページでユーザーのプラン変更
+- ✅ プランごとの画像枚数制限
+
+**認証・アカウント**
+- ✅ メール / パスワード・Google ログイン
+- ✅ パスワードリセット（メール送信）
+- ✅ 表示名の設定
+- ✅ アカウント削除申請（Resend でメール通知）
+- ✅ ユーザーごとにデータが完全分離（RLS）
+
+**通知**
+- ✅ プッシュ通知（毎朝 8 時・納期 7 日以内）
+- ✅ お知らせ・リリースノート（未読バッジ通知）
+
+**課金**
+- ✅ Stripe サブスク（月額課金・解約・カスタマーポータル）
+
+**管理者**
+- ✅ ユーザー一覧・プラン変更・ユーザー削除
+
+**その他**
+- ✅ デモモード（ログイン不要・メモリのみ）
+- ✅ PWA 対応（ホーム画面追加）
+- ✅ LP・利用規約・プライバシーポリシー・特定商取引法ページ
+
+---
+
+## 7. プラン制限
+
+| プラン | 月額 | 画像保存（アカウント合計） |
+|--------|------|--------------------------|
+| 無料 | ¥0 | 10 枚まで |
+| スタンダード | ¥300 | 50 枚まで |
+| プレミアム | ¥800 | 無制限 |

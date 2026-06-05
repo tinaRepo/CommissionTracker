@@ -13,6 +13,7 @@ import {
 import type { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import PushNotificationToggle from "./PushNotificationToggle";
+import NotificationsModal from "./NotificationsModal";
 
 // ---- 定数とユーティリティ ----
 const STATUSES: { key: CommissionStatus; label: string; color: string; bg: string }[] = [
@@ -349,6 +350,8 @@ export default function CommissionApp() {
   const [deleteRequestDone, setDeleteRequestDone] = useState(false);
   const [sortKey, setSortKey] = useState<"ordered_at" | "deadline" | "price" | "status">("ordered_at");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
     // 初回: セッション確認してuserをセット、なければloginへ
@@ -384,6 +387,24 @@ export default function CommissionApp() {
   }
 
   useEffect(() => { if (user) load(); }, [user]);
+
+  // お知らせ・バージョンの未読件数を取得
+  async function fetchUnreadCount(userId: string) {
+    const [{ data: announcements }, { data: readStatuses }, { data: latestRelease }, { data: settings }] =
+      await Promise.all([
+        supabase.from("announcements").select("id"),
+        supabase.from("user_notification_status").select("announcement_id").eq("user_id", userId).eq("is_read", true),
+        supabase.from("version_releases").select("id").order("released_at", { ascending: false }).limit(1).maybeSingle(),
+        supabase.from("user_settings").select("last_seen_release_id").eq("user_id", userId).maybeSingle(),
+      ]);
+
+    const readIds = new Set((readStatuses ?? []).map((s: any) => s.announcement_id));
+    const unreadAnnouncements = (announcements ?? []).filter((a: any) => !readIds.has(a.id)).length;
+    const unreadRelease = latestRelease && (!settings || settings.last_seen_release_id !== (latestRelease as any).id) ? 1 : 0;
+    setUnreadCount(unreadAnnouncements + unreadRelease);
+  }
+
+  useEffect(() => { if (user) fetchUnreadCount(user.id); }, [user]);
 
   // --- プロフィールの更新 ---
   async function handleSaveName() {
@@ -543,6 +564,33 @@ export default function CommissionApp() {
               <ImageUsageBar plan={plan} imageCount={imageCount} />
             </div>
           )}
+
+          {/* お知らせベルボタン */}
+          <div style={{ position: "relative" }}>
+            <button
+              onClick={() => setShowNotifications(true)}
+              style={{
+                width: 38, height: 38, borderRadius: "50%", background: "#ffffff18",
+                border: "1px solid #ffffff30", cursor: "pointer", color: "#fff",
+                fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center",
+              }}
+              title="お知らせ"
+            >
+              🔔
+            </button>
+            {unreadCount > 0 && (
+              <span style={{
+                position: "absolute", top: -4, right: -4,
+                minWidth: 18, height: 18, borderRadius: 999,
+                background: "#ef4444", color: "#fff",
+                fontSize: 10, fontWeight: 700, lineHeight: "18px",
+                textAlign: "center", padding: "0 4px",
+                pointerEvents: "none",
+              }}>
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            )}
+          </div>
 
           <button onClick={openNew} style={{
             background: "linear-gradient(135deg,#7c3aed,#4f46e5)",
@@ -955,6 +1003,13 @@ export default function CommissionApp() {
         </div>
       )}
 
+      {/* お知らせモーダル */}
+      <NotificationsModal
+        open={showNotifications}
+        onClose={() => setShowNotifications(false)}
+        onRead={() => fetchUnreadCount(user!.id)}
+      />
+
       {/* フッター */}
       <footer style={{ borderTop: "1px solid #e5e7eb", padding: "24px 32px", textAlign: "center" }}>
         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "4px 16px" }}>
@@ -964,7 +1019,6 @@ export default function CommissionApp() {
             { href: "/terms", label: "利用規約" },
             { href: "/privacy", label: "プライバシーポリシー" },
             { href: "/tokusho", label: "特定商取引法" },
-            { href: "/version", label: "バージョン情報" },
           ].map(link => (
             <a key={link.href} href={link.href}
               style={{ fontSize: 12, color: "#aaa", textDecoration: "none", padding: "2px 4px" }}>
