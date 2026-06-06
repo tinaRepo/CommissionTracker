@@ -62,6 +62,12 @@ const inp: React.CSSProperties = {
   boxSizing: "border-box", fontFamily: "inherit",
 };
 
+const inp_date: React.CSSProperties = {
+  minWidth: 0, width: "100%", padding: "10px 8px", border: "1.5px solid #e5e7eb", borderRadius: 12,
+  fontSize: 16, outline: "none", color: "#1a0a2e", background: "#faf8f5",
+  boxSizing: "border-box", fontFamily: "inherit",
+};
+
 const EMPTY_ANNOUNCEMENT = { title: "", content: "", type: "お知らせ" as AnnouncementType, published_at: "" };
 const EMPTY_ITEM = (): VersionReleaseItem => ({ category: "新機能", content: "", sort_order: 0 });
 
@@ -510,7 +516,7 @@ export default function AdminNotificationsPage() {
               </div>
             </Field>
             <Field label="公開日">
-              <input type="date" value={aForm.published_at} onChange={e => setAForm({ ...aForm, published_at: e.target.value })} style={{ ...inp, fontSize: 13 }} />
+              <input type="date" value={aForm.published_at} onChange={e => setAForm({ ...aForm, published_at: e.target.value })} style={inp_date} />
             </Field>
           </div>
         </Modal>
@@ -543,7 +549,7 @@ export default function AdminNotificationsPage() {
               </Field>
               <Field label="リリース日">
                 <input type="date" value={rForm.released_at} onChange={e => setRForm({ ...rForm, released_at: e.target.value })}
-                  style={{ ...inp, fontSize: 13 }} />
+                  style={inp_date} />
               </Field>
             </div>
             <Field label="タイトル *">
