@@ -727,7 +727,7 @@ function Modal({ title, footer, children, onClose }: {
   }, []);
   return (
     <div
-      style={{ position: "fixed", inset: 0, background: "#0007", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+      style={{ position: "fixed", inset: 0, background: "#0007", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, overscrollBehavior: "contain", touchAction: "none" }}
       onClick={onClose}
     >
       <div
@@ -739,7 +739,7 @@ function Modal({ title, footer, children, onClose }: {
           <div style={{ fontWeight: 800, fontSize: 18, color: "#1a0a2e", marginBottom: 12 }}>{title}</div>
         </div>
         {/* フォーム（スクロール） */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "0 20px" }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: "4px 20px 0" }}>
           {children}
         </div>
         {/* ボタン（固定） */}

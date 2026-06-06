@@ -591,6 +591,16 @@ export default function CommissionApp() {
     const item = commissions.find(c => c.id === detailId) ?? null;
     setDetailItem(item);
   }, [detailId, commissions]);
+
+  // フォームモーダル表示中はbodyスクロールをロック（iOSで背景がスクロールするのを防ぐ）
+  useEffect(() => {
+    if (showForm || detailId) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [showForm, detailId]);
   const plan = (profile?.plan ?? "free") as Plan;
   const displayName = profile?.display_name;
   const userLabel = displayName ?? user?.user_metadata?.full_name ?? (user?.email?.split("@")[0]) ?? "ユーザー";
@@ -1016,7 +1026,7 @@ export default function CommissionApp() {
 
       {/* フォームモーダル */}
       {showForm && (
-        <div style={{ position: "fixed", inset: 0, background: "#0007", zIndex: 150, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}
+        <div style={{ position: "fixed", inset: 0, background: "#0007", zIndex: 150, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", overscrollBehavior: "contain", touchAction: "none" }}
           onClick={() => { pendingImages.forEach(pi => URL.revokeObjectURL(pi.previewUrl)); setPendingImages([]); setShowForm(false); setEditId(null); }}>
           <div style={{
             background: "#fff", borderRadius: 20, maxWidth: 520, width: "100%",
