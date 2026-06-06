@@ -159,7 +159,7 @@ function ImageUsageBar({ plan, imageCount }: { plan: Plan; imageCount: number })
   const pct = Math.min((imageCount / limit) * 100, 100);
   const color = pct >= 90 ? "#ef4444" : pct >= 70 ? "#f59e0b" : "#7c3aed";
   return (
-    <div style={{ minWidth: 160 }}>
+    <div style={{ minWidth: 100 }}>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#aaa", marginBottom: 3 }}>
         <span>📷 画像 {imageCount} / {limit}枚</span>
         <span style={{ color, fontWeight: 700 }}>{Math.round(pct)}%</span>
