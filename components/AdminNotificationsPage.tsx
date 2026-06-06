@@ -63,7 +63,8 @@ const inp: React.CSSProperties = {
 };
 
 const inp_date: React.CSSProperties = {
-  minWidth: 0, width: "100%", padding: "10px 8px", border: "1.5px solid #e5e7eb", borderRadius: 12,
+  display: "block", minWidth: 0, width: "100%", flex: 1, padding: "10px 8px",
+  border: "1.5px solid #e5e7eb", borderRadius: 12,
   fontSize: 16, outline: "none", color: "#1a0a2e", background: "#faf8f5",
   boxSizing: "border-box", fontFamily: "inherit",
 };
@@ -516,7 +517,9 @@ export default function AdminNotificationsPage() {
               </div>
             </Field>
             <Field label="公開日">
-              <input type="date" value={aForm.published_at} onChange={e => setAForm({ ...aForm, published_at: e.target.value })} style={inp_date} />
+              <div style={{ display: "flex", width: "100%" }}>
+                <input type="date" value={aForm.published_at} onChange={e => setAForm({ ...aForm, published_at: e.target.value })} style={inp_date} />
+              </div>
             </Field>
           </div>
         </Modal>
@@ -548,8 +551,10 @@ export default function AdminNotificationsPage() {
                 />
               </Field>
               <Field label="リリース日">
-                <input type="date" value={rForm.released_at} onChange={e => setRForm({ ...rForm, released_at: e.target.value })}
-                  style={inp_date} />
+                <div style={{ display: "flex", width: "100%" }}>
+                  <input type="date" value={rForm.released_at} onChange={e => setRForm({ ...rForm, released_at: e.target.value })}
+                    style={inp_date} />
+                </div>
               </Field>
             </div>
             <Field label="タイトル *">
