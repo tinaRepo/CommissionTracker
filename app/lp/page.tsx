@@ -354,7 +354,6 @@ export default function LandingPage() {
               { href: "/terms", label: "利用規約" },
               { href: "/privacy", label: "プライバシー" },
               { href: "/tokusho", label: "特定商取引法" },
-              { href: "/contact", label: "お問い合わせ" },
             ].map(link => (
               <a key={link.href} href={link.href} style={{ fontSize: 12, color: "#4a3d5c", textDecoration: "none" }}>
                 {link.label}

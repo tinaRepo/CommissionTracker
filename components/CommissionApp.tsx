@@ -731,16 +731,6 @@ export default function CommissionApp() {
                   }}>
                   ✏️ 名前を変更
                 </button>
-                {!profile?.is_admin && (
-                  <button onClick={() => window.location.href = "/contact"}
-                    style={{
-                      width: "100%", padding: "11px 16px", background: "none", border: "none",
-                      borderBottom: "1px solid #f3f4f6", cursor: "pointer", fontSize: 13,
-                      color: "#1a0a2e", fontWeight: 600, textAlign: "left"
-                    }}>
-                    ✉️ お問い合わせ
-                  </button>
-                )}
                 {profile?.is_admin && (
                   <button onClick={() => window.location.href = "/mgmt-c7f2a91e"}
                     style={{

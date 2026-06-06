@@ -212,7 +212,6 @@ export default function PricingPage() {
 
         <div style={{ marginTop: 40, padding: "16px 20px", background: "#f8f7ff", borderRadius: 12, fontSize: 13, color: "#666", lineHeight: 1.7, textAlign: "center" }}>
           決済はStripeで安全に処理されます。カード情報は当サービスのサーバーには保存されません。<br />
-          ご不明な点は<a href="/contact" style={{ color: "#7c3aed", fontWeight: 600 }}>お問い合わせ</a>ください。
         </div>
       </main>
     </div>

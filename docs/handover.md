@@ -32,7 +32,6 @@ app/
 ├── login/page.tsx              # ログイン・新規登録・パスワードリセット・Googleログイン
 ├── lp/page.tsx                 # ランディングページ（/lp）
 ├── pricing/page.tsx            # プラン選択・Stripeチェックアウト
-├── contact/page.tsx            # お問い合わせフォーム
 ├── guide/page.tsx              # 使い方ガイド
 ├── terms/page.tsx              # 利用規約
 ├── privacy/page.tsx            # プライバシーポリシー
