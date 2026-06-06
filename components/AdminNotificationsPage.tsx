@@ -33,25 +33,25 @@ type VersionReleaseItem = {
 };
 
 type AnnouncementType = "お知らせ" | "メンテナンス" | "障害情報" | "キャンペーン";
-type ItemCategory    = "新機能" | "改善" | "修正";
-type Tab             = "announcements" | "releases";
+type ItemCategory = "新機能" | "改善" | "修正";
+type Tab = "announcements" | "releases";
 
 // ─── 定数 ──────────────────────────────────────────────────────
 
 const ANNOUNCEMENT_TYPES: AnnouncementType[] = ["お知らせ", "メンテナンス", "障害情報", "キャンペーン"];
-const ITEM_CATEGORIES:    ItemCategory[]      = ["新機能", "改善", "修正"];
+const ITEM_CATEGORIES: ItemCategory[] = ["新機能", "改善", "修正"];
 
 const TYPE_COLOR: Record<AnnouncementType, { bg: string; color: string; border: string }> = {
-  お知らせ:     { bg: "#dbeafe", color: "#1d4ed8", border: "#93c5fd" },
+  お知らせ: { bg: "#dbeafe", color: "#1d4ed8", border: "#93c5fd" },
   メンテナンス: { bg: "#fef3c7", color: "#b45309", border: "#fcd34d" },
-  障害情報:     { bg: "#fee2e2", color: "#b91c1c", border: "#fca5a5" },
+  障害情報: { bg: "#fee2e2", color: "#b91c1c", border: "#fca5a5" },
   キャンペーン: { bg: "#d1fae5", color: "#065f46", border: "#6ee7b7" },
 };
 
 const CAT_COLOR: Record<ItemCategory, { bg: string; color: string; border: string }> = {
   新機能: { bg: "#ede9fe", color: "#6d28d9", border: "#c4b5fd" },
-  改善:   { bg: "#d1fae5", color: "#065f46", border: "#6ee7b7" },
-  修正:   { bg: "#fef3c7", color: "#b45309", border: "#fcd34d" },
+  改善: { bg: "#d1fae5", color: "#065f46", border: "#6ee7b7" },
+  修正: { bg: "#fef3c7", color: "#b45309", border: "#fcd34d" },
 };
 
 // ─── 入力スタイル（既存アプリに揃える）──────────────────────────
@@ -70,27 +70,27 @@ const EMPTY_ITEM = (): VersionReleaseItem => ({ category: "新機能", content: 
 export default function AdminNotificationsPage() {
   const router = useRouter();
 
-  const [checking, setChecking]         = useState(true);
-  const [activeTab, setActiveTab]       = useState<Tab>("announcements");
+  const [checking, setChecking] = useState(true);
+  const [activeTab, setActiveTab] = useState<Tab>("announcements");
 
   // お知らせ
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [aLoading, setALoading]           = useState(false);
-  const [aForm, setAForm]                 = useState(EMPTY_ANNOUNCEMENT);
-  const [aEditId, setAEditId]             = useState<string | null>(null);
-  const [showAForm, setShowAForm]         = useState(false);
+  const [aLoading, setALoading] = useState(false);
+  const [aForm, setAForm] = useState(EMPTY_ANNOUNCEMENT);
+  const [aEditId, setAEditId] = useState<string | null>(null);
+  const [showAForm, setShowAForm] = useState(false);
   const [aDeleteConfirm, setADeleteConfirm] = useState<string | null>(null);
-  const [aSaving, setASaving]             = useState(false);
+  const [aSaving, setASaving] = useState(false);
 
   // バージョン
-  const [releases, setReleases]           = useState<VersionRelease[]>([]);
-  const [rLoading, setRLoading]           = useState(false);
-  const [rForm, setRForm]                 = useState({ version: "", title: "", released_at: "" });
-  const [rItems, setRItems]               = useState<VersionReleaseItem[]>([EMPTY_ITEM()]);
-  const [rEditId, setREditId]             = useState<string | null>(null);
-  const [showRForm, setShowRForm]         = useState(false);
+  const [releases, setReleases] = useState<VersionRelease[]>([]);
+  const [rLoading, setRLoading] = useState(false);
+  const [rForm, setRForm] = useState({ version: "", title: "", released_at: "" });
+  const [rItems, setRItems] = useState<VersionReleaseItem[]>([EMPTY_ITEM()]);
+  const [rEditId, setREditId] = useState<string | null>(null);
+  const [showRForm, setShowRForm] = useState(false);
   const [rDeleteConfirm, setRDeleteConfirm] = useState<string | null>(null);
-  const [rSaving, setRSaving]             = useState(false);
+  const [rSaving, setRSaving] = useState(false);
 
   // ── 管理者チェック ─────────────────────────────────────────
 
@@ -304,8 +304,8 @@ export default function AdminNotificationsPage() {
           background: "#ede9fe", borderRadius: 12, padding: 4,
         }}>
           {([
-            { id: "announcements" as Tab, label: "📢 お知らせ",      count: announcements.length },
-            { id: "releases"      as Tab, label: "🚀 バージョン管理", count: releases.length },
+            { id: "announcements" as Tab, label: "📢 お知らせ", count: announcements.length },
+            { id: "releases" as Tab, label: "🚀 バージョン管理", count: releases.length },
           ]).map(tab => (
             <button
               key={tab.id}
@@ -365,8 +365,10 @@ export default function AdminNotificationsPage() {
                     <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
                       <TypeBadge type={a.type} />
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 700, fontSize: 14, color: "#1a0a2e", marginBottom: 2,
-                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <div style={{
+                          fontWeight: 700, fontSize: 14, color: "#1a0a2e", marginBottom: 2,
+                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
+                        }}>
                           {a.title}
                         </div>
                         <div style={{ fontSize: 12, color: "#bbb" }}>{fmtDate(a.published_at)}</div>
@@ -423,8 +425,10 @@ export default function AdminNotificationsPage() {
                         </div>
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 600, fontSize: 14, color: "#444", marginBottom: 4,
-                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <div style={{
+                          fontWeight: 600, fontSize: 14, color: "#444", marginBottom: 4,
+                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
+                        }}>
                           {r.title}
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
@@ -475,7 +479,6 @@ export default function AdminNotificationsPage() {
                 onChange={e => setAForm({ ...aForm, title: e.target.value })}
                 placeholder="例: 定期メンテナンスのお知らせ"
                 style={inp}
-                autoFocus
               />
             </Field>
             <Field label="本文 *">
@@ -536,11 +539,11 @@ export default function AdminNotificationsPage() {
                   onChange={e => setRForm({ ...rForm, version: e.target.value })}
                   placeholder="例: 1.2.0"
                   style={inp}
-                  autoFocus
                 />
               </Field>
               <Field label="リリース日">
-                <input type="date" value={rForm.released_at} onChange={e => setRForm({ ...rForm, released_at: e.target.value })} style={inp} />
+                <input type="date" value={rForm.released_at} onChange={e => setRForm({ ...rForm, released_at: e.target.value })}
+                  style={{ ...inp, fontSize: 13, padding: "10px 6px" }} />
               </Field>
             </div>
             <Field label="タイトル *">
@@ -717,7 +720,7 @@ function Modal({ title, footer, children, onClose }: {
       onClick={onClose}
     >
       <div
-        style={{ background: "#fff", borderRadius: 20, maxWidth: 540, width: "100%", height: "82vh", display: "flex", flexDirection: "column", boxShadow: "0 8px 48px #0004" }}
+        style={{ background: "#fff", borderRadius: 20, maxWidth: 540, width: "100%", maxHeight: "88vh", display: "flex", flexDirection: "column", boxShadow: "0 8px 48px #0004" }}
         onClick={e => e.stopPropagation()}
       >
         {/* タイトル（固定） */}
