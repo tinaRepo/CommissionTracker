@@ -38,7 +38,14 @@ type FormValues = {
   status: CommissionStatus; rough_date: string; notes: string;
 };
 
-// 画像アップロード前にプランの上限をチェック
+// 新規登録時に仮保持する画像キュー
+type PendingImage = {
+  id: string;
+  file: File;
+  imageType: ImageType;
+  previewUrl: string;
+};
+
 const EMPTY_FORM: FormValues = {
   title: "", artist: "", x_id: "", ordered_at: "", deadline: "",
   price: "", currency: "JPY", status: "pending", rough_date: "", notes: "",
@@ -164,6 +171,19 @@ function ImageUsageBar({ plan, imageCount }: { plan: Plan; imageCount: number })
   );
 }
 
+// ---- カード一覧サムネイル（signed URL を遅延取得） ----
+function CardThumbnail({ storagePath }: { storagePath: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    getSignedImageUrl(storagePath).then(setUrl).catch(() => { });
+  }, [storagePath]);
+  if (!url) return <div style={{ width: 72, height: 72, borderRadius: 10, background: "#e5e7eb", flexShrink: 0 }} />;
+  return (
+    <img src={url} alt="thumbnail"
+      style={{ width: 72, height: 72, borderRadius: 10, objectFit: "cover", flexShrink: 0, border: "1.5px solid #e5e7eb" }} />
+  );
+}
+
 // ---- 画像セクション ----
 function ImageSection({ commission, plan, onUpdated }: {
   commission: Commission; plan: Plan; onUpdated: () => void;
@@ -190,7 +210,22 @@ function ImageSection({ commission, plan, onUpdated }: {
   const [imageType, setImageType] = useState<ImageType>("rough");
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const [preview, setPreview] = useState<string | null>(null);
+  const [previewFileName, setPreviewFileName] = useState<string>("");
   const [limitError, setLimitError] = useState<string | null>(null);
+
+  async function handleDownload(url: string, fileName: string) {
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = fileName;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch {
+      alert("ダウンロードに失敗しました");
+    }
+  }
 
   useEffect(() => {
     const images = commission.images ?? [];
@@ -275,7 +310,7 @@ function ImageSection({ commission, plan, onUpdated }: {
                 border: "1.5px solid #e5e7eb", background: "#f3f4f6"
               }}>
                 {url ? (
-                  <img src={url} alt={img.file_name} onClick={() => setPreview(url)}
+                  <img src={url} alt={img.file_name} onClick={() => { setPreview(url); setPreviewFileName(img.file_name); }}
                     style={{ width: "100%", aspectRatio: "1", objectFit: "cover", cursor: "pointer" }} />
                 ) : (
                   <div style={{ width: "100%", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>🖼</div>
@@ -284,12 +319,23 @@ function ImageSection({ commission, plan, onUpdated }: {
                   position: "absolute", top: 4, left: 4, background: "#1a0a2ecc", color: "#fff",
                   fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 6
                 }}>{typeLabel}</div>
+                {/* 削除ボタン */}
                 <button onClick={() => handleDelete(img)}
                   style={{
                     position: "absolute", top: 4, right: 4, background: "#ef4444cc", color: "#fff",
                     border: "none", borderRadius: "50%", width: 20, height: 20, fontSize: 12, cursor: "pointer",
                     display: "flex", alignItems: "center", justifyContent: "center"
                   }}>×</button>
+                {/* ダウンロードボタン */}
+                {url && (
+                  <button onClick={e => { e.stopPropagation(); handleDownload(url, img.file_name); }}
+                    title="ダウンロード"
+                    style={{
+                      position: "absolute", bottom: 4, right: 4, background: "#1a0a2ecc", color: "#fff",
+                      border: "none", borderRadius: "50%", width: 20, height: 20, fontSize: 11, cursor: "pointer",
+                      display: "flex", alignItems: "center", justifyContent: "center"
+                    }}>↓</button>
+                )}
               </div>
             );
           })}
@@ -321,6 +367,17 @@ function ImageSection({ commission, plan, onUpdated }: {
         }}>
           <img src={preview} alt="preview"
             style={{ maxWidth: "90vw", maxHeight: "90vh", borderRadius: 12, boxShadow: "0 8px 48px #000a" }} />
+          <button
+            onClick={e => { e.stopPropagation(); handleDownload(preview, previewFileName); }}
+            title="ダウンロード"
+            style={{
+              position: "fixed", bottom: 40, left: "50%", transform: "translateX(-50%)",
+              background: "#fff", color: "#1a0a2e", border: "none", borderRadius: 10,
+              padding: "10px 24px", fontWeight: 700, fontSize: 14, cursor: "pointer",
+              boxShadow: "0 2px 16px #000a", display: "flex", alignItems: "center", gap: 6, zIndex: 501
+            }}>
+            ⬇ ダウンロード
+          </button>
         </div>
       )}
     </div>
@@ -340,6 +397,8 @@ export default function CommissionApp() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<FormValues>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
+  const [pendingImageType, setPendingImageType] = useState<ImageType>("rough");
   const [detailId, setDetailId] = useState<string | null>(null);
   const [detailItem, setDetailItem] = useState<Commission | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -464,7 +523,7 @@ export default function CommissionApp() {
   }), [commissions]);
 
   // プロフィールの取得
-  function openNew() { setForm(EMPTY_FORM); setEditId(null); setShowForm(true); }
+  function openNew() { setForm(EMPTY_FORM); setEditId(null); setPendingImages([]); setPendingImageType("rough"); setShowForm(true); }
   function openEdit(c: Commission) {
     setForm({
       title: c.title, artist: c.artist, x_id: c.x_id ?? "", ordered_at: c.ordered_at ?? "",
@@ -488,7 +547,17 @@ export default function CommissionApp() {
       if (editId) {
         await updateCommission(editId, payload);
       } else {
-        await createCommission(payload);
+        const newCommission = await createCommission(payload);
+        // 新規登録時：仮保持していた画像を順次アップロード
+        if (pendingImages.length > 0) {
+          for (const pi of pendingImages) {
+            try {
+              await uploadImage(newCommission.id, pi.file, pi.imageType, plan);
+            } catch { /* 1枚失敗しても続行 */ }
+            URL.revokeObjectURL(pi.previewUrl);
+          }
+          setPendingImages([]);
+        }
       }
       await load();
       if (detailId) {
@@ -752,12 +821,16 @@ export default function CommissionApp() {
                   background: "#fff", borderRadius: 16, padding: "18px 22px",
                   boxShadow: urgent ? "0 0 0 2px #ef444460,0 2px 12px #0001" : "0 1px 6px #0001,0 2px 12px #0001",
                   border: urgent ? "1.5px solid #fca5a5" : "1.5px solid transparent",
-                  cursor: "pointer", display: "grid", gridTemplateColumns: "1fr auto", gap: "4px 16px", alignItems: "center",
+                  cursor: "pointer", display: "flex", gap: 16, alignItems: "center",
                   transition: "transform 0.1s"
                 }}
                 onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)"; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)"; }}>
-                <div>
+                {/* サムネイル（最初の画像） */}
+                {(c.images?.length ?? 0) > 0 && (
+                  <CardThumbnail storagePath={c.images![0].storage_path} />
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
                     <span style={{ fontWeight: 800, fontSize: 16, color: "#1a0a2e" }}>{c.title}</span>
                     <StatusBadge status={c.status} />
@@ -771,7 +844,7 @@ export default function CommissionApp() {
                     {c.rough_date && <span>✏️ ラフ: {fmtDate(c.rough_date)}</span>}
                   </div>
                 </div>
-                <div style={{ textAlign: "right" }}>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
                   <div style={{ fontWeight: 800, fontSize: 18, color: "#1a0a2e" }}>{fmtPrice(c.price, c.currency)}</div>
                   {days !== null && c.status !== "done" && c.status !== "cancelled" && (
                     <div style={{ fontSize: 11, color: days < 0 ? "#ef4444" : days <= 7 ? "#f59e0b" : "#aaa", marginTop: 2 }}>
@@ -1001,9 +1074,88 @@ export default function CommissionApp() {
                 <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
                   placeholder="色味の指定や注意点など" style={{ ...inp, minHeight: 70, resize: "vertical" }} />
               </Field>
+
+              {/* 新規登録時のみ画像追加UI */}
+              {!editId && (() => {
+                const limit = PLAN_LIMITS[plan].imageLimit;
+                const currentTotal = imageCount;
+                const pendingCount = pendingImages.length;
+                const totalAfter = currentTotal + pendingCount;
+                const atLimit = limit !== null && totalAfter >= limit;
+                return (
+                  <Field label="画像（任意・登録後にも追加できます）">
+                    {/* 仮追加済み画像プレビュー */}
+                    {pendingImages.length > 0 && (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(80px,1fr))", gap: 8, marginBottom: 10 }}>
+                        {pendingImages.map(pi => (
+                          <div key={pi.id} style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: "1.5px solid #c4b5fd", background: "#f3f4f6" }}>
+                            <img src={pi.previewUrl} alt={pi.file.name}
+                              style={{ width: "100%", aspectRatio: "1", objectFit: "cover" }} />
+                            <div style={{
+                              position: "absolute", top: 3, left: 3, background: "#1a0a2ecc", color: "#fff",
+                              fontSize: 9, fontWeight: 700, padding: "2px 5px", borderRadius: 5
+                            }}>
+                              {IMAGE_TYPES.find(t => t.key === pi.imageType)?.label}
+                            </div>
+                            <button type="button"
+                              onClick={() => {
+                                URL.revokeObjectURL(pi.previewUrl);
+                                setPendingImages(prev => prev.filter(x => x.id !== pi.id));
+                              }}
+                              style={{
+                                position: "absolute", top: 3, right: 3, background: "#ef4444cc", color: "#fff",
+                                border: "none", borderRadius: "50%", width: 18, height: 18, fontSize: 11,
+                                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center"
+                              }}>×</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                      <select
+                        value={pendingImageType}
+                        onChange={e => setPendingImageType(e.target.value as ImageType)}
+                        style={{ ...inp, width: "auto", padding: "6px 10px" }}>
+                        {IMAGE_TYPES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+                      </select>
+                      <label style={{
+                        flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                        padding: "8px 14px", border: `1.5px dashed ${atLimit ? "#fca5a5" : "#c4b5fd"}`,
+                        borderRadius: 10, cursor: atLimit ? "not-allowed" : "pointer", fontSize: 13,
+                        color: atLimit ? "#ef4444" : "#7c3aed", fontWeight: 600,
+                        background: atLimit ? "#f3f4f6" : "#fff"
+                      }}>
+                        {atLimit ? `上限に達しています（${limit}枚）` : "＋ 画像を追加"}
+                        <input type="file" accept="image/*" disabled={atLimit} style={{ display: "none" }}
+                          onChange={e => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const previewUrl = URL.createObjectURL(file);
+                            setPendingImages(prev => [...prev, {
+                              id: `${Date.now()}-${Math.random()}`,
+                              file,
+                              imageType: pendingImageType,
+                              previewUrl,
+                            }]);
+                            e.target.value = "";
+                          }} />
+                      </label>
+                    </div>
+                    {pendingImages.length > 0 && (
+                      <div style={{ fontSize: 11, color: "#888", marginTop: 6 }}>
+                        ※ 登録ボタンを押すと画像もまとめてアップロードされます
+                      </div>
+                    )}
+                  </Field>
+                );
+              })()}
             </div>
             <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
-              <button onClick={() => { setShowForm(false); setEditId(null); }}
+              <button onClick={() => {
+                pendingImages.forEach(pi => URL.revokeObjectURL(pi.previewUrl));
+                setPendingImages([]);
+                setShowForm(false); setEditId(null);
+              }}
                 style={{ flex: 1, background: "#f3f4f6", border: "none", borderRadius: 10, padding: "12px", fontWeight: 600, cursor: "pointer" }}>キャンセル</button>
               <button onClick={handleSave} disabled={!form.title || !form.artist || saving}
                 style={{
@@ -1011,7 +1163,10 @@ export default function CommissionApp() {
                   color: "#fff", border: "none", borderRadius: 10, padding: "12px",
                   fontWeight: 800, cursor: (!form.title || !form.artist || saving) ? "not-allowed" : "pointer", fontSize: 15
                 }}>
-                {saving ? "保存中…" : editId ? "更新する" : "登録する"}
+                {saving
+                  ? (pendingImages.length > 0 && !editId ? `登録・画像アップロード中…` : "保存中…")
+                  : editId ? "更新する" : pendingImages.length > 0 ? `登録する（画像${pendingImages.length}枚）` : "登録する"
+                }
               </button>
             </div>
           </div>
