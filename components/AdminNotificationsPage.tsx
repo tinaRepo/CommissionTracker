@@ -33,32 +33,32 @@ type VersionReleaseItem = {
 };
 
 type AnnouncementType = "お知らせ" | "メンテナンス" | "障害情報" | "キャンペーン";
-type ItemCategory = "新機能" | "改善" | "修正";
-type Tab = "announcements" | "releases";
+type ItemCategory    = "新機能" | "改善" | "修正";
+type Tab             = "announcements" | "releases";
 
 // ─── 定数 ──────────────────────────────────────────────────────
 
 const ANNOUNCEMENT_TYPES: AnnouncementType[] = ["お知らせ", "メンテナンス", "障害情報", "キャンペーン"];
-const ITEM_CATEGORIES: ItemCategory[] = ["新機能", "改善", "修正"];
+const ITEM_CATEGORIES:    ItemCategory[]      = ["新機能", "改善", "修正"];
 
 const TYPE_COLOR: Record<AnnouncementType, { bg: string; color: string; border: string }> = {
-  お知らせ: { bg: "#dbeafe", color: "#1d4ed8", border: "#93c5fd" },
+  お知らせ:     { bg: "#dbeafe", color: "#1d4ed8", border: "#93c5fd" },
   メンテナンス: { bg: "#fef3c7", color: "#b45309", border: "#fcd34d" },
-  障害情報: { bg: "#fee2e2", color: "#b91c1c", border: "#fca5a5" },
+  障害情報:     { bg: "#fee2e2", color: "#b91c1c", border: "#fca5a5" },
   キャンペーン: { bg: "#d1fae5", color: "#065f46", border: "#6ee7b7" },
 };
 
 const CAT_COLOR: Record<ItemCategory, { bg: string; color: string; border: string }> = {
   新機能: { bg: "#ede9fe", color: "#6d28d9", border: "#c4b5fd" },
-  改善: { bg: "#d1fae5", color: "#065f46", border: "#6ee7b7" },
-  修正: { bg: "#fef3c7", color: "#b45309", border: "#fcd34d" },
+  改善:   { bg: "#d1fae5", color: "#065f46", border: "#6ee7b7" },
+  修正:   { bg: "#fef3c7", color: "#b45309", border: "#fcd34d" },
 };
 
 // ─── 入力スタイル（既存アプリに揃える）──────────────────────────
 
 const inp: React.CSSProperties = {
   width: "100%", padding: "10px 13px", border: "1.5px solid #e5e7eb", borderRadius: 12,
-  fontSize: 14, outline: "none", color: "#1a0a2e", background: "#faf8f5",
+  fontSize: 16, outline: "none", color: "#1a0a2e", background: "#faf8f5",
   boxSizing: "border-box", fontFamily: "inherit",
 };
 
@@ -70,27 +70,27 @@ const EMPTY_ITEM = (): VersionReleaseItem => ({ category: "新機能", content: 
 export default function AdminNotificationsPage() {
   const router = useRouter();
 
-  const [checking, setChecking] = useState(true);
-  const [activeTab, setActiveTab] = useState<Tab>("announcements");
+  const [checking, setChecking]         = useState(true);
+  const [activeTab, setActiveTab]       = useState<Tab>("announcements");
 
   // お知らせ
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [aLoading, setALoading] = useState(false);
-  const [aForm, setAForm] = useState(EMPTY_ANNOUNCEMENT);
-  const [aEditId, setAEditId] = useState<string | null>(null);
-  const [showAForm, setShowAForm] = useState(false);
+  const [aLoading, setALoading]           = useState(false);
+  const [aForm, setAForm]                 = useState(EMPTY_ANNOUNCEMENT);
+  const [aEditId, setAEditId]             = useState<string | null>(null);
+  const [showAForm, setShowAForm]         = useState(false);
   const [aDeleteConfirm, setADeleteConfirm] = useState<string | null>(null);
-  const [aSaving, setASaving] = useState(false);
+  const [aSaving, setASaving]             = useState(false);
 
   // バージョン
-  const [releases, setReleases] = useState<VersionRelease[]>([]);
-  const [rLoading, setRLoading] = useState(false);
-  const [rForm, setRForm] = useState({ version: "", title: "", released_at: "" });
-  const [rItems, setRItems] = useState<VersionReleaseItem[]>([EMPTY_ITEM()]);
-  const [rEditId, setREditId] = useState<string | null>(null);
-  const [showRForm, setShowRForm] = useState(false);
+  const [releases, setReleases]           = useState<VersionRelease[]>([]);
+  const [rLoading, setRLoading]           = useState(false);
+  const [rForm, setRForm]                 = useState({ version: "", title: "", released_at: "" });
+  const [rItems, setRItems]               = useState<VersionReleaseItem[]>([EMPTY_ITEM()]);
+  const [rEditId, setREditId]             = useState<string | null>(null);
+  const [showRForm, setShowRForm]         = useState(false);
   const [rDeleteConfirm, setRDeleteConfirm] = useState<string | null>(null);
-  const [rSaving, setRSaving] = useState(false);
+  const [rSaving, setRSaving]             = useState(false);
 
   // ── 管理者チェック ─────────────────────────────────────────
 
@@ -153,7 +153,7 @@ export default function AdminNotificationsPage() {
   async function saveAnnouncement() {
     if (!aForm.title.trim() || !aForm.content.trim()) return;
     setASaving(true);
-    const payload = { ...aForm, published_at: aForm.published_at || today(), updated_at: new Date().toISOString() };
+    const payload = { ...aForm, published_at: aForm.published_at || today(), updated_at: todayISO() };
     if (aEditId) {
       await supabase.from("announcements").update(payload).eq("id", aEditId);
     } else {
@@ -245,7 +245,19 @@ export default function AdminNotificationsPage() {
 
   // ── ユーティリティ ─────────────────────────────────────────
 
-  function today() { return new Date().toISOString().slice(0, 10); }
+  // JST基準の日付文字列 "YYYY-MM-DD"
+  function today() {
+    const d = new Date();
+    d.setTime(d.getTime() + 9 * 60 * 60 * 1000);
+    return d.toISOString().slice(0, 10);
+  }
+
+  // JST基準のISO datetime文字列（updated_at用）
+  function todayISO() {
+    const d = new Date();
+    d.setTime(d.getTime() + 9 * 60 * 60 * 1000);
+    return d.toISOString();
+  }
 
   function fmtDate(s: string) {
     return new Date(s).toLocaleDateString("ja-JP", { year: "numeric", month: "short", day: "numeric" });
@@ -267,50 +279,52 @@ export default function AdminNotificationsPage() {
       {/* ── ヘッダー ── */}
       <header style={{
         background: "linear-gradient(135deg,#1a0a2e,#2d1b69)",
-        padding: "18px 32px", display: "flex", alignItems: "center", gap: 16,
+        padding: "14px 16px", display: "flex", alignItems: "center", gap: 12,
       }}>
         <button
           onClick={() => router.back()}
           style={{
             background: "#ffffff18", border: "1px solid #ffffff30", color: "#fff",
-            borderRadius: 10, padding: "7px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+            borderRadius: 10, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+            flexShrink: 0,
           }}
         >
           ← 戻る
         </button>
-        <div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: "#fff" }}>お知らせ・バージョン管理</div>
-          <div style={{ fontSize: 12, color: "#c4b5fd", marginTop: 2 }}>管理者専用</div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>お知らせ・バージョン管理</div>
+          <div style={{ fontSize: 11, color: "#c4b5fd", marginTop: 2 }}>管理者専用</div>
         </div>
       </header>
 
       {/* ── タブ ── */}
-      <div style={{ padding: "24px 32px 0" }}>
+      <div style={{ padding: "16px 16px 0" }}>
         <div style={{
-          display: "inline-flex", gap: 4,
+          display: "flex", gap: 4,
           background: "#ede9fe", borderRadius: 12, padding: 4,
         }}>
           {([
-            { id: "announcements" as Tab, label: "📢 お知らせ", count: announcements.length },
-            { id: "releases" as Tab, label: "🚀 バージョン管理", count: releases.length },
+            { id: "announcements" as Tab, label: "📢 お知らせ",      count: announcements.length },
+            { id: "releases"      as Tab, label: "🚀 バージョン管理", count: releases.length },
           ]).map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               style={{
-                padding: "8px 20px", borderRadius: 10, border: "none", cursor: "pointer",
+                flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+                padding: "8px 10px", borderRadius: 10, border: "none", cursor: "pointer",
                 fontSize: 13, fontWeight: 700, transition: "all 0.15s",
                 background: activeTab === tab.id ? "linear-gradient(135deg,#7c3aed,#4f46e5)" : "transparent",
                 color: activeTab === tab.id ? "#fff" : "#7c3aed",
                 boxShadow: activeTab === tab.id ? "0 2px 8px #7c3aed40" : "none",
               }}
             >
-              {tab.label}
+              <span>{tab.label}</span>
               <span style={{
-                marginLeft: 6, fontSize: 11,
+                fontSize: 11,
                 background: activeTab === tab.id ? "#ffffff30" : "#c4b5fd",
                 color: activeTab === tab.id ? "#fff" : "#6d28d9",
-                borderRadius: 999, padding: "1px 7px",
+                borderRadius: 999, padding: "1px 7px", flexShrink: 0,
               }}>
                 {tab.count}
               </span>
@@ -320,7 +334,7 @@ export default function AdminNotificationsPage() {
       </div>
 
       {/* ── コンテンツ ── */}
-      <div style={{ padding: "24px 32px 60px", maxWidth: 860 }}>
+      <div style={{ padding: "16px 16px 60px", maxWidth: 860 }}>
 
         {/* ════ お知らせ一覧 ════ */}
         {activeTab === "announcements" && (
@@ -343,26 +357,23 @@ export default function AdminNotificationsPage() {
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {announcements.map(a => (
                   <div key={a.id} style={{
-                    background: "#fff", borderRadius: 14, padding: "16px 20px",
+                    background: "#fff", borderRadius: 14, padding: "14px 16px",
                     boxShadow: "0 1px 6px #0001", border: "1.5px solid #f3f4f6",
-                    display: "flex", alignItems: "center", gap: 14,
+                    display: "flex", flexDirection: "column", gap: 10,
                   }}>
-                    {/* 種別バッジ */}
-                    <TypeBadge type={a.type} />
-
-                    {/* テキスト */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{
-                        fontWeight: 700, fontSize: 14, color: "#1a0a2e", marginBottom: 3,
-                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
-                      }}>
-                        {a.title}
+                    {/* 上段：バッジ＋タイトル */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                      <TypeBadge type={a.type} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: 14, color: "#1a0a2e", marginBottom: 2,
+                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {a.title}
+                        </div>
+                        <div style={{ fontSize: 12, color: "#bbb" }}>{fmtDate(a.published_at)}</div>
                       </div>
-                      <div style={{ fontSize: 12, color: "#bbb" }}>{fmtDate(a.published_at)}</div>
                     </div>
-
-                    {/* アクション */}
-                    <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                    {/* 下段：アクション */}
+                    <div style={{ display: "flex", gap: 8 }}>
                       <ActionBtn label="編集" onClick={() => openAEdit(a)} />
                       <ActionBtn label="削除" danger onClick={() => setADeleteConfirm(a.id)} />
                     </div>
@@ -394,46 +405,43 @@ export default function AdminNotificationsPage() {
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {releases.map((r, i) => (
                   <div key={r.id} style={{
-                    background: "#fff", borderRadius: 14, padding: "16px 20px",
+                    background: "#fff", borderRadius: 14, padding: "14px 16px",
                     boxShadow: "0 1px 6px #0001", border: "1.5px solid #f3f4f6",
-                    display: "flex", alignItems: "center", gap: 14,
+                    display: "flex", flexDirection: "column", gap: 10,
                   }}>
-                    {/* バージョン番号 */}
-                    <div style={{ flexShrink: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontWeight: 800, fontSize: 15, color: "#1a0a2e" }}>v{r.version}</span>
-                        {i === 0 && (
-                          <span style={{
-                            fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 999,
-                            background: "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "#fff",
-                          }}>LATEST</span>
-                        )}
+                    {/* 上段：バージョン番号＋タイトル */}
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 10, minWidth: 0 }}>
+                      <div style={{ flexShrink: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ fontWeight: 800, fontSize: 15, color: "#1a0a2e" }}>v{r.version}</span>
+                          {i === 0 && (
+                            <span style={{
+                              fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 999,
+                              background: "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "#fff",
+                            }}>LATEST</span>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: 14, color: "#444", marginBottom: 4,
+                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {r.title}
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                          <span style={{ fontSize: 12, color: "#bbb" }}>{fmtDate(r.released_at)}</span>
+                          {r.items.length > 0 && (
+                            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                              {(["新機能", "改善", "修正"] as ItemCategory[])
+                                .filter(cat => r.items.some(it => it.category === cat))
+                                .map(cat => <CatBadge key={cat} cat={cat} />)
+                              }
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-
-                    {/* テキスト */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{
-                        fontWeight: 600, fontSize: 14, color: "#444", marginBottom: 3,
-                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
-                      }}>
-                        {r.title}
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ fontSize: 12, color: "#bbb" }}>{fmtDate(r.released_at)}</span>
-                        {r.items.length > 0 && (
-                          <div style={{ display: "flex", gap: 4 }}>
-                            {(["新機能", "改善", "修正"] as ItemCategory[])
-                              .filter(cat => r.items.some(it => it.category === cat))
-                              .map(cat => <CatBadge key={cat} cat={cat} />)
-                            }
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* アクション */}
-                    <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                    {/* 下段：アクション */}
+                    <div style={{ display: "flex", gap: 8 }}>
                       <ActionBtn label="編集" onClick={() => openREdit(r)} />
                       <ActionBtn label="削除" danger onClick={() => setRDeleteConfirm(r.id)} />
                     </div>
@@ -551,7 +559,7 @@ export default function AdminNotificationsPage() {
                   onClick={addItem}
                   style={{
                     background: "#ede9fe", color: "#7c3aed", border: "none",
-                    borderRadius: 8, padding: "5px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer",
+                    borderRadius: 8, padding: "5px 12px", fontSize: 14, fontWeight: 700, cursor: "pointer",
                   }}
                 >
                   ＋ 追加
@@ -560,7 +568,7 @@ export default function AdminNotificationsPage() {
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {rItems.map((item, idx) => (
                   <div key={idx} style={{
-                    display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 8, alignItems: "center",
+                    display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center",
                     background: "#f9f7ff", borderRadius: 10, padding: "10px 12px",
                     border: "1.5px solid #ede9fe",
                   }}>
@@ -569,7 +577,7 @@ export default function AdminNotificationsPage() {
                       onChange={e => updateItem(idx, { category: e.target.value as ItemCategory })}
                       style={{
                         padding: "7px 10px", border: `1.5px solid ${CAT_COLOR[item.category].border}`,
-                        borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer",
+                        borderRadius: 8, fontSize: 16, fontWeight: 700, cursor: "pointer",
                         background: CAT_COLOR[item.category].bg, color: CAT_COLOR[item.category].color,
                         outline: "none",
                       }}
@@ -580,7 +588,7 @@ export default function AdminNotificationsPage() {
                       value={item.content}
                       onChange={e => updateItem(idx, { content: e.target.value })}
                       placeholder="例: カレンダービューを追加しました"
-                      style={{ ...inp, background: "#fff" }}
+                      style={{ ...inp, background: "#fff", flex: 1, minWidth: 120 }}
                     />
                     <button
                       onClick={() => removeItem(idx)}
@@ -713,15 +721,15 @@ function Modal({ title, footer, children, onClose }: {
         onClick={e => e.stopPropagation()}
       >
         {/* タイトル（固定） */}
-        <div style={{ padding: "28px 36px 0", flexShrink: 0 }}>
-          <div style={{ fontWeight: 800, fontSize: 20, color: "#1a0a2e", marginBottom: 20 }}>{title}</div>
+        <div style={{ padding: "20px 20px 0", flexShrink: 0 }}>
+          <div style={{ fontWeight: 800, fontSize: 18, color: "#1a0a2e", marginBottom: 16 }}>{title}</div>
         </div>
         {/* フォーム（スクロール） */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "0 36px" }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: "0 20px" }}>
           {children}
         </div>
         {/* ボタン（固定） */}
-        <div style={{ padding: "0 36px 28px", flexShrink: 0 }}>
+        <div style={{ padding: "0 20px 20px", flexShrink: 0 }}>
           {footer}
         </div>
       </div>

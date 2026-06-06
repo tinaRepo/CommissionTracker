@@ -150,7 +150,7 @@ export default function AdminPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="名前 / IDで検索…"
-            style={{ width: "100%", padding: "10px 14px", border: "1.5px solid #e5e7eb", borderRadius: 10, fontSize: 14, outline: "none", background: "#fff", boxSizing: "border-box" }} />
+            style={{ width: "100%", padding: "8px 12px", border: "1.5px solid #e5e7eb", borderRadius: 10, fontSize: 16, outline: "none", background: "#fff", boxSizing: "border-box" }} />
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {[{ key: "all", label: "すべて" } as const, ...PLANS.map(p => ({ key: p, label: PLAN_LIMITS[p].label }))].map(s => (
               <button key={s.key} onClick={() => setFilterPlan(s.key as any)}
