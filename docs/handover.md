@@ -37,15 +37,14 @@ app/
 ├── terms/page.tsx              # 利用規約
 ├── privacy/page.tsx            # プライバシーポリシー
 ├── tokusho/page.tsx            # 特定商取引法
-├── version/page.tsx            # バージョン情報
 ├── update-password/page.tsx    # パスワード再設定
 ├── mgmt-c7f2a91e/
-│   ├── page.tsx                    # 管理者ページ（ユーザー管理）
-│   └── notifications/page.tsx      # 管理者：お知らせ・バージョン管理
+│   ├── notifications/page.tsx  # 管理者ページ（お知らせ・バージョン情報編集）
+│   └── page.tsx                # 管理者ページ（URLは推測されにくい形式）
 ├── auth/
 │   ├── callback/
 │   │   └── route.ts      # OAuth コールバック
-│   ├── comfirm/
+│   └─── comfirm/
 │        └── route.ts      # OAuth コールバック（パスワードリセット用）
 ├── api/
 │   ├── stripe/
@@ -61,17 +60,18 @@ app/
 │   ├── request-delete/route.ts     # ユーザーのアカウント削除申請
 │   └── contact/route.ts            # お問い合わせメール送信
 
-docs/
-├── sql/      # DML、DDL
-└── handover.md  # 引継用資料
-
 components/
 ├── CommissionApp.tsx           # メインアプリUI（一覧・フィルタ・ソート・カレンダー切替）
-├── CommissionCalendar.tsx      # カレンダービュー（月表示・週表示）
 ├── DemoApp.tsx                 # デモモード（Supabase不使用・メモリのみ）
+├── PageViewTracker.tsx         # Google Analytics（GA4）のページビュー計測用
 ├── PushNotificationToggle.tsx  # プッシュ通知オン/オフトグル
-├── NotificationsModal.tsx      # お知らせ・リリースノート統合モーダル（ユーザー向け）
-└── AdminNotificationsPage.tsx  # お知らせ・バージョン管理画面（管理者向け）
+├── NotificationsModal.tsx      # お知らせ・リリースノート統合モーダル（ユーザー向け・✉️🔔共通）
+├── ContactModal.tsx            # お問い合わせモーダル（メインアプリ・デモ・ログイン画面で共通利用）
+└── AdminNotificationsPage.tsx  # 管理者向けお知らせ・バージョン管理画面
+
+docs/
+├── sql/xxx.sql                 # DML、DDL
+└── handover.md                 # 引き継ぎ資料
 
 lib/
 └── supabase.ts                 # Supabaseクライアント・各種API関数
@@ -145,6 +145,62 @@ CRON_SECRET=                        # Cron Job認証用シークレット
 ### `push_subscriptions`
 プッシュ通知の購読情報。1ユーザー1レコード。
 
+### `version_releases`
+リリースバージョン情報。管理者のみ書き込み可、全ユーザー読み取り可。
+
+| カラム      | 型          | 説明                     |
+| ----------- | ----------- | ------------------------ |
+| id          | uuid        | PK                       |
+| version     | text        | バージョン番号（unique） |
+| title       | text        | リリースタイトル         |
+| released_at | date        | リリース日               |
+| created_at  | timestamptz | 作成日時                 |
+
+### `version_release_items`
+更新内容の明細。1バージョンに対して複数登録可。
+
+| カラム     | 型          | 説明                 |
+| ---------- | ----------- | -------------------- |
+| id         | uuid        | PK                   |
+| release_id | uuid        | version_releases参照 |
+| category   | text        | 新機能 / 改善 / 修正 |
+| content    | text        | 更新内容テキスト     |
+| sort_order | integer     | 表示順               |
+| created_at | timestamptz | 作成日時             |
+
+### `announcements`
+ユーザー向けお知らせ。管理者のみ書き込み可、全ユーザー読み取り可。
+
+| カラム       | 型          | 説明                                              |
+| ------------ | ----------- | ------------------------------------------------- |
+| id           | uuid        | PK                                                |
+| title        | text        | タイトル                                          |
+| content      | text        | 本文                                              |
+| type         | text        | お知らせ / メンテナンス / 障害情報 / キャンペーン |
+| published_at | timestamptz | 公開日時                                          |
+| created_at   | timestamptz | 作成日時                                          |
+| updated_at   | timestamptz | 更新日時                                          |
+
+### `user_notification_status`
+お知らせの既読管理。ユーザーが開いた時に is_read=true に更新。
+
+| カラム          | 型          | 説明                        |
+| --------------- | ----------- | --------------------------- |
+| user_id         | uuid        | auth.users参照（PK複合）    |
+| announcement_id | uuid        | announcements参照（PK複合） |
+| is_read         | boolean     | 既読フラグ                  |
+| created_at      | timestamptz | 作成日時                    |
+
+### `user_settings`
+ユーザーごとの設定。バージョン未読管理などを担う。
+
+| カラム               | 型          | 説明                     |
+| -------------------- | ----------- | ------------------------ |
+| user_id              | uuid        | auth.users参照（PK）     |
+| last_seen_release_id | uuid        | 最後に確認したリリースID |
+| created_at           | timestamptz | 作成日時                 |
+| updated_at           | timestamptz | 更新日時                 |
+
 ---
 
 ## プラン設定
@@ -188,7 +244,6 @@ update user_profiles set is_admin = true where id = 'UUID';
 - ✅ 画像アップロード（ラフ・作業中・完成・その他）
 - ✅ プランごとの画像枚数制限
 - ✅ 依頼一覧の並び替え・フィルタ
-- ✅ カレンダービュー（月・週）
 - ✅ 表示名設定
 - ✅ プッシュ通知（毎朝8時・納期7日以内）
 - ✅ Stripeサブスク（月額課金・解約・カスタマーポータル）
@@ -196,12 +251,14 @@ update user_profiles set is_admin = true where id = 'UUID';
 - ✅ 管理者：お知らせ管理（登録・編集・削除）
 - ✅ 管理者：バージョン管理（登録・編集・削除・更新内容管理）
 - ✅ アカウント削除申請（Resendでメール通知）
-- ✅ お問い合わせフォーム
-- ✅ デモモード（ログイン不要・メモリのみ）
+- ✅ お問い合わせフォーム（モーダル表示・管理者通知メール・ユーザー自動返信）
+- ✅ デモモード（ログイン不要・メモリのみ・✉️🔔ボタン付き）
 - ✅ PWA対応（ホーム画面追加）
 - ✅ LP（/lp）
 - ✅ 法的ページ（利用規約・プライバシー・特定商取引法）
 - ✅ Google AdSense（審査中）
+- ✅ お知らせ・リリースノート統合管理（DB管理・タブ切替・未読バッジ通知）
+- ✅ お知らせ・バージョン管理モーダル（ベルマーク押下でモーダル表示、既読管理）
 
 ---
 
@@ -221,6 +278,8 @@ update user_profiles set is_admin = true where id = 'UUID';
 
 - `mgmt-c7f2a91e` が管理者ページのURL（推測されにくくするため）
 - 管理者のお知らせ・バージョン管理は `/mgmt-c7f2a91e/notifications`
+- `ContactModal` は CommissionApp・DemoApp・ログイン画面の3箇所で共通利用
+- Resend 無料プランは `onboarding@resend.dev` からの送信のみ。独自ドメイン設定後は `route.ts` の `from` を変更すること
 - Service Role Keyは絶対にフロントエンドに露出させないこと
 - Stripeのテストキー（`sk_test_`）と本番キー（`sk_live_`）を混在させないこと
 - Cron Jobは本番環境（mainブランチ）のみ実行される

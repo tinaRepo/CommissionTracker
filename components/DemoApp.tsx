@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import ContactModal from "@/components/ContactModal";
+import NotificationsModal from "@/components/NotificationsModal";
 
 // ---- 型定義 ----
 type CommissionStatus = "pending" | "rough" | "progress" | "done" | "cancelled";
@@ -190,6 +192,8 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showContact, setShowContact] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [sortKey, setSortKey] = useState<"ordered_at" | "deadline" | "price" | "status">("ordered_at");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
@@ -201,7 +205,7 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
       else if (sortKey === "deadline") { av = a.deadline ?? ""; bv = b.deadline ?? ""; }
       else if (sortKey === "price") { av = a.price ?? 0; bv = b.price ?? 0; }
       else if (sortKey === "status") {
-        const order = ["pending","rough","progress","done","cancelled"];
+        const order = ["pending", "rough", "progress", "done", "cancelled"];
         av = order.indexOf(a.status); bv = order.indexOf(b.status);
       }
       if (av < bv) return sortDir === "asc" ? -1 : 1;
@@ -296,6 +300,28 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
               <div style={{ color: "#a78bfa", fontSize: 10 }}>{l}</div>
             </div>
           ))}
+          <button
+            onClick={() => setShowContact(true)}
+            style={{
+              width: 38, height: 38, borderRadius: "50%", background: "#ffffff18",
+              border: "1px solid #ffffff30", cursor: "pointer", color: "#fff",
+              fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+            title="お問い合わせ"
+          >
+            ✉️
+          </button>
+          <button
+            onClick={() => setShowNotifications(true)}
+            style={{
+              width: 38, height: 38, borderRadius: "50%", background: "#ffffff18",
+              border: "1px solid #ffffff30", cursor: "pointer", color: "#fff",
+              fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+            title="お知らせ"
+          >
+            🔔
+          </button>
           <button onClick={openNew} style={{
             background: "linear-gradient(135deg,#7c3aed,#4f46e5)",
             color: "#fff", border: "none", borderRadius: 12, padding: "9px 18px", fontWeight: 700,
@@ -550,24 +576,26 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
       )}
 
       {/* フッター */}
-      <footer style={{ borderTop:"1px solid #e5e7eb", padding:"24px 32px", textAlign:"center" }}>
-        <div style={{ display:"flex", flexWrap:"wrap", justifyContent:"center", gap:"4px 16px" }}>
+      <footer style={{ borderTop: "1px solid #e5e7eb", padding: "24px 32px", textAlign: "center" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "4px 16px" }}>
           {[
             { href: "/lp", label: "サービス紹介" },
-            { href:"/guide", label:"使い方" },
-            { href:"/terms", label:"利用規約" },
-            { href:"/privacy", label:"プライバシーポリシー" },
-            { href:"/tokusho", label:"特定商取引法" },
-            { href:"/version", label:"バージョン情報" },
+            { href: "/guide", label: "使い方" },
+            { href: "/terms", label: "利用規約" },
+            { href: "/privacy", label: "プライバシーポリシー" },
+            { href: "/tokusho", label: "特定商取引法" },
           ].map(link => (
             <a key={link.href} href={link.href}
-              style={{ fontSize:12, color:"#aaa", textDecoration:"none", padding:"2px 4px" }}>
+              style={{ fontSize: 12, color: "#aaa", textDecoration: "none", padding: "2px 4px" }}>
               {link.label}
             </a>
           ))}
         </div>
-        <div style={{ fontSize:11, color:"#ccc", marginTop:10 }}>© 2026 Commission Tracker</div>
+        <div style={{ fontSize: 11, color: "#ccc", marginTop: 10 }}>© 2026 Commission Tracker</div>
       </footer>
+
+      <ContactModal open={showContact} onClose={() => setShowContact(false)} />
+      <NotificationsModal open={showNotifications} onClose={() => setShowNotifications(false)} />
     </div>
   );
 }

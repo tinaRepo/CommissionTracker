@@ -26,13 +26,7 @@
 
 ### 1-2. DB・RLS・Storage の構築
 
-**Dashboard → SQL Editor** を開き、`supabase/` 配下のファイルを**以下の順番で**貼り付けて実行してください。
-
-| 順番 | ファイル | 内容 |
-|:---:|----------|------|
-| ① | `schema.sql` | テーブル作成 |
-| ② | `policy.sql` | RLS ポリシー・サインアップトリガー |
-| ③ | `migrations/migration_add_notifications.sql` | お知らせ・バージョン管理テーブル |
+**Dashboard → SQL Editor** を開き、`docs/sql` 配下のファイルを**順番に**貼り付けて実行してください。
 
 > ⚠️ 順番を守らないと外部キー制約エラーが発生します。
 
@@ -53,19 +47,19 @@
 
 **Dashboard → Authentication → URL Configuration** で設定します。
 
-| 項目 | 値 |
-|------|----|
-| Site URL | `https://your-app.vercel.app` |
+| 項目          | 値                               |
+| ------------- | -------------------------------- |
+| Site URL      | `https://your-app.vercel.app`    |
 | Redirect URLs | `https://your-app.vercel.app/**` |
 
 ### 1-5. API キーの確認
 
 **Dashboard → Project Settings → Data API** で以下をメモしておきます。
 
-| 項目 | 環境変数名 |
-|------|-----------|
-| Project URL | `NEXT_PUBLIC_SUPABASE_URL` |
-| anon public key | `NEXT_PUBLIC_SUPABASE_ANON_KEY` |
+| 項目             | 環境変数名                                         |
+| ---------------- | -------------------------------------------------- |
+| Project URL      | `NEXT_PUBLIC_SUPABASE_URL`                         |
+| anon public key  | `NEXT_PUBLIC_SUPABASE_ANON_KEY`                    |
 | service_role key | `SUPABASE_SERVICE_ROLE_KEY` ⚠️ 外部に漏らさないこと |
 
 ---
@@ -111,25 +105,25 @@ vercel dev
 2. [Vercel](https://vercel.com) → **Add New Project** → リポジトリを選択
 3. **Environment Variables** に以下を追加してデプロイ
 
-| 環境変数 | 値 | 備考 |
-|----------|----|------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase の Project URL | |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase の anon key | |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase の service_role key | ⚠️ サーバーサイド専用 |
-| `RESEND_API_KEY` | Resend の API キー | |
-| `ADMIN_EMAIL` | 削除申請メールの受信アドレス | |
-| `NEXT_PUBLIC_APP_URL` | Vercel のデプロイ URL | 例: `https://your-app.vercel.app` |
-| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe の公開鍵 | |
-| `STRIPE_SECRET_KEY` | Stripe の秘密鍵 | ⚠️ サーバーサイド専用 |
-| `STRIPE_WEBHOOK_SECRET` | Stripe Webhook のシークレット | |
-| `STRIPE_STANDARD_PRICE_ID` | スタンダードプランの Price ID | サーバーサイド用 |
-| `STRIPE_PREMIUM_PRICE_ID` | プレミアムプランの Price ID | サーバーサイド用 |
-| `NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID` | スタンダードプランの Price ID | フロント用 |
-| `NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID` | プレミアムプランの Price ID | フロント用 |
-| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Web Push の公開鍵 | |
-| `VAPID_PRIVATE_KEY` | Web Push の秘密鍵 | |
-| `VAPID_EMAIL` | Web Push 送信元メール | 例: `mailto:xxx@example.com` |
-| `CRON_SECRET` | Cron Job 認証用シークレット | |
+| 環境変数                               | 値                            | 備考                              |
+| -------------------------------------- | ----------------------------- | --------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`             | Supabase の Project URL       |                                   |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY`        | Supabase の anon key          |                                   |
+| `SUPABASE_SERVICE_ROLE_KEY`            | Supabase の service_role key  | ⚠️ サーバーサイド専用              |
+| `RESEND_API_KEY`                       | Resend の API キー            |                                   |
+| `ADMIN_EMAIL`                          | 削除申請メールの受信アドレス  |                                   |
+| `NEXT_PUBLIC_APP_URL`                  | Vercel のデプロイ URL         | 例: `https://your-app.vercel.app` |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`   | Stripe の公開鍵               |                                   |
+| `STRIPE_SECRET_KEY`                    | Stripe の秘密鍵               | ⚠️ サーバーサイド専用              |
+| `STRIPE_WEBHOOK_SECRET`                | Stripe Webhook のシークレット |                                   |
+| `STRIPE_STANDARD_PRICE_ID`             | スタンダードプランの Price ID | サーバーサイド用                  |
+| `STRIPE_PREMIUM_PRICE_ID`              | プレミアムプランの Price ID   | サーバーサイド用                  |
+| `NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID` | スタンダードプランの Price ID | フロント用                        |
+| `NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID`  | プレミアムプランの Price ID   | フロント用                        |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY`         | Web Push の公開鍵             |                                   |
+| `VAPID_PRIVATE_KEY`                    | Web Push の秘密鍵             |                                   |
+| `VAPID_EMAIL`                          | Web Push 送信元メール         | 例: `mailto:xxx@example.com`      |
+| `CRON_SECRET`                          | Cron Job 認証用シークレット   |                                   |
 
 > ⚠️ 環境変数を追加・変更した後は必ず **Redeploy** すること
 
@@ -139,7 +133,7 @@ vercel dev
 
 ### Resend（メール送信）
 
-アカウント削除申請の通知メールに使用します。
+アカウント削除申請の通知メール、お問い合わせフォームの管理者通知・ユーザー自動返信メールに使用します。
 
 1. [resend.com](https://resend.com) でアカウント作成（無料・月 3,000 通まで）
 2. **Dashboard → API Keys → Create API Key** で発行
@@ -189,6 +183,7 @@ where id = 'ここに UUID を貼る';
 4. ログイン後、右上のユーザーメニュー → **「⚙ 管理者ページ」** から管理画面へ
 
 管理者ページ URL: `/mgmt-c7f2a91e`（推測されにくい形式）
+お知らせ・バージョン管理 URL: `/mgmt-c7f2a91e/notifications`
 
 ---
 
@@ -215,16 +210,19 @@ where id = 'ここに UUID を貼る';
 
 **通知**
 - ✅ プッシュ通知（毎朝 8 時・納期 7 日以内）
-- ✅ お知らせ・リリースノート（未読バッジ通知）
+- ✅ お知らせ・リリースノート（未読バッジ通知・モーダル表示）
+- ✅ お問い合わせフォーム（モーダル表示・管理者通知・ユーザー自動返信）
 
 **課金**
 - ✅ Stripe サブスク（月額課金・解約・カスタマーポータル）
 
 **管理者**
 - ✅ ユーザー一覧・プラン変更・ユーザー削除
+- ✅ お知らせ管理（登録・編集・削除）
+- ✅ バージョン管理（登録・編集・削除・更新内容管理）
 
 **その他**
-- ✅ デモモード（ログイン不要・メモリのみ）
+- ✅ デモモード（ログイン不要・メモリのみ・お知らせ・お問い合わせボタン付き）
 - ✅ PWA 対応（ホーム画面追加）
 - ✅ LP・利用規約・プライバシーポリシー・特定商取引法ページ
 
@@ -232,8 +230,8 @@ where id = 'ここに UUID を貼る';
 
 ## 7. プラン制限
 
-| プラン | 月額 | 画像保存（アカウント合計） |
-|--------|------|--------------------------|
-| 無料 | ¥0 | 10 枚まで |
-| スタンダード | ¥300 | 50 枚まで |
-| プレミアム | ¥800 | 無制限 |
+| プラン       | 月額 | 画像保存（アカウント合計） |
+| ------------ | ---- | -------------------------- |
+| 無料         | ¥0   | 10 枚まで                  |
+| スタンダード | ¥300 | 50 枚まで                  |
+| プレミアム   | ¥800 | 無制限                     |

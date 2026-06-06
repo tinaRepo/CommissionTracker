@@ -14,6 +14,7 @@ import type { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import PushNotificationToggle from "./PushNotificationToggle";
 import NotificationsModal from "./NotificationsModal";
+import ContactModal from "./ContactModal";
 
 // ---- 定数とユーティリティ ----
 const STATUSES: { key: CommissionStatus; label: string; color: string; bg: string }[] = [
@@ -352,6 +353,7 @@ export default function CommissionApp() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showContact, setShowContact] = useState(false);
 
   useEffect(() => {
     // 初回: セッション確認してuserをセット、なければloginへ
@@ -564,6 +566,19 @@ export default function CommissionApp() {
               <ImageUsageBar plan={plan} imageCount={imageCount} />
             </div>
           )}
+
+          {/* お問い合わせメールボタン */}
+          <button
+            onClick={() => setShowContact(true)}
+            style={{
+              width: 38, height: 38, borderRadius: "50%", background: "#ffffff18",
+              border: "1px solid #ffffff30", cursor: "pointer", color: "#fff",
+              fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+            title="お問い合わせ"
+          >
+            ✉️
+          </button>
 
           {/* お知らせベルボタン */}
           <div style={{ position: "relative" }}>
@@ -1002,6 +1017,12 @@ export default function CommissionApp() {
           </div>
         </div>
       )}
+
+      {/* お問い合わせモーダル */}
+      <ContactModal
+        open={showContact}
+        onClose={() => setShowContact(false)}
+      />
 
       {/* お知らせモーダル */}
       <NotificationsModal
