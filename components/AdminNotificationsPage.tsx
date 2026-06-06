@@ -731,7 +731,7 @@ function Modal({ title, footer, children, onClose }: {
       onClick={onClose}
     >
       <div
-        style={{ background: "#fff", borderRadius: 20, maxWidth: 540, width: "100%", maxHeight: "82vh", display: "flex", flexDirection: "column", boxShadow: "0 8px 48px #0004" }}
+        style={{ background: "#fff", borderRadius: 20, maxWidth: 540, width: "100%", maxHeight: "calc(100vh - 32px)", display: "flex", flexDirection: "column", boxShadow: "0 8px 48px #0004" }}
         onClick={e => e.stopPropagation()}
       >
         {/* タイトル（固定） */}

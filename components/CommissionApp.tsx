@@ -1016,10 +1016,11 @@ export default function CommissionApp() {
 
       {/* フォームモーダル */}
       {showForm && (
-        <div style={{ position: "fixed", inset: 0, background: "#0007", zIndex: 150, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+        <div style={{ position: "fixed", inset: 0, background: "#0007", zIndex: 150, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}
+          onClick={() => { pendingImages.forEach(pi => URL.revokeObjectURL(pi.previewUrl)); setPendingImages([]); setShowForm(false); setEditId(null); }}>
           <div style={{
             background: "#fff", borderRadius: 20, maxWidth: 520, width: "100%",
-            maxHeight: "82vh", display: "flex", flexDirection: "column", boxShadow: "0 8px 48px #0004"
+            maxHeight: "calc(100vh - 32px)", display: "flex", flexDirection: "column", boxShadow: "0 8px 48px #0004"
           }}
             onClick={e => e.stopPropagation()}>
             {/* タイトル（固定） */}
