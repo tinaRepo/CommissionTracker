@@ -510,7 +510,7 @@ export default function AdminNotificationsPage() {
               </div>
             </Field>
             <Field label="公開日">
-              <input type="date" value={aForm.published_at} onChange={e => setAForm({ ...aForm, published_at: e.target.value })} style={inp} />
+              <input type="date" value={aForm.published_at} onChange={e => setAForm({ ...aForm, published_at: e.target.value })} style={{ ...inp, fontSize: 13 }} />
             </Field>
           </div>
         </Modal>
@@ -543,7 +543,7 @@ export default function AdminNotificationsPage() {
               </Field>
               <Field label="リリース日">
                 <input type="date" value={rForm.released_at} onChange={e => setRForm({ ...rForm, released_at: e.target.value })}
-                  style={{ ...inp, fontSize: 13, padding: "10px 6px" }} />
+                  style={{ ...inp, fontSize: 13 }} />
               </Field>
             </div>
             <Field label="タイトル *">
@@ -720,19 +720,19 @@ function Modal({ title, footer, children, onClose }: {
       onClick={onClose}
     >
       <div
-        style={{ background: "#fff", borderRadius: 20, maxWidth: 540, width: "100%", maxHeight: "88vh", display: "flex", flexDirection: "column", boxShadow: "0 8px 48px #0004" }}
+        style={{ background: "#fff", borderRadius: 20, maxWidth: 540, width: "100%", maxHeight: "82vh", display: "flex", flexDirection: "column", boxShadow: "0 8px 48px #0004" }}
         onClick={e => e.stopPropagation()}
       >
         {/* タイトル（固定） */}
-        <div style={{ padding: "20px 20px 0", flexShrink: 0 }}>
-          <div style={{ fontWeight: 800, fontSize: 18, color: "#1a0a2e", marginBottom: 16 }}>{title}</div>
+        <div style={{ padding: "16px 20px 0", flexShrink: 0 }}>
+          <div style={{ fontWeight: 800, fontSize: 18, color: "#1a0a2e", marginBottom: 12 }}>{title}</div>
         </div>
         {/* フォーム（スクロール） */}
         <div style={{ flex: 1, overflowY: "auto", padding: "0 20px" }}>
           {children}
         </div>
         {/* ボタン（固定） */}
-        <div style={{ padding: "0 20px 20px", flexShrink: 0 }}>
+        <div style={{ padding: "0 20px 16px", flexShrink: 0 }}>
           {footer}
         </div>
       </div>
