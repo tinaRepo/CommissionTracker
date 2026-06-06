@@ -540,6 +540,7 @@ export default function AdminNotificationsPage() {
             />
           }
         >
+          {/* バージョン番号・リリース日・タイトルは固定表示 */}
           <div style={{ display: "grid", gap: 16 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <Field label="バージョン番号 *">
@@ -565,21 +566,19 @@ export default function AdminNotificationsPage() {
                 style={inp}
               />
             </Field>
-            {/* 更新内容 */}
+            {/* 更新内容：リストのみ独立スクロール・高さ固定 */}
             <div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                 <label style={{ fontSize: 13, fontWeight: 700, color: "#555" }}>更新内容</label>
                 <button
                   onClick={addItem}
-                  style={{
-                    background: "#ede9fe", color: "#7c3aed", border: "none",
-                    borderRadius: 8, padding: "5px 12px", fontSize: 14, fontWeight: 700, cursor: "pointer",
-                  }}
+                  style={{ background: "#ede9fe", color: "#7c3aed", border: "none", borderRadius: 8, padding: "5px 12px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}
                 >
                   ＋ 追加
                 </button>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {/* 高さ固定・内側スクロール */}
+              <div style={{ maxHeight: 220, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
                 {rItems.map((item, idx) => (
                   <div key={idx} style={{
                     display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center",
@@ -731,7 +730,7 @@ function Modal({ title, footer, children, onClose }: {
       onClick={onClose}
     >
       <div
-        style={{ background: "#fff", borderRadius: 20, maxWidth: 540, width: "100%", maxHeight: "calc(100vh - 32px)", display: "flex", flexDirection: "column", boxShadow: "0 8px 48px #0004" }}
+        style={{ background: "#fff", borderRadius: 20, maxWidth: 540, width: "100%", height: "calc(100vh - 32px)", maxHeight: 600, display: "flex", flexDirection: "column", boxShadow: "0 8px 48px #0004" }}
         onClick={e => e.stopPropagation()}
       >
         {/* タイトル（固定） */}
