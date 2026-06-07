@@ -13,6 +13,8 @@ import {
 import type { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import PushNotificationToggle from "./PushNotificationToggle";
+import NotificationsModal from "./NotificationsModal";
+import ContactModal from "./ContactModal";
 
 // ---- 定数とユーティリティ ----
 const STATUSES: { key: CommissionStatus; label: string; color: string; bg: string }[] = [
@@ -36,7 +38,14 @@ type FormValues = {
   status: CommissionStatus; rough_date: string; notes: string;
 };
 
-// 画像アップロード前にプランの上限をチェック
+// 新規登録時に仮保持する画像キュー
+type PendingImage = {
+  id: string;
+  file: File;
+  imageType: ImageType;
+  previewUrl: string;
+};
+
 const EMPTY_FORM: FormValues = {
   title: "", artist: "", x_id: "", ordered_at: "", deadline: "",
   price: "", currency: "JPY", status: "pending", rough_date: "", notes: "",
@@ -150,7 +159,7 @@ function ImageUsageBar({ plan, imageCount }: { plan: Plan; imageCount: number })
   const pct = Math.min((imageCount / limit) * 100, 100);
   const color = pct >= 90 ? "#ef4444" : pct >= 70 ? "#f59e0b" : "#7c3aed";
   return (
-    <div style={{ minWidth: 160 }}>
+    <div style={{ minWidth: 120 }}>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#aaa", marginBottom: 3 }}>
         <span>📷 画像 {imageCount} / {limit}枚</span>
         <span style={{ color, fontWeight: 700 }}>{Math.round(pct)}%</span>
@@ -159,6 +168,19 @@ function ImageUsageBar({ plan, imageCount }: { plan: Plan; imageCount: number })
         <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 99, transition: "width 0.4s" }} />
       </div>
     </div>
+  );
+}
+
+// ---- カード一覧サムネイル（signed URL を遅延取得） ----
+function CardThumbnail({ storagePath }: { storagePath: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    getSignedImageUrl(storagePath).then(setUrl).catch(() => { });
+  }, [storagePath]);
+  if (!url) return <div style={{ width: 72, height: 72, borderRadius: 10, background: "#e5e7eb", flexShrink: 0 }} />;
+  return (
+    <img src={url} alt="thumbnail"
+      style={{ width: 72, height: 72, borderRadius: 10, objectFit: "cover", flexShrink: 0, border: "1.5px solid #e5e7eb" }} />
   );
 }
 
@@ -188,7 +210,22 @@ function ImageSection({ commission, plan, onUpdated }: {
   const [imageType, setImageType] = useState<ImageType>("rough");
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const [preview, setPreview] = useState<string | null>(null);
+  const [previewFileName, setPreviewFileName] = useState<string>("");
   const [limitError, setLimitError] = useState<string | null>(null);
+
+  async function handleDownload(url: string, fileName: string) {
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = fileName;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch {
+      alert("ダウンロードに失敗しました");
+    }
+  }
 
   useEffect(() => {
     const images = commission.images ?? [];
@@ -273,7 +310,7 @@ function ImageSection({ commission, plan, onUpdated }: {
                 border: "1.5px solid #e5e7eb", background: "#f3f4f6"
               }}>
                 {url ? (
-                  <img src={url} alt={img.file_name} onClick={() => setPreview(url)}
+                  <img src={url} alt={img.file_name} onClick={() => { setPreview(url); setPreviewFileName(img.file_name); }}
                     style={{ width: "100%", aspectRatio: "1", objectFit: "cover", cursor: "pointer" }} />
                 ) : (
                   <div style={{ width: "100%", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>🖼</div>
@@ -282,12 +319,23 @@ function ImageSection({ commission, plan, onUpdated }: {
                   position: "absolute", top: 4, left: 4, background: "#1a0a2ecc", color: "#fff",
                   fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 6
                 }}>{typeLabel}</div>
+                {/* 削除ボタン */}
                 <button onClick={() => handleDelete(img)}
                   style={{
                     position: "absolute", top: 4, right: 4, background: "#ef4444cc", color: "#fff",
                     border: "none", borderRadius: "50%", width: 20, height: 20, fontSize: 12, cursor: "pointer",
                     display: "flex", alignItems: "center", justifyContent: "center"
                   }}>×</button>
+                {/* ダウンロードボタン */}
+                {url && (
+                  <button onClick={e => { e.stopPropagation(); handleDownload(url, img.file_name); }}
+                    title="ダウンロード"
+                    style={{
+                      position: "absolute", bottom: 4, right: 4, background: "#1a0a2ecc", color: "#fff",
+                      border: "none", borderRadius: "50%", width: 20, height: 20, fontSize: 11, cursor: "pointer",
+                      display: "flex", alignItems: "center", justifyContent: "center"
+                    }}>↓</button>
+                )}
               </div>
             );
           })}
@@ -319,6 +367,17 @@ function ImageSection({ commission, plan, onUpdated }: {
         }}>
           <img src={preview} alt="preview"
             style={{ maxWidth: "90vw", maxHeight: "90vh", borderRadius: 12, boxShadow: "0 8px 48px #000a" }} />
+          <button
+            onClick={e => { e.stopPropagation(); handleDownload(preview, previewFileName); }}
+            title="ダウンロード"
+            style={{
+              position: "fixed", bottom: 40, left: "50%", transform: "translateX(-50%)",
+              background: "#fff", color: "#1a0a2e", border: "none", borderRadius: 10,
+              padding: "10px 24px", fontWeight: 700, fontSize: 14, cursor: "pointer",
+              boxShadow: "0 2px 16px #000a", display: "flex", alignItems: "center", gap: 6, zIndex: 501
+            }}>
+            ⬇ ダウンロード
+          </button>
         </div>
       )}
     </div>
@@ -338,6 +397,8 @@ export default function CommissionApp() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<FormValues>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
+  const [pendingImageType, setPendingImageType] = useState<ImageType>("rough");
   const [detailId, setDetailId] = useState<string | null>(null);
   const [detailItem, setDetailItem] = useState<Commission | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -349,6 +410,9 @@ export default function CommissionApp() {
   const [deleteRequestDone, setDeleteRequestDone] = useState(false);
   const [sortKey, setSortKey] = useState<"ordered_at" | "deadline" | "price" | "status">("ordered_at");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showContact, setShowContact] = useState(false);
 
   useEffect(() => {
     // 初回: セッション確認してuserをセット、なければloginへ
@@ -384,6 +448,24 @@ export default function CommissionApp() {
   }
 
   useEffect(() => { if (user) load(); }, [user]);
+
+  // お知らせ・バージョンの未読件数を取得
+  async function fetchUnreadCount(userId: string) {
+    const [{ data: announcements }, { data: readStatuses }, { data: latestRelease }, { data: settings }] =
+      await Promise.all([
+        supabase.from("announcements").select("id"),
+        supabase.from("user_notification_status").select("announcement_id").eq("user_id", userId).eq("is_read", true),
+        supabase.from("version_releases").select("id").order("released_at", { ascending: false }).limit(1).maybeSingle(),
+        supabase.from("user_settings").select("last_seen_release_id").eq("user_id", userId).maybeSingle(),
+      ]);
+
+    const readIds = new Set((readStatuses ?? []).map((s: any) => s.announcement_id));
+    const unreadAnnouncements = (announcements ?? []).filter((a: any) => !readIds.has(a.id)).length;
+    const unreadRelease = latestRelease && (!settings || settings.last_seen_release_id !== (latestRelease as any).id) ? 1 : 0;
+    setUnreadCount(unreadAnnouncements + unreadRelease);
+  }
+
+  useEffect(() => { if (user) fetchUnreadCount(user.id); }, [user]);
 
   // --- プロフィールの更新 ---
   async function handleSaveName() {
@@ -441,7 +523,7 @@ export default function CommissionApp() {
   }), [commissions]);
 
   // プロフィールの取得
-  function openNew() { setForm(EMPTY_FORM); setEditId(null); setShowForm(true); }
+  function openNew() { setForm(EMPTY_FORM); setEditId(null); setPendingImages([]); setPendingImageType("rough"); setShowForm(true); }
   function openEdit(c: Commission) {
     setForm({
       title: c.title, artist: c.artist, x_id: c.x_id ?? "", ordered_at: c.ordered_at ?? "",
@@ -465,7 +547,17 @@ export default function CommissionApp() {
       if (editId) {
         await updateCommission(editId, payload);
       } else {
-        await createCommission(payload);
+        const newCommission = await createCommission(payload);
+        // 新規登録時：仮保持していた画像を順次アップロード
+        if (pendingImages.length > 0) {
+          for (const pi of pendingImages) {
+            try {
+              await uploadImage(newCommission.id, pi.file, pi.imageType, plan);
+            } catch { /* 1枚失敗しても続行 */ }
+            URL.revokeObjectURL(pi.previewUrl);
+          }
+          setPendingImages([]);
+        }
       }
       await load();
       if (detailId) {
@@ -499,6 +591,16 @@ export default function CommissionApp() {
     const item = commissions.find(c => c.id === detailId) ?? null;
     setDetailItem(item);
   }, [detailId, commissions]);
+
+  // フォームモーダル表示中はbodyスクロールをロック（iOSで背景がスクロールするのを防ぐ）
+  useEffect(() => {
+    if (showForm || detailId) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [showForm, detailId]);
   const plan = (profile?.plan ?? "free") as Plan;
   const displayName = profile?.display_name;
   const userLabel = displayName ?? user?.user_metadata?.full_name ?? (user?.email?.split("@")[0]) ?? "ユーザー";
@@ -544,6 +646,46 @@ export default function CommissionApp() {
             </div>
           )}
 
+          {/* お問い合わせメールボタン */}
+          <button
+            onClick={() => setShowContact(true)}
+            style={{
+              width: 38, height: 38, borderRadius: "50%", background: "#ffffff18",
+              border: "1px solid #ffffff30", cursor: "pointer", color: "#fff",
+              fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+            title="お問い合わせ"
+          >
+            ✉️
+          </button>
+
+          {/* お知らせベルボタン */}
+          <div style={{ position: "relative" }}>
+            <button
+              onClick={() => setShowNotifications(true)}
+              style={{
+                width: 38, height: 38, borderRadius: "50%", background: "#ffffff18",
+                border: "1px solid #ffffff30", cursor: "pointer", color: "#fff",
+                fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center",
+              }}
+              title="お知らせ"
+            >
+              🔔
+            </button>
+            {unreadCount > 0 && (
+              <span style={{
+                position: "absolute", top: -4, right: -4,
+                minWidth: 18, height: 18, borderRadius: 999,
+                background: "#ef4444", color: "#fff",
+                fontSize: 10, fontWeight: 700, lineHeight: "18px",
+                textAlign: "center", padding: "0 4px",
+                pointerEvents: "none",
+              }}>
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            )}
+          </div>
+
           <button onClick={openNew} style={{
             background: "linear-gradient(135deg,#7c3aed,#4f46e5)",
             color: "#fff", border: "none", borderRadius: 12, padding: "9px 18px", fontWeight: 700,
@@ -576,17 +718,17 @@ export default function CommissionApp() {
             {showUserMenu && (
               <div style={{
                 position: "absolute", right: 0, top: "calc(100% + 8px)", background: "#fff",
-                borderRadius: 12, boxShadow: "0 8px 32px #0003", minWidth: 180, overflow: "hidden", zIndex: 99
+                borderRadius: 12, boxShadow: "0 8px 32px #0003", minWidth: 220, overflow: "hidden", zIndex: 99
               }}>
                 <div style={{ padding: "12px 16px", borderBottom: "1px solid #f3f4f6" }}>
-                  <div style={{ fontSize: 12, color: "#888", marginBottom: 4 }}>{user?.email}</div>
+                  <div style={{ fontSize: 12, color: "#888", marginBottom: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user?.email}</div>
                   {profile && <PlanBadge plan={profile.plan} />}
                 </div>
                 <button onClick={() => window.location.href = "/pricing"}
                   style={{
                     width: "100%", padding: "11px 16px", background: "none", border: "none",
                     borderBottom: "1px solid #f3f4f6", cursor: "pointer", fontSize: 13,
-                    color: "#7c3aed", fontWeight: 700, textAlign: "left"
+                    color: "#7c3aed", fontWeight: 700, textAlign: "left", whiteSpace: "nowrap"
                   }}>
                   ⭐ プランをアップグレード
                 </button>
@@ -595,26 +737,16 @@ export default function CommissionApp() {
                   style={{
                     width: "100%", padding: "11px 16px", background: "none", border: "none",
                     borderBottom: "1px solid #f3f4f6", cursor: "pointer", fontSize: 13,
-                    color: "#1a0a2e", fontWeight: 600, textAlign: "left"
+                    color: "#1a0a2e", fontWeight: 600, textAlign: "left", whiteSpace: "nowrap"
                   }}>
                   ✏️ 名前を変更
                 </button>
-                {!profile?.is_admin && (
-                  <button onClick={() => window.location.href = "/contact"}
-                    style={{
-                      width: "100%", padding: "11px 16px", background: "none", border: "none",
-                      borderBottom: "1px solid #f3f4f6", cursor: "pointer", fontSize: 13,
-                      color: "#1a0a2e", fontWeight: 600, textAlign: "left"
-                    }}>
-                    ✉️ お問い合わせ
-                  </button>
-                )}
                 {profile?.is_admin && (
                   <button onClick={() => window.location.href = "/mgmt-c7f2a91e"}
                     style={{
                       width: "100%", padding: "11px 16px", background: "none", border: "none",
                       borderBottom: "1px solid #f3f4f6", cursor: "pointer", fontSize: 13,
-                      color: "#7c3aed", fontWeight: 700, textAlign: "left"
+                      color: "#7c3aed", fontWeight: 700, textAlign: "left", whiteSpace: "nowrap"
                     }}>
                     ⚙ 管理者ページ
                   </button>
@@ -624,7 +756,7 @@ export default function CommissionApp() {
                     style={{
                       width: "100%", padding: "11px 16px", background: "none", border: "none",
                       borderTop: "1px solid #f3f4f6", cursor: "pointer", fontSize: 13,
-                      color: "#ef4444", fontWeight: 600, textAlign: "left"
+                      color: "#ef4444", fontWeight: 600, textAlign: "left", whiteSpace: "nowrap"
                     }}>
                     🗑 アカウント削除を申請
                   </button>
@@ -632,7 +764,7 @@ export default function CommissionApp() {
                 <button onClick={handleLogout}
                   style={{
                     width: "100%", padding: "11px 16px", background: "none", border: "none",
-                    cursor: "pointer", fontSize: 13, color: "#ef4444", fontWeight: 700, textAlign: "left"
+                    cursor: "pointer", fontSize: 13, color: "#ef4444", fontWeight: 700, textAlign: "left", whiteSpace: "nowrap"
                   }}>
                   ログアウト
                 </button>
@@ -689,12 +821,16 @@ export default function CommissionApp() {
                   background: "#fff", borderRadius: 16, padding: "18px 22px",
                   boxShadow: urgent ? "0 0 0 2px #ef444460,0 2px 12px #0001" : "0 1px 6px #0001,0 2px 12px #0001",
                   border: urgent ? "1.5px solid #fca5a5" : "1.5px solid transparent",
-                  cursor: "pointer", display: "grid", gridTemplateColumns: "1fr auto", gap: "4px 16px", alignItems: "center",
+                  cursor: "pointer", display: "flex", gap: 16, alignItems: "center",
                   transition: "transform 0.1s"
                 }}
                 onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)"; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)"; }}>
-                <div>
+                {/* サムネイル（最初の画像） */}
+                {(c.images?.length ?? 0) > 0 && (
+                  <CardThumbnail storagePath={c.images![0].storage_path} />
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
                     <span style={{ fontWeight: 800, fontSize: 16, color: "#1a0a2e" }}>{c.title}</span>
                     <StatusBadge status={c.status} />
@@ -708,7 +844,7 @@ export default function CommissionApp() {
                     {c.rough_date && <span>✏️ ラフ: {fmtDate(c.rough_date)}</span>}
                   </div>
                 </div>
-                <div style={{ textAlign: "right" }}>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
                   <div style={{ fontWeight: 800, fontSize: 18, color: "#1a0a2e" }}>{fmtPrice(c.price, c.currency)}</div>
                   {days !== null && c.status !== "done" && c.status !== "cancelled" && (
                     <div style={{ fontSize: 11, color: days < 0 ? "#ef4444" : days <= 7 ? "#f59e0b" : "#aaa", marginTop: 2 }}>
@@ -724,50 +860,59 @@ export default function CommissionApp() {
 
       {/* 詳細モーダル */}
       {detailItem && (
-        <div style={{ position: "fixed", inset: 0, background: "#0006", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}
+        <div style={{ position: "fixed", inset: 0, background: "#0006", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, overscrollBehavior: "contain", touchAction: "none" }}
           onClick={() => setDetailId(null)}>
           <div style={{
-            background: "#fff", borderRadius: 20, padding: "32px 36px", maxWidth: 520, width: "92%",
-            maxHeight: "88vh", overflowY: "auto", boxShadow: "0 8px 48px #0003"
+            background: "#fff", borderRadius: 20, maxWidth: 520, width: "100%",
+            height: "calc(100vh - 32px)", maxHeight: 600, display: "flex", flexDirection: "column", boxShadow: "0 8px 48px #0003"
           }}
             onClick={e => e.stopPropagation()}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
-              <div>
-                <div style={{ fontWeight: 800, fontSize: 20, color: "#1a0a2e", marginBottom: 6 }}>{detailItem.title}</div>
-                <StatusBadge status={detailItem.status} />
+            {/* タイトル（固定） */}
+            <div style={{ padding: "16px 24px 0", flexShrink: 0 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 20, color: "#1a0a2e", marginBottom: 6 }}>{detailItem.title}</div>
+                  <StatusBadge status={detailItem.status} />
+                </div>
+                <button onClick={() => setDetailId(null)} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#aaa" }}>×</button>
               </div>
-              <button onClick={() => setDetailId(null)} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#aaa" }}>×</button>
             </div>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-              <tbody>
-                {[
-                  ["絵師名", detailItem.artist],
-                  ["X (旧Twitter)", detailItem.x_id || "—"],
-                  ["依頼日", fmtDate(detailItem.ordered_at)],
-                  ["納期", fmtDate(detailItem.deadline)],
-                  ["ラフ提出日", fmtDate(detailItem.rough_date)],
-                  ["金額", fmtPrice(detailItem.price, detailItem.currency)],
-                  ["メモ", detailItem.notes || "—"],
-                ].map(([label, val]) => (
-                  <tr key={label}>
-                    <td style={{ padding: "8px 0", color: "#888", fontWeight: 600, width: 120, verticalAlign: "top" }}>{label}</td>
-                    <td style={{ padding: "8px 0", color: "#222", wordBreak: "break-all" }}>{val}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <ImageSection commission={detailItem} plan={plan} onUpdated={load} />
-            <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
-              <button onClick={() => openEdit(detailItem)}
-                style={{
-                  flex: 1, background: "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "#fff",
-                  border: "none", borderRadius: 10, padding: "10px", fontWeight: 700, cursor: "pointer"
-                }}>編集</button>
-              <button onClick={() => setDeleteConfirm(detailItem.id)}
-                style={{
-                  flex: 1, background: "#fff", color: "#ef4444", border: "1.5px solid #fca5a5",
-                  borderRadius: 10, padding: "10px", fontWeight: 700, cursor: "pointer"
-                }}>削除</button>
+            {/* コンテンツ（スクロール） */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "0 24px" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+                <tbody>
+                  {[
+                    ["絵師名", detailItem.artist],
+                    ["X (旧Twitter)", detailItem.x_id || "—"],
+                    ["依頼日", fmtDate(detailItem.ordered_at)],
+                    ["納期", fmtDate(detailItem.deadline)],
+                    ["ラフ提出日", fmtDate(detailItem.rough_date)],
+                    ["金額", fmtPrice(detailItem.price, detailItem.currency)],
+                    ["メモ", detailItem.notes || "—"],
+                  ].map(([label, val]) => (
+                    <tr key={label}>
+                      <td style={{ padding: "8px 0", color: "#888", fontWeight: 600, width: 120, verticalAlign: "top" }}>{label}</td>
+                      <td style={{ padding: "8px 0", color: "#222", wordBreak: "break-all" }}>{val}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <ImageSection commission={detailItem} plan={plan} onUpdated={load} />
+            </div>
+            {/* ボタン（固定） */}
+            <div style={{ padding: "0 24px 16px", flexShrink: 0 }}>
+              <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+                <button onClick={() => openEdit(detailItem)}
+                  style={{
+                    flex: 1, background: "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "#fff",
+                    border: "none", borderRadius: 10, padding: "10px", fontWeight: 700, cursor: "pointer"
+                  }}>編集</button>
+                <button onClick={() => setDeleteConfirm(detailItem.id)}
+                  style={{
+                    flex: 1, background: "#fff", color: "#ef4444", border: "1.5px solid #fca5a5",
+                    borderRadius: 10, padding: "10px", fontWeight: 700, cursor: "pointer"
+                  }}>削除</button>
+              </div>
             </div>
           </div>
         </div>
@@ -850,7 +995,6 @@ export default function CommissionApp() {
               onKeyDown={e => e.key === "Enter" && handleSaveName()}
               placeholder="例: 山田太郎"
               maxLength={30}
-              autoFocus
               style={{
                 width: "100%", padding: "10px 13px", border: "1.5px solid #e5e7eb", borderRadius: 12,
                 fontSize: 16, outline: "none", color: "#1a0a2e", background: "#faf8f5",
@@ -891,69 +1035,174 @@ export default function CommissionApp() {
 
       {/* フォームモーダル */}
       {showForm && (
-        <div style={{ position: "fixed", inset: 0, background: "#0007", zIndex: 150, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ position: "fixed", inset: 0, background: "#0007", zIndex: 150, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", overscrollBehavior: "contain", touchAction: "none" }}
+          onClick={() => { pendingImages.forEach(pi => URL.revokeObjectURL(pi.previewUrl)); setPendingImages([]); setShowForm(false); setEditId(null); }}>
           <div style={{
-            background: "#fff", borderRadius: 20, padding: "32px 36px", maxWidth: 520, width: "92%",
-            maxHeight: "90vh", overflowY: "auto", boxShadow: "0 8px 48px #0004"
+            background: "#fff", borderRadius: 20, maxWidth: 520, width: "100%",
+            height: "calc(100vh - 32px)", maxHeight: 600, display: "flex", flexDirection: "column", boxShadow: "0 8px 48px #0004"
           }}
             onClick={e => e.stopPropagation()}>
-            <div style={{ fontWeight: 800, fontSize: 20, color: "#1a0a2e", marginBottom: 24 }}>
-              {editId ? "依頼を編集" : "新規依頼を登録"}
+            {/* タイトル（固定） */}
+            <div style={{ padding: "16px 24px 0", flexShrink: 0 }}>
+              <div style={{ fontWeight: 800, fontSize: 20, color: "#1a0a2e", marginBottom: 12 }}>
+                {editId ? "依頼を編集" : "新規依頼を登録"}
+              </div>
             </div>
-            <div style={{ display: "grid", gap: 16 }}>
-              <Field label="件名 *"><input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="例: アイコン用イラスト" style={inp} /></Field>
-              <Field label="絵師名 *"><input value={form.artist} onChange={e => setForm({ ...form, artist: e.target.value })} placeholder="例: 花咲りん" style={inp} /></Field>
-              <Field label="X ID（任意）"><input value={form.x_id} onChange={e => setForm({ ...form, x_id: e.target.value })} placeholder="例: @artist_name" style={inp} /></Field>
-              <DateField label="依頼日" value={form.ordered_at} onChange={v => setForm({ ...form, ordered_at: v })} />
-              <DateField label="納期" value={form.deadline} onChange={v => setForm({ ...form, deadline: v })} />
-              <DateField label="ラフ提出日（任意）" value={form.rough_date} onChange={v => setForm({ ...form, rough_date: v })} />
-              <Field label="金額（円）">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  value={form.price ? Number(form.price).toLocaleString("ja-JP") : ""}
-                  onChange={e => {
-                    const raw = e.target.value.replace(/,/g, "").replace(/[^0-9]/g, "");
-                    setForm({ ...form, price: raw });
-                  }}
-                  onFocus={e => {
-                    e.target.value = form.price;
-                  }}
-                  onBlur={e => {
-                    if (form.price) {
-                      e.target.value = Number(form.price).toLocaleString("ja-JP");
-                    }
-                  }}
-                  placeholder="例: 5,000"
-                  style={inp}
-                />
-              </Field>
-              <Field label="ステータス">
-                <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value as CommissionStatus })} style={inp}>
-                  {STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-                </select>
-              </Field>
-              <Field label="メモ（任意）">
-                <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
-                  placeholder="色味の指定や注意点など" style={{ ...inp, minHeight: 70, resize: "vertical" }} />
-              </Field>
+            {/* フォーム（スクロール） */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "0 24px" }}>
+              <div style={{ display: "grid", gap: 16, paddingBottom: 8 }}>
+                <Field label="件名 *"><input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="例: アイコン用イラスト" style={inp} /></Field>
+                <Field label="絵師名 *"><input value={form.artist} onChange={e => setForm({ ...form, artist: e.target.value })} placeholder="例: 花咲りん" style={inp} /></Field>
+                <Field label="X ID（任意）"><input value={form.x_id} onChange={e => setForm({ ...form, x_id: e.target.value })} placeholder="例: @artist_name" style={inp} /></Field>
+                <DateField label="依頼日" value={form.ordered_at} onChange={v => setForm({ ...form, ordered_at: v })} />
+                <DateField label="納期" value={form.deadline} onChange={v => setForm({ ...form, deadline: v })} />
+                <DateField label="ラフ提出日（任意）" value={form.rough_date} onChange={v => setForm({ ...form, rough_date: v })} />
+                <Field label="金額（円）">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={form.price ? Number(form.price).toLocaleString("ja-JP") : ""}
+                    onChange={e => {
+                      const raw = e.target.value.replace(/,/g, "").replace(/[^0-9]/g, "");
+                      setForm({ ...form, price: raw });
+                    }}
+                    onFocus={e => {
+                      e.target.value = form.price;
+                    }}
+                    onBlur={e => {
+                      if (form.price) {
+                        e.target.value = Number(form.price).toLocaleString("ja-JP");
+                      }
+                    }}
+                    placeholder="例: 5,000"
+                    style={inp}
+                  />
+                </Field>
+                <Field label="ステータス">
+                  <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value as CommissionStatus })} style={inp}>
+                    {STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                  </select>
+                </Field>
+                <Field label="メモ（任意）">
+                  <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
+                    placeholder="色味の指定や注意点など" style={{ ...inp, minHeight: 70, resize: "vertical" }} />
+                </Field>
+
+                {/* 新規登録時のみ画像追加UI */}
+                {!editId && (() => {
+                  const limit = PLAN_LIMITS[plan].imageLimit;
+                  const currentTotal = imageCount;
+                  const pendingCount = pendingImages.length;
+                  const totalAfter = currentTotal + pendingCount;
+                  const atLimit = limit !== null && totalAfter >= limit;
+                  return (
+                    <Field label="画像（任意・登録後にも追加できます）">
+                      {/* 仮追加済み画像プレビュー */}
+                      {pendingImages.length > 0 && (
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(80px,1fr))", gap: 8, marginBottom: 10 }}>
+                          {pendingImages.map(pi => (
+                            <div key={pi.id} style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: "1.5px solid #c4b5fd", background: "#f3f4f6" }}>
+                              <img src={pi.previewUrl} alt={pi.file.name}
+                                style={{ width: "100%", aspectRatio: "1", objectFit: "cover" }} />
+                              <div style={{
+                                position: "absolute", top: 3, left: 3, background: "#1a0a2ecc", color: "#fff",
+                                fontSize: 9, fontWeight: 700, padding: "2px 5px", borderRadius: 5
+                              }}>
+                                {IMAGE_TYPES.find(t => t.key === pi.imageType)?.label}
+                              </div>
+                              <button type="button"
+                                onClick={() => {
+                                  URL.revokeObjectURL(pi.previewUrl);
+                                  setPendingImages(prev => prev.filter(x => x.id !== pi.id));
+                                }}
+                                style={{
+                                  position: "absolute", top: 3, right: 3, background: "#ef4444cc", color: "#fff",
+                                  border: "none", borderRadius: "50%", width: 18, height: 18, fontSize: 11,
+                                  cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center"
+                                }}>×</button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                        <select
+                          value={pendingImageType}
+                          onChange={e => setPendingImageType(e.target.value as ImageType)}
+                          style={{ ...inp, width: "auto", padding: "6px 10px" }}>
+                          {IMAGE_TYPES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+                        </select>
+                        <label style={{
+                          flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                          padding: "8px 14px", border: `1.5px dashed ${atLimit ? "#fca5a5" : "#c4b5fd"}`,
+                          borderRadius: 10, cursor: atLimit ? "not-allowed" : "pointer", fontSize: 13,
+                          color: atLimit ? "#ef4444" : "#7c3aed", fontWeight: 600,
+                          background: atLimit ? "#f3f4f6" : "#fff"
+                        }}>
+                          {atLimit ? `上限に達しています（${limit}枚）` : "＋ 画像を追加"}
+                          <input type="file" accept="image/*" disabled={atLimit} style={{ display: "none" }}
+                            onChange={e => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              const previewUrl = URL.createObjectURL(file);
+                              setPendingImages(prev => [...prev, {
+                                id: `${Date.now()}-${Math.random()}`,
+                                file,
+                                imageType: pendingImageType,
+                                previewUrl,
+                              }]);
+                              e.target.value = "";
+                            }} />
+                        </label>
+                      </div>
+                      {pendingImages.length > 0 && (
+                        <div style={{ fontSize: 11, color: "#888", marginTop: 6 }}>
+                          ※ 登録ボタンを押すと画像もまとめてアップロードされます
+                        </div>
+                      )}
+                    </Field>
+                  );
+                })()}
+              </div>
             </div>
-            <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
-              <button onClick={() => { setShowForm(false); setEditId(null); }}
-                style={{ flex: 1, background: "#f3f4f6", border: "none", borderRadius: 10, padding: "12px", fontWeight: 600, cursor: "pointer" }}>キャンセル</button>
-              <button onClick={handleSave} disabled={!form.title || !form.artist || saving}
-                style={{
-                  flex: 2, background: (!form.title || !form.artist || saving) ? "#c4b5fd" : "linear-gradient(135deg,#7c3aed,#4f46e5)",
-                  color: "#fff", border: "none", borderRadius: 10, padding: "12px",
-                  fontWeight: 800, cursor: (!form.title || !form.artist || saving) ? "not-allowed" : "pointer", fontSize: 15
-                }}>
-                {saving ? "保存中…" : editId ? "更新する" : "登録する"}
-              </button>
+            {/* ボタン（固定） */}
+            <div style={{ padding: "0 24px 16px", flexShrink: 0 }}>
+              <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+                <button onClick={() => {
+                  pendingImages.forEach(pi => URL.revokeObjectURL(pi.previewUrl));
+                  setPendingImages([]);
+                  setShowForm(false); setEditId(null);
+                }}
+                  style={{ flex: 1, background: "#f3f4f6", border: "none", borderRadius: 10, padding: "12px", fontWeight: 600, cursor: "pointer" }}>キャンセル</button>
+                <button onClick={handleSave} disabled={!form.title || !form.artist || saving}
+                  style={{
+                    flex: 2, background: (!form.title || !form.artist || saving) ? "#c4b5fd" : "linear-gradient(135deg,#7c3aed,#4f46e5)",
+                    color: "#fff", border: "none", borderRadius: 10, padding: "12px",
+                    fontWeight: 800, cursor: (!form.title || !form.artist || saving) ? "not-allowed" : "pointer", fontSize: 15
+                  }}>
+                  {saving
+                    ? (pendingImages.length > 0 && !editId ? `登録・画像アップロード中…` : "保存中…")
+                    : editId ? "更新する" : pendingImages.length > 0 ? `登録する（画像${pendingImages.length}枚）` : "登録する"
+                  }
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* お問い合わせモーダル */}
+      <ContactModal
+        open={showContact}
+        onClose={() => setShowContact(false)}
+      />
+
+      {/* お知らせモーダル */}
+      <NotificationsModal
+        open={showNotifications}
+        onClose={() => setShowNotifications(false)}
+        onRead={() => fetchUnreadCount(user!.id)}
+      />
 
       {/* フッター */}
       <footer style={{ borderTop: "1px solid #e5e7eb", padding: "24px 32px", textAlign: "center" }}>
@@ -964,7 +1213,6 @@ export default function CommissionApp() {
             { href: "/terms", label: "利用規約" },
             { href: "/privacy", label: "プライバシーポリシー" },
             { href: "/tokusho", label: "特定商取引法" },
-            { href: "/version", label: "バージョン情報" },
           ].map(link => (
             <a key={link.href} href={link.href}
               style={{ fontSize: 12, color: "#aaa", textDecoration: "none", padding: "2px 4px" }}>

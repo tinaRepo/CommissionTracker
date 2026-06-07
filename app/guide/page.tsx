@@ -111,12 +111,6 @@ export default function GuidePage() {
           <p>ユーザーメニュー →「🗑 アカウント削除を申請」から削除申請を送信できます。管理者が確認後、アカウントとすべてのデータを削除します。</p>
         </Section>
 
-        <div style={{ marginTop:40, textAlign:"center" }}>
-          <p style={{ fontSize:13, color:"#888", marginBottom:16 }}>わからないことがあれば</p>
-          <a href="/contact" style={{ display:"inline-block", background:"linear-gradient(135deg,#7c3aed,#4f46e5)", color:"#fff", textDecoration:"none", borderRadius:12, padding:"12px 32px", fontWeight:700, fontSize:14 }}>
-            ✉️ お問い合わせ
-          </a>
-        </div>
       </main>
     </div>
   );

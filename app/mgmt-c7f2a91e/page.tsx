@@ -103,7 +103,7 @@ export default function AdminPage() {
   }, {} as Record<Plan, number>);
 
   return (
-    <div style={{ minHeight:"100vh", background:"#faf8f5", fontFamily:"'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#faf8f5", fontFamily: "'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif" }}>
 
       {/* Header */}
       <header style={{ background: "linear-gradient(135deg,#1a0a2e 0%,#2d1a4a 60%,#1a2a4a 100%)", padding: "16px 20px", boxShadow: "0 4px 32px #0004" }}>
@@ -118,15 +118,21 @@ export default function AdminPage() {
               <div style={{ color: "#c4b5fd", fontSize: 11 }}>ユーザーのプラン管理</div>
             </div>
           </div>
-          <button onClick={loadUsers}
-            style={{ background: "#ffffff18", border: "1px solid #ffffff30", color: "#fff", borderRadius: 8, padding: "6px 12px", fontSize: 13, cursor: "pointer" }}>
-            🔄
-          </button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => router.push("/mgmt-c7f2a91e/notifications")}
+              style={{ background: "#7c3aed", border: "1px solid #a78bfa", color: "#fff", borderRadius: 8, padding: "6px 14px", fontSize: 12, cursor: "pointer", fontWeight: 700 }}>
+              📢 お知らせ管理
+            </button>
+            <button onClick={loadUsers}
+              style={{ background: "#ffffff18", border: "1px solid #ffffff30", color: "#fff", borderRadius: 8, padding: "6px 12px", fontSize: 13, cursor: "pointer" }}>
+              🔄
+            </button>
+          </div>
         </div>
         {/* プラン統計 */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
           {[...PLANS.map(p => ({ key: p, count: planCounts[p], label: PLAN_LIMITS[p].label, color: PLAN_LIMITS[p].color, bg: PLAN_LIMITS[p].bg })),
-            { key: "total", count: users.length, label: "合計", color: "#a78bfa", bg: "#ede9fe" }
+          { key: "total", count: users.length, label: "合計", color: "#a78bfa", bg: "#ede9fe" }
           ].map(s => (
             <div key={s.key} style={{ textAlign: "center", background: "#ffffff12", borderRadius: 10, padding: "8px 4px" }}>
               <div style={{ color: "#fff", fontSize: 18, fontWeight: 800 }}>{s.count}</div>
@@ -144,7 +150,7 @@ export default function AdminPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="名前 / IDで検索…"
-            style={{ width: "100%", padding: "10px 14px", border: "1.5px solid #e5e7eb", borderRadius: 10, fontSize: 14, outline: "none", background: "#fff", boxSizing: "border-box" }} />
+            style={{ width: "100%", padding: "8px 12px", border: "1.5px solid #e5e7eb", borderRadius: 10, fontSize: 16, outline: "none", background: "#fff", boxSizing: "border-box" }} />
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {[{ key: "all", label: "すべて" } as const, ...PLANS.map(p => ({ key: p, label: PLAN_LIMITS[p].label }))].map(s => (
               <button key={s.key} onClick={() => setFilterPlan(s.key as any)}
@@ -198,12 +204,14 @@ export default function AdminPage() {
                         return (
                           <button key={p} onClick={() => !isCurrent && !isUpdating && handlePlanChange(u.id, p)}
                             disabled={isUpdating}
-                            style={{ flex: 1, padding: "9px 4px", fontSize: 12, fontWeight: 700,
+                            style={{
+                              flex: 1, padding: "9px 4px", fontSize: 12, fontWeight: 700,
                               background: isCurrent ? info.bg : "#fff",
                               color: isCurrent ? info.color : "#777",
                               border: `1.5px solid ${isCurrent ? info.color : "#e5e7eb"}`,
                               borderRadius: 10, cursor: isCurrent || isUpdating ? "default" : "pointer",
-                              transition: "all 0.15s", lineHeight: 1.3 }}>
+                              transition: "all 0.15s", lineHeight: 1.3
+                            }}>
                             {isUpdating ? "…" : info.label}
                             {isCurrent && <span style={{ fontSize: 9, display: "block", opacity: 0.6 }}>現在</span>}
                           </button>
@@ -269,10 +277,12 @@ export default function AdminPage() {
 
       {/* トースト通知 */}
       {toast && (
-        <div style={{ position:"fixed", bottom:32, left:"50%", transform:"translateX(-50%)",
-          background:"#1a0a2e", color:"#fff", padding:"12px 24px", borderRadius:12,
-          fontSize:13, fontWeight:700, boxShadow:"0 4px 20px #0004", zIndex:999,
-          animation:"fadeIn 0.2s ease" }}>
+        <div style={{
+          position: "fixed", bottom: 32, left: "50%", transform: "translateX(-50%)",
+          background: "#1a0a2e", color: "#fff", padding: "12px 24px", borderRadius: 12,
+          fontSize: 13, fontWeight: 700, boxShadow: "0 4px 20px #0004", zIndex: 999,
+          animation: "fadeIn 0.2s ease"
+        }}>
           {toast}
         </div>
       )}

@@ -40,9 +40,6 @@ export default function TokushoPage() {
           </tbody>
         </table>
 
-        <div style={{ marginTop:32, padding:"16px 18px", background:"#f8f7ff", borderRadius:12, fontSize:13, color:"#666", lineHeight:1.7 }}>
-          上記内容についてご不明な点がございましたら、<a href="/contact" style={{ color:"#7c3aed", fontWeight:600 }}>お問い合わせフォーム</a>よりご連絡ください。
-        </div>
       </main>
     </div>
   );

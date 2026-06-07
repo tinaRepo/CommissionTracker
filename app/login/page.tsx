@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import dynamic from "next/dynamic";
+import ContactModal from "@/components/ContactModal";
 const DemoApp = dynamic(() => import("@/components/DemoApp"), { ssr: false });
 
 function toJapanese(msg: string): string {
@@ -34,6 +35,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
   const [demoMode, setDemoMode] = useState(false);
+  const [showContact, setShowContact] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -249,7 +251,7 @@ export default function LoginPage() {
             </TextLink>
           )}
           {mode === "login" && (
-            <TextLink onClick={() => window.location.href = "/contact"}>
+            <TextLink onClick={() => setShowContact(true)}>
               ✉️ お問い合わせ
             </TextLink>
           )}
@@ -270,7 +272,6 @@ export default function LoginPage() {
             { href: "/terms", label: "利用規約" },
             { href: "/privacy", label: "プライバシー" },
             { href: "/tokusho", label: "特定商取引法" },
-            { href: "/version", label: "バージョン情報" },
           ].map(link => (
             <a
               key={link.href}
@@ -289,6 +290,8 @@ export default function LoginPage() {
           ))}
         </div>
       </div>
+
+      <ContactModal open={showContact} onClose={() => setShowContact(false)} />
     </div>
   );
 }

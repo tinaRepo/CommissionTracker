@@ -58,7 +58,7 @@ export default function PrivacyPage() {
         </Section>
 
         <Section title="7. お問い合わせ">
-          <p>個人情報の取り扱いに関するご質問・ご要望は、<a href="/contact" style={{ color: "#7c3aed", fontWeight: 600 }}>お問い合わせフォーム</a>よりご連絡ください。</p>
+          <p>個人情報の取り扱いに関するご質問・ご要望は、お問い合わせよりご連絡ください。</p>
         </Section>
 
         <Section title="8. ポリシーの変更">
