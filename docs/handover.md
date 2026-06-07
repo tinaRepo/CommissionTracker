@@ -240,7 +240,10 @@ update user_profiles set is_admin = true where id = 'UUID';
 - ✅ 依頼の登録・編集・削除
 - ✅ ステータス管理（5種類）
 - ✅ 納期7日前アラート（アプリ内ハイライト）
+- ✅ 依頼登録時に画像をまとめてアップロード（新規登録フォームから追加可能）
 - ✅ 画像アップロード（ラフ・作業中・完成・その他）
+- ✅ 一覧カードにサムネイル表示（最初の1枚・Signed URL遅延取得）
+- ✅ 画像の拡大プレビュー・削除・ダウンロード（元画質保持・blob download）
 - ✅ プランごとの画像枚数制限
 - ✅ 依頼一覧の並び替え・フィルタ
 - ✅ 表示名設定
@@ -258,6 +261,28 @@ update user_profiles set is_admin = true where id = 'UUID';
 - ✅ Google AdSense（審査中）
 - ✅ お知らせ・リリースノート統合管理（DB管理・タブ切替・未読バッジ通知）
 - ✅ お知らせ・バージョン管理モーダル（ベルマーク押下でモーダル表示、既読管理）
+- ✅ 全モーダル固定サイズ統一・iOS Safari対応（背景スクロールロック）
+- ✅ ユーザーメニューのテキスト折り返し防止
+
+---
+
+## モーダル設計方針
+
+全モーダル共通で以下の設計を採用。
+
+```
+height: calc(100vh - 32px)   // オーバーレイの padding 16px × 2 を引いた値
+maxHeight: 600               // PC では最大 600px に収める
+display: flex
+flexDirection: column
+```
+
+内部構造：
+- **タイトルエリア**（`flexShrink: 0` で固定）
+- **コンテンツエリア**（`flex: 1` + `overflowY: auto` でスクロール）
+- **ボタンエリア**（`flexShrink: 0` で固定）
+
+オーバーレイには `overscrollBehavior: contain` + `touchAction: none` を設定し、iOS Safariで背景がスクロールする問題を防止。
 
 ---
 
@@ -283,3 +308,5 @@ update user_profiles set is_admin = true where id = 'UUID';
 - Stripeのテストキー（`sk_test_`）と本番キー（`sk_live_`）を混在させないこと
 - Cron Jobは本番環境（mainブランチ）のみ実行される
 - iOSのプッシュ通知はホーム画面追加（PWA）必須・iOS 16.4以降
+- モーダル内の `autoFocus` は全コンポーネントで削除済み（iOS Safariでキーボードが即時展開されるのを防止）
+- 一覧カードのサムネイルはSignedUrl遅延取得方式のため、初回表示時に一覧全体が重くなることはない
