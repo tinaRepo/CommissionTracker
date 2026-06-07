@@ -718,17 +718,17 @@ export default function CommissionApp() {
             {showUserMenu && (
               <div style={{
                 position: "absolute", right: 0, top: "calc(100% + 8px)", background: "#fff",
-                borderRadius: 12, boxShadow: "0 8px 32px #0003", minWidth: 180, overflow: "hidden", zIndex: 99
+                borderRadius: 12, boxShadow: "0 8px 32px #0003", minWidth: 220, overflow: "hidden", zIndex: 99
               }}>
                 <div style={{ padding: "12px 16px", borderBottom: "1px solid #f3f4f6" }}>
-                  <div style={{ fontSize: 12, color: "#888", marginBottom: 4 }}>{user?.email}</div>
+                  <div style={{ fontSize: 12, color: "#888", marginBottom: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user?.email}</div>
                   {profile && <PlanBadge plan={profile.plan} />}
                 </div>
                 <button onClick={() => window.location.href = "/pricing"}
                   style={{
                     width: "100%", padding: "11px 16px", background: "none", border: "none",
                     borderBottom: "1px solid #f3f4f6", cursor: "pointer", fontSize: 13,
-                    color: "#7c3aed", fontWeight: 700, textAlign: "left"
+                    color: "#7c3aed", fontWeight: 700, textAlign: "left", whiteSpace: "nowrap"
                   }}>
                   ⭐ プランをアップグレード
                 </button>
@@ -737,7 +737,7 @@ export default function CommissionApp() {
                   style={{
                     width: "100%", padding: "11px 16px", background: "none", border: "none",
                     borderBottom: "1px solid #f3f4f6", cursor: "pointer", fontSize: 13,
-                    color: "#1a0a2e", fontWeight: 600, textAlign: "left"
+                    color: "#1a0a2e", fontWeight: 600, textAlign: "left", whiteSpace: "nowrap"
                   }}>
                   ✏️ 名前を変更
                 </button>
@@ -746,7 +746,7 @@ export default function CommissionApp() {
                     style={{
                       width: "100%", padding: "11px 16px", background: "none", border: "none",
                       borderBottom: "1px solid #f3f4f6", cursor: "pointer", fontSize: 13,
-                      color: "#7c3aed", fontWeight: 700, textAlign: "left"
+                      color: "#7c3aed", fontWeight: 700, textAlign: "left", whiteSpace: "nowrap"
                     }}>
                     ⚙ 管理者ページ
                   </button>
@@ -756,7 +756,7 @@ export default function CommissionApp() {
                     style={{
                       width: "100%", padding: "11px 16px", background: "none", border: "none",
                       borderTop: "1px solid #f3f4f6", cursor: "pointer", fontSize: 13,
-                      color: "#ef4444", fontWeight: 600, textAlign: "left"
+                      color: "#ef4444", fontWeight: 600, textAlign: "left", whiteSpace: "nowrap"
                     }}>
                     🗑 アカウント削除を申請
                   </button>
@@ -764,7 +764,7 @@ export default function CommissionApp() {
                 <button onClick={handleLogout}
                   style={{
                     width: "100%", padding: "11px 16px", background: "none", border: "none",
-                    cursor: "pointer", fontSize: 13, color: "#ef4444", fontWeight: 700, textAlign: "left"
+                    cursor: "pointer", fontSize: 13, color: "#ef4444", fontWeight: 700, textAlign: "left", whiteSpace: "nowrap"
                   }}>
                   ログアウト
                 </button>
@@ -860,50 +860,59 @@ export default function CommissionApp() {
 
       {/* 詳細モーダル */}
       {detailItem && (
-        <div style={{ position: "fixed", inset: 0, background: "#0006", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}
+        <div style={{ position: "fixed", inset: 0, background: "#0006", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, overscrollBehavior: "contain", touchAction: "none" }}
           onClick={() => setDetailId(null)}>
           <div style={{
-            background: "#fff", borderRadius: 20, padding: "32px 36px", maxWidth: 520, width: "92%",
-            maxHeight: "88vh", overflowY: "auto", boxShadow: "0 8px 48px #0003"
+            background: "#fff", borderRadius: 20, maxWidth: 520, width: "100%",
+            height: "calc(100vh - 32px)", maxHeight: 600, display: "flex", flexDirection: "column", boxShadow: "0 8px 48px #0003"
           }}
             onClick={e => e.stopPropagation()}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
-              <div>
-                <div style={{ fontWeight: 800, fontSize: 20, color: "#1a0a2e", marginBottom: 6 }}>{detailItem.title}</div>
-                <StatusBadge status={detailItem.status} />
+            {/* タイトル（固定） */}
+            <div style={{ padding: "16px 24px 0", flexShrink: 0 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 20, color: "#1a0a2e", marginBottom: 6 }}>{detailItem.title}</div>
+                  <StatusBadge status={detailItem.status} />
+                </div>
+                <button onClick={() => setDetailId(null)} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#aaa" }}>×</button>
               </div>
-              <button onClick={() => setDetailId(null)} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#aaa" }}>×</button>
             </div>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-              <tbody>
-                {[
-                  ["絵師名", detailItem.artist],
-                  ["X (旧Twitter)", detailItem.x_id || "—"],
-                  ["依頼日", fmtDate(detailItem.ordered_at)],
-                  ["納期", fmtDate(detailItem.deadline)],
-                  ["ラフ提出日", fmtDate(detailItem.rough_date)],
-                  ["金額", fmtPrice(detailItem.price, detailItem.currency)],
-                  ["メモ", detailItem.notes || "—"],
-                ].map(([label, val]) => (
-                  <tr key={label}>
-                    <td style={{ padding: "8px 0", color: "#888", fontWeight: 600, width: 120, verticalAlign: "top" }}>{label}</td>
-                    <td style={{ padding: "8px 0", color: "#222", wordBreak: "break-all" }}>{val}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <ImageSection commission={detailItem} plan={plan} onUpdated={load} />
-            <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
-              <button onClick={() => openEdit(detailItem)}
-                style={{
-                  flex: 1, background: "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "#fff",
-                  border: "none", borderRadius: 10, padding: "10px", fontWeight: 700, cursor: "pointer"
-                }}>編集</button>
-              <button onClick={() => setDeleteConfirm(detailItem.id)}
-                style={{
-                  flex: 1, background: "#fff", color: "#ef4444", border: "1.5px solid #fca5a5",
-                  borderRadius: 10, padding: "10px", fontWeight: 700, cursor: "pointer"
-                }}>削除</button>
+            {/* コンテンツ（スクロール） */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "0 24px" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+                <tbody>
+                  {[
+                    ["絵師名", detailItem.artist],
+                    ["X (旧Twitter)", detailItem.x_id || "—"],
+                    ["依頼日", fmtDate(detailItem.ordered_at)],
+                    ["納期", fmtDate(detailItem.deadline)],
+                    ["ラフ提出日", fmtDate(detailItem.rough_date)],
+                    ["金額", fmtPrice(detailItem.price, detailItem.currency)],
+                    ["メモ", detailItem.notes || "—"],
+                  ].map(([label, val]) => (
+                    <tr key={label}>
+                      <td style={{ padding: "8px 0", color: "#888", fontWeight: 600, width: 120, verticalAlign: "top" }}>{label}</td>
+                      <td style={{ padding: "8px 0", color: "#222", wordBreak: "break-all" }}>{val}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <ImageSection commission={detailItem} plan={plan} onUpdated={load} />
+            </div>
+            {/* ボタン（固定） */}
+            <div style={{ padding: "0 24px 16px", flexShrink: 0 }}>
+              <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+                <button onClick={() => openEdit(detailItem)}
+                  style={{
+                    flex: 1, background: "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "#fff",
+                    border: "none", borderRadius: 10, padding: "10px", fontWeight: 700, cursor: "pointer"
+                  }}>編集</button>
+                <button onClick={() => setDeleteConfirm(detailItem.id)}
+                  style={{
+                    flex: 1, background: "#fff", color: "#ef4444", border: "1.5px solid #fca5a5",
+                    borderRadius: 10, padding: "10px", fontWeight: 700, cursor: "pointer"
+                  }}>削除</button>
+              </div>
             </div>
           </div>
         </div>
@@ -1030,7 +1039,7 @@ export default function CommissionApp() {
           onClick={() => { pendingImages.forEach(pi => URL.revokeObjectURL(pi.previewUrl)); setPendingImages([]); setShowForm(false); setEditId(null); }}>
           <div style={{
             background: "#fff", borderRadius: 20, maxWidth: 520, width: "100%",
-            maxHeight: "calc(100vh - 32px)", display: "flex", flexDirection: "column", boxShadow: "0 8px 48px #0004"
+            height: "calc(100vh - 32px)", maxHeight: 600, display: "flex", flexDirection: "column", boxShadow: "0 8px 48px #0004"
           }}
             onClick={e => e.stopPropagation()}>
             {/* タイトル（固定） */}

@@ -124,7 +124,7 @@ export default function ContactModal({ open, onClose }: Props) {
         <div
           style={{
             background: "#fff", borderRadius: 20, width: "100%", maxWidth: 480,
-            height: "82vh", display: "flex", flexDirection: "column",
+            height: "calc(100vh - 32px)", maxHeight: 600, display: "flex", flexDirection: "column",
             boxShadow: "0 8px 48px #0004", animation: "slideUp 0.2s ease"
           }}
           onClick={e => e.stopPropagation()}

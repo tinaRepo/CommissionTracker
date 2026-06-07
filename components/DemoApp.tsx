@@ -371,16 +371,16 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
             {showUserMenu && (
               <div style={{
                 position: "absolute", right: 0, top: "calc(100% + 8px)", background: "#fff",
-                borderRadius: 12, boxShadow: "0 8px 32px #0003", minWidth: 180, overflow: "hidden", zIndex: 99
+                borderRadius: 12, boxShadow: "0 8px 32px #0003", minWidth: 220, overflow: "hidden", zIndex: 99
               }}>
                 <div style={{ padding: "12px 16px", borderBottom: "1px solid #f3f4f6" }}>
-                  <div style={{ fontSize: 12, color: "#888", marginBottom: 4 }}>デモモード</div>
-                  <span style={{ background: "#ede9fe", color: "#7c3aed", borderRadius: 999, padding: "2px 10px", fontSize: 11, fontWeight: 700 }}>無料プラン相当</span>
+                  <div style={{ fontSize: 12, color: "#888", marginBottom: 4, whiteSpace: "nowrap" }}>デモモード</div>
+                  <span style={{ background: "#ede9fe", color: "#7c3aed", borderRadius: 999, padding: "2px 10px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>無料プラン相当</span>
                 </div>
                 <button onClick={onExit}
                   style={{
                     width: "100%", padding: "11px 16px", background: "none", border: "none",
-                    cursor: "pointer", fontSize: 13, color: "#7c3aed", fontWeight: 700, textAlign: "left"
+                    cursor: "pointer", fontSize: 13, color: "#7c3aed", fontWeight: 700, textAlign: "left", whiteSpace: "nowrap"
                   }}>
                   🚀 アカウント登録する
                 </button>
@@ -481,53 +481,62 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
 
       {/* 詳細モーダル */}
       {detailItem && (
-        <div style={{ position: "fixed", inset: 0, background: "#0006", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }}
+        <div style={{ position: "fixed", inset: 0, background: "#0006", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, overscrollBehavior: "contain", touchAction: "none" }}
           onClick={() => setDetailId(null)}>
           <div style={{
-            background: "#fff", borderRadius: 20, padding: "32px 36px", maxWidth: 520, width: "92%",
-            maxHeight: "88vh", overflowY: "auto", boxShadow: "0 8px 48px #0003"
+            background: "#fff", borderRadius: 20, maxWidth: 520, width: "100%",
+            height: "calc(100vh - 32px)", maxHeight: 600, display: "flex", flexDirection: "column", boxShadow: "0 8px 48px #0003"
           }}
             onClick={e => e.stopPropagation()}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
-              <div>
-                <div style={{ fontWeight: 800, fontSize: 20, color: "#1a0a2e", marginBottom: 6 }}>{detailItem.title}</div>
-                <StatusBadge status={detailItem.status} />
+            {/* タイトル（固定） */}
+            <div style={{ padding: "16px 24px 0", flexShrink: 0 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 20, color: "#1a0a2e", marginBottom: 6 }}>{detailItem.title}</div>
+                  <StatusBadge status={detailItem.status} />
+                </div>
+                <button onClick={() => setDetailId(null)} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#aaa" }}>×</button>
               </div>
-              <button onClick={() => setDetailId(null)} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#aaa" }}>×</button>
             </div>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-              <tbody>
-                {[
-                  ["絵師名", detailItem.artist],
-                  ["X (旧Twitter)", detailItem.x_id || "—"],
-                  ["依頼日", fmtDate(detailItem.ordered_at)],
-                  ["納期", fmtDate(detailItem.deadline)],
-                  ["ラフ提出日", fmtDate(detailItem.rough_date)],
-                  ["金額", fmtPrice(detailItem.price)],
-                  ["メモ", detailItem.notes || "—"],
-                ].map(([label, val]) => (
-                  <tr key={label}>
-                    <td style={{ padding: "8px 0", color: "#888", fontWeight: 600, width: 120, verticalAlign: "top" }}>{label}</td>
-                    <td style={{ padding: "8px 0", color: "#222", wordBreak: "break-all" }}>{val}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <DemoImageSection
-              commission={detailItem}
-              onChange={images => handleImagesChange(detailItem.id, images)}
-            />
-            <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
-              <button onClick={() => openEdit(detailItem)}
-                style={{
-                  flex: 1, background: "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "#fff",
-                  border: "none", borderRadius: 10, padding: "10px", fontWeight: 700, cursor: "pointer"
-                }}>編集</button>
-              <button onClick={() => setDeleteConfirm(detailItem.id)}
-                style={{
-                  flex: 1, background: "#fff", color: "#ef4444", border: "1.5px solid #fca5a5",
-                  borderRadius: 10, padding: "10px", fontWeight: 700, cursor: "pointer"
-                }}>削除</button>
+            {/* コンテンツ（スクロール） */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "0 24px" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+                <tbody>
+                  {[
+                    ["絵師名", detailItem.artist],
+                    ["X (旧Twitter)", detailItem.x_id || "—"],
+                    ["依頼日", fmtDate(detailItem.ordered_at)],
+                    ["納期", fmtDate(detailItem.deadline)],
+                    ["ラフ提出日", fmtDate(detailItem.rough_date)],
+                    ["金額", fmtPrice(detailItem.price)],
+                    ["メモ", detailItem.notes || "—"],
+                  ].map(([label, val]) => (
+                    <tr key={label}>
+                      <td style={{ padding: "8px 0", color: "#888", fontWeight: 600, width: 120, verticalAlign: "top" }}>{label}</td>
+                      <td style={{ padding: "8px 0", color: "#222", wordBreak: "break-all" }}>{val}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <DemoImageSection
+                commission={detailItem}
+                onChange={images => handleImagesChange(detailItem.id, images)}
+              />
+            </div>
+            {/* ボタン（固定） */}
+            <div style={{ padding: "0 24px 16px", flexShrink: 0 }}>
+              <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+                <button onClick={() => openEdit(detailItem)}
+                  style={{
+                    flex: 1, background: "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "#fff",
+                    border: "none", borderRadius: 10, padding: "10px", fontWeight: 700, cursor: "pointer"
+                  }}>編集</button>
+                <button onClick={() => setDeleteConfirm(detailItem.id)}
+                  style={{
+                    flex: 1, background: "#fff", color: "#ef4444", border: "1.5px solid #fca5a5",
+                    borderRadius: 10, padding: "10px", fontWeight: 700, cursor: "pointer"
+                  }}>削除</button>
+              </div>
             </div>
           </div>
         </div>
@@ -550,110 +559,120 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
 
       {/* フォームモーダル */}
       {showForm && (
-        <div style={{ position: "fixed", inset: 0, background: "#0007", zIndex: 150, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ position: "fixed", inset: 0, background: "#0007", zIndex: 150, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, overscrollBehavior: "contain", touchAction: "none" }}
+          onClick={() => { pendingImages.forEach(pi => URL.revokeObjectURL(pi.objectUrl)); setPendingImages([]); setShowForm(false); setEditId(null); }}>
           <div style={{
-            background: "#fff", borderRadius: 20, padding: "32px 36px", maxWidth: 520, width: "92%",
-            maxHeight: "90vh", overflowY: "auto", boxShadow: "0 8px 48px #0004"
+            background: "#fff", borderRadius: 20, maxWidth: 520, width: "100%",
+            height: "calc(100vh - 32px)", maxHeight: 600, display: "flex", flexDirection: "column", boxShadow: "0 8px 48px #0004"
           }}
             onClick={e => e.stopPropagation()}>
-            <div style={{ fontWeight: 800, fontSize: 20, color: "#1a0a2e", marginBottom: 24 }}>
-              {editId ? "依頼を編集" : "新規依頼を登録"}
+            {/* タイトル（固定） */}
+            <div style={{ padding: "16px 24px 0", flexShrink: 0 }}>
+              <div style={{ fontWeight: 800, fontSize: 20, color: "#1a0a2e", marginBottom: 12 }}>
+                {editId ? "依頼を編集" : "新規依頼を登録"}
+              </div>
             </div>
-            <div style={{ display: "grid", gap: 16 }}>
-              <Field label="件名 *"><input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="例: アイコン用イラスト" style={inp} /></Field>
-              <Field label="絵師名 *"><input value={form.artist} onChange={e => setForm({ ...form, artist: e.target.value })} placeholder="例: 花咲りん" style={inp} /></Field>
-              <Field label="X ID（任意）"><input value={form.x_id} onChange={e => setForm({ ...form, x_id: e.target.value })} placeholder="例: @artist_name" style={inp} /></Field>
-              <DateField label="依頼日" value={form.ordered_at} onChange={v => setForm({ ...form, ordered_at: v })} />
-              <DateField label="納期" value={form.deadline} onChange={v => setForm({ ...form, deadline: v })} />
-              <DateField label="ラフ提出日（任意）" value={form.rough_date} onChange={v => setForm({ ...form, rough_date: v })} />
-              <Field label="金額（円）">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={form.price ? Number(form.price.replace(/,/g, "")).toLocaleString() : ""}
-                  onChange={e => {
-                    const raw = e.target.value.replace(/,/g, "").replace(/[^0-9]/g, "");
-                    setForm({ ...form, price: raw });
-                  }}
-                  placeholder="例: 5,000"
-                  style={inp}
-                />
-              </Field>
-              <Field label="ステータス">
-                <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value as CommissionStatus })} style={inp}>
-                  {STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-                </select>
-              </Field>
-              <Field label="メモ（任意）">
-                <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
-                  placeholder="色味の指定や注意点など" style={{ ...inp, minHeight: 70, resize: "vertical" }} />
-              </Field>
-
-              {/* 新規登録時のみ画像追加UI */}
-              {!editId && (
-                <Field label="画像（任意・登録後にも追加できます）">
-                  {pendingImages.length > 0 && (
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(80px,1fr))", gap: 8, marginBottom: 10 }}>
-                      {pendingImages.map(pi => (
-                        <div key={pi.id} style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: "1.5px solid #c4b5fd", background: "#f3f4f6" }}>
-                          <img src={pi.objectUrl} alt={pi.fileName} style={{ width: "100%", aspectRatio: "1", objectFit: "cover" }} />
-                          <div style={{ position: "absolute", top: 3, left: 3, background: "#1a0a2ecc", color: "#fff", fontSize: 9, fontWeight: 700, padding: "2px 5px", borderRadius: 5 }}>
-                            {IMAGE_TYPES.find(t => t.key === pi.imageType)?.label}
-                          </div>
-                          <button type="button"
-                            onClick={() => {
-                              URL.revokeObjectURL(pi.objectUrl);
-                              setPendingImages(prev => prev.filter(x => x.id !== pi.id));
-                            }}
-                            style={{ position: "absolute", top: 3, right: 3, background: "#ef4444cc", color: "#fff", border: "none", borderRadius: "50%", width: 18, height: 18, fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                    <select value={pendingImageType} onChange={e => setPendingImageType(e.target.value as ImageType)}
-                      style={{ ...inp, width: "auto", padding: "6px 10px" }}>
-                      {IMAGE_TYPES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
-                    </select>
-                    <label style={{
-                      flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                      padding: "8px 14px", border: `1.5px dashed ${pendingImages.length >= DEMO_MAX_IMAGES ? "#fca5a5" : "#c4b5fd"}`,
-                      borderRadius: 10, cursor: pendingImages.length >= DEMO_MAX_IMAGES ? "not-allowed" : "pointer",
-                      fontSize: 13, color: pendingImages.length >= DEMO_MAX_IMAGES ? "#ef4444" : "#7c3aed",
-                      fontWeight: 600, background: pendingImages.length >= DEMO_MAX_IMAGES ? "#f3f4f6" : "#fff"
-                    }}>
-                      {pendingImages.length >= DEMO_MAX_IMAGES ? `上限（${DEMO_MAX_IMAGES}枚）` : "＋ 画像を追加"}
-                      <input type="file" accept="image/*" disabled={pendingImages.length >= DEMO_MAX_IMAGES} style={{ display: "none" }}
-                        onChange={e => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          const objectUrl = URL.createObjectURL(file);
-                          setPendingImages(prev => [...prev, { id: uid(), objectUrl, imageType: pendingImageType, fileName: file.name }]);
-                          e.target.value = "";
-                        }} />
-                    </label>
-                  </div>
-                  {pendingImages.length > 0 && (
-                    <div style={{ fontSize: 11, color: "#888", marginTop: 6 }}>※ 登録ボタンを押すと画像も一緒に保存されます</div>
-                  )}
+            {/* フォーム（スクロール） */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "0 24px" }}>
+              <div style={{ display: "grid", gap: 16, paddingBottom: 8 }}>
+                <Field label="件名 *"><input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="例: アイコン用イラスト" style={inp} /></Field>
+                <Field label="絵師名 *"><input value={form.artist} onChange={e => setForm({ ...form, artist: e.target.value })} placeholder="例: 花咲りん" style={inp} /></Field>
+                <Field label="X ID（任意）"><input value={form.x_id} onChange={e => setForm({ ...form, x_id: e.target.value })} placeholder="例: @artist_name" style={inp} /></Field>
+                <DateField label="依頼日" value={form.ordered_at} onChange={v => setForm({ ...form, ordered_at: v })} />
+                <DateField label="納期" value={form.deadline} onChange={v => setForm({ ...form, deadline: v })} />
+                <DateField label="ラフ提出日（任意）" value={form.rough_date} onChange={v => setForm({ ...form, rough_date: v })} />
+                <Field label="金額（円）">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={form.price ? Number(form.price.replace(/,/g, "")).toLocaleString() : ""}
+                    onChange={e => {
+                      const raw = e.target.value.replace(/,/g, "").replace(/[^0-9]/g, "");
+                      setForm({ ...form, price: raw });
+                    }}
+                    placeholder="例: 5,000"
+                    style={inp}
+                  />
                 </Field>
-              )}
+                <Field label="ステータス">
+                  <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value as CommissionStatus })} style={inp}>
+                    {STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                  </select>
+                </Field>
+                <Field label="メモ（任意）">
+                  <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
+                    placeholder="色味の指定や注意点など" style={{ ...inp, minHeight: 70, resize: "vertical" }} />
+                </Field>
+
+                {/* 新規登録時のみ画像追加UI */}
+                {!editId && (
+                  <Field label="画像（任意・登録後にも追加できます）">
+                    {pendingImages.length > 0 && (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(80px,1fr))", gap: 8, marginBottom: 10 }}>
+                        {pendingImages.map(pi => (
+                          <div key={pi.id} style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: "1.5px solid #c4b5fd", background: "#f3f4f6" }}>
+                            <img src={pi.objectUrl} alt={pi.fileName} style={{ width: "100%", aspectRatio: "1", objectFit: "cover" }} />
+                            <div style={{ position: "absolute", top: 3, left: 3, background: "#1a0a2ecc", color: "#fff", fontSize: 9, fontWeight: 700, padding: "2px 5px", borderRadius: 5 }}>
+                              {IMAGE_TYPES.find(t => t.key === pi.imageType)?.label}
+                            </div>
+                            <button type="button"
+                              onClick={() => {
+                                URL.revokeObjectURL(pi.objectUrl);
+                                setPendingImages(prev => prev.filter(x => x.id !== pi.id));
+                              }}
+                              style={{ position: "absolute", top: 3, right: 3, background: "#ef4444cc", color: "#fff", border: "none", borderRadius: "50%", width: 18, height: 18, fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                      <select value={pendingImageType} onChange={e => setPendingImageType(e.target.value as ImageType)}
+                        style={{ ...inp, width: "auto", padding: "6px 10px" }}>
+                        {IMAGE_TYPES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+                      </select>
+                      <label style={{
+                        flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                        padding: "8px 14px", border: `1.5px dashed ${pendingImages.length >= DEMO_MAX_IMAGES ? "#fca5a5" : "#c4b5fd"}`,
+                        borderRadius: 10, cursor: pendingImages.length >= DEMO_MAX_IMAGES ? "not-allowed" : "pointer",
+                        fontSize: 13, color: pendingImages.length >= DEMO_MAX_IMAGES ? "#ef4444" : "#7c3aed",
+                        fontWeight: 600, background: pendingImages.length >= DEMO_MAX_IMAGES ? "#f3f4f6" : "#fff"
+                      }}>
+                        {pendingImages.length >= DEMO_MAX_IMAGES ? `上限（${DEMO_MAX_IMAGES}枚）` : "＋ 画像を追加"}
+                        <input type="file" accept="image/*" disabled={pendingImages.length >= DEMO_MAX_IMAGES} style={{ display: "none" }}
+                          onChange={e => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const objectUrl = URL.createObjectURL(file);
+                            setPendingImages(prev => [...prev, { id: uid(), objectUrl, imageType: pendingImageType, fileName: file.name }]);
+                            e.target.value = "";
+                          }} />
+                      </label>
+                    </div>
+                    {pendingImages.length > 0 && (
+                      <div style={{ fontSize: 11, color: "#888", marginTop: 6 }}>※ 登録ボタンを押すと画像も一緒に保存されます</div>
+                    )}
+                  </Field>
+                )}
+              </div>
             </div>
-            <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
-              <button onClick={() => {
-                pendingImages.forEach(pi => URL.revokeObjectURL(pi.objectUrl));
-                setPendingImages([]);
-                setShowForm(false); setEditId(null);
-              }}
-                style={{ flex: 1, background: "#f3f4f6", border: "none", borderRadius: 10, padding: "12px", fontWeight: 600, cursor: "pointer" }}>キャンセル</button>
-              <button onClick={handleSave} disabled={!form.title || !form.artist}
-                style={{
-                  flex: 2, background: (!form.title || !form.artist) ? "#c4b5fd" : "linear-gradient(135deg,#7c3aed,#4f46e5)",
-                  color: "#fff", border: "none", borderRadius: 10, padding: "12px",
-                  fontWeight: 800, cursor: (!form.title || !form.artist) ? "not-allowed" : "pointer", fontSize: 15
-                }}>
-                {editId ? "更新する" : pendingImages.length > 0 ? `登録する（画像${pendingImages.length}枚）` : "登録する"}
-              </button>
+            {/* ボタン（固定） */}
+            <div style={{ padding: "0 24px 16px", flexShrink: 0 }}>
+              <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+                <button onClick={() => {
+                  pendingImages.forEach(pi => URL.revokeObjectURL(pi.objectUrl));
+                  setPendingImages([]);
+                  setShowForm(false); setEditId(null);
+                }}
+                  style={{ flex: 1, background: "#f3f4f6", border: "none", borderRadius: 10, padding: "12px", fontWeight: 600, cursor: "pointer" }}>キャンセル</button>
+                <button onClick={handleSave} disabled={!form.title || !form.artist}
+                  style={{
+                    flex: 2, background: (!form.title || !form.artist) ? "#c4b5fd" : "linear-gradient(135deg,#7c3aed,#4f46e5)",
+                    color: "#fff", border: "none", borderRadius: 10, padding: "12px",
+                    fontWeight: 800, cursor: (!form.title || !form.artist) ? "not-allowed" : "pointer", fontSize: 15
+                  }}>
+                  {editId ? "更新する" : pendingImages.length > 0 ? `登録する（画像${pendingImages.length}枚）` : "登録する"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
