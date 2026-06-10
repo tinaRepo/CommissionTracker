@@ -1,5 +1,9 @@
 # dependencies
 /node_modules
+/apps/web/node_modules
+/packages/hooks/node_modules
+/packages/supabase/node_modules
+/packages/types/node_modules
 /.pnp
 .pnp.js
 
@@ -8,6 +12,7 @@
 
 # next.js
 /.next/
+/apps/web/.next
 /out/
 
 # production
@@ -34,5 +39,7 @@ yarn-error.log*
 next-env.d.ts
 
 .vercel
+.turbo/
+.env.local
 .env*.local
 .vscode
