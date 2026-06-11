@@ -3,6 +3,8 @@
   "private": true,
   "scripts": {
     "dev": "turbo dev",
+    "dev:web": "turbo dev --filter=@commission-tracker/web",
+    "dev:mobile": "turbo dev --filter=@commission-tracker/mobile",
     "build": "turbo build",
     "lint": "turbo lint",
     "type-check": "turbo type-check"

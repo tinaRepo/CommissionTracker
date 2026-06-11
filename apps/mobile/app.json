@@ -1,0 +1,16 @@
+{
+  "expo": {
+    "name": "CommissionTracker",
+    "slug": "commission-tracker",
+    "version": "1.0.0",
+    "scheme": "commission-tracker",
+    "web": {
+      "bundler": "metro"
+    },
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ]
+  }
+}
