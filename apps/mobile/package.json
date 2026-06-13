@@ -3,12 +3,10 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "dependencies": {
-    "@commission-tracker/hooks": "workspace:*",
-    "@commission-tracker/supabase": "workspace:*",
-    "@commission-tracker/types": "workspace:*",
     "@expo/metro-runtime": "~56.0.15",
     "@react-native-async-storage/async-storage": "2.2.0",
-    "@supabase/supabase-js": "^2.106.2",
+    "@supabase/ssr": "^0.12.0",
+    "@supabase/supabase-js": "^2.108.1",
     "expo": "~56.0.10",
     "expo-constants": "~56.0.18",
     "expo-linking": "~56.0.14",
@@ -31,7 +29,8 @@
     "dev": "expo start",
     "build": "expo export",
     "lint": "expo lint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "sync": "node scripts/sync-packages.js"
   },
   "private": true
 }
