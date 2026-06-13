@@ -11,6 +11,10 @@
       "ios",
       "android",
       "web"
+    ],
+    "plugins": [
+      "@react-native-community/datetimepicker",
+      "expo-localization"
     ]
   }
 }
