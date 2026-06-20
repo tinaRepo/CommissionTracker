@@ -13,7 +13,7 @@ export interface UseCommissionsReturn {
     loading: boolean;
     saving: boolean;
     error: string | null;
-    reload: () => Promise<void>;
+    reload: (showLoading?: boolean) => Promise<void>;
     create: (values: Omit<Commission, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'images'>) => Promise<Commission>;
     update: (id: string, values: Partial<Omit<Commission, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'images'>>) => Promise<Commission>;
     remove: (id: string) => Promise<void>;
@@ -25,8 +25,8 @@ export function useCommissions(supabase: SupabaseClient): UseCommissionsReturn {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const reload = useCallback(async () => {
-        setLoading(true);
+    const reload = useCallback(async (showLoading = true) => {
+        if (showLoading) setLoading(true);
         try {
             const data = await fetchCommissions(supabase);
             setCommissions(data);
@@ -34,7 +34,7 @@ export function useCommissions(supabase: SupabaseClient): UseCommissionsReturn {
         } catch (e) {
             setError('依頼の取得に失敗しました');
         } finally {
-            setLoading(false);
+            if (showLoading) setLoading(false);
         }
     }, [supabase]);
 
@@ -46,7 +46,6 @@ export function useCommissions(supabase: SupabaseClient): UseCommissionsReturn {
         setSaving(true);
         try {
             const created = await createCommission(supabase, values);
-            await reload();
             return created;
         } finally {
             setSaving(false);
@@ -60,7 +59,6 @@ export function useCommissions(supabase: SupabaseClient): UseCommissionsReturn {
         setSaving(true);
         try {
             const updated = await updateCommission(supabase, id, values);
-            await reload();
             return updated;
         } finally {
             setSaving(false);
@@ -71,7 +69,6 @@ export function useCommissions(supabase: SupabaseClient): UseCommissionsReturn {
         setSaving(true);
         try {
             await deleteCommission(supabase, id);
-            await reload();
         } finally {
             setSaving(false);
         }

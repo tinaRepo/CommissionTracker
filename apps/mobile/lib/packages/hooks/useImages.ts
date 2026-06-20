@@ -1,7 +1,11 @@
 import { useState, useCallback } from 'react';
-import type { SupabaseClient } from '../supabase/client';
-import { uploadImage, deleteImage, getSignedImageUrl } from '../supabase/images';
-import { countMyImages } from '../supabase/user';
+import type { SupabaseClient } from '../supabase/index';
+import {
+    uploadImage,
+    deleteImage,
+    getSignedImageUrl,
+    countMyImages,
+} from '../supabase/index';
 import type { CommissionImage, ImageType, Plan } from '../types/index';
 
 export interface UseImagesReturn {

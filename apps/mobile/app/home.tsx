@@ -1,14 +1,16 @@
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, RefreshControl,
+  ActivityIndicator, RefreshControl, Image,
 } from 'react-native';
 import { useState, useEffect } from 'react';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
-import { useCommissions, useUnreadCount } from '../lib/packages/hooks';
-import { fetchMyProfile } from '../lib/packages/supabase';
-import { PLAN_LIMITS } from '../lib/packages/types';
-import type { Commission, CommissionStatus, UserProfile, Plan } from '../lib/packages/types';
+import { useCommissions, useUnreadCount } from '../lib/packages/hooks/index';
+import { fetchMyProfile } from '../lib/packages/supabase/user';
+import { getSignedImageUrl } from '../lib/packages/supabase/images';
+import { PLAN_LIMITS } from '../lib/packages/types/index';
+import type { Commission, CommissionStatus, UserProfile, Plan } from '../lib/packages/types/index';
+import CommissionDetailModal from '../components/CommissionDetailModal';
 
 // ---- 定数 ----
 const STATUSES: { key: CommissionStatus; label: string; color: string; bg: string }[] = [
@@ -34,6 +36,31 @@ function daysUntil(d?: string) {
   return Math.ceil((deadline.getTime() - today.getTime()) / 86400000);
 }
 
+// ---- サムネイル（SignedURL遅延取得） ----
+function CardThumbnail({ storagePath }: { storagePath: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    getSignedImageUrl(supabase, storagePath)
+      .then(setUrl)
+      .catch(() => { });
+  }, [storagePath]);
+
+  return (
+    <View style={styles.thumbnailWrap}>
+      {url ? (
+        <Image
+          source={{ uri: url }}
+          style={styles.thumbnail}
+          resizeMode="cover"
+        />
+      ) : (
+        <View style={[styles.thumbnail, { backgroundColor: '#f3f4f6' }]} />
+      )}
+    </View>
+  );
+}
+
 // ---- ステータスバッジ ----
 function StatusBadge({ status }: { status: CommissionStatus }) {
   const s = STATUSES.find(x => x.key === status) ?? STATUSES[0];
@@ -48,6 +75,7 @@ function StatusBadge({ status }: { status: CommissionStatus }) {
 function CommissionCard({ item, onPress }: { item: Commission; onPress: () => void }) {
   const days = daysUntil(item.deadline);
   const urgent = days !== null && days <= 7 && item.status !== 'done' && item.status !== 'cancelled';
+  const firstImage = item.images?.[0];
 
   return (
     <TouchableOpacity
@@ -55,27 +83,37 @@ function CommissionCard({ item, onPress }: { item: Commission; onPress: () => vo
       onPress={onPress}
       activeOpacity={0.7}
     >
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
-        <StatusBadge status={item.status} />
-      </View>
-
-      <Text style={styles.cardArtist}>🖌 {item.artist}</Text>
-
-      <View style={styles.cardFooter}>
-        <Text style={styles.cardMeta}>📅 {fmtDate(item.ordered_at)}</Text>
-        <Text style={styles.cardMeta}>⏰ {fmtDate(item.deadline)}</Text>
-        {item.images && item.images.length > 0 && (
-          <Text style={styles.cardMeta}>📷 {item.images.length}枚</Text>
+      <View style={styles.cardInner}>
+        {/* サムネイル：画像ありのときのみ表示 */}
+        {firstImage && (
+          <CardThumbnail storagePath={firstImage.storage_path} />
         )}
-        {urgent && days !== null && (
-          <Text style={styles.urgentText}>⚠ あと{days}日</Text>
-        )}
-      </View>
 
-      {item.price && (
-        <Text style={styles.cardPrice}>¥{item.price.toLocaleString()}</Text>
-      )}
+        {/* 情報エリア */}
+        <View style={styles.cardBody}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
+            <StatusBadge status={item.status} />
+          </View>
+
+          <Text style={styles.cardArtist} numberOfLines={1}>🖌 {item.artist}</Text>
+
+          <View style={styles.cardFooter}>
+            <Text style={styles.cardMeta}>📅 {fmtDate(item.ordered_at)}</Text>
+            <Text style={styles.cardMeta}>⏰ {fmtDate(item.deadline)}</Text>
+            {(item.images?.length ?? 0) > 0 && (
+              <Text style={styles.cardMeta}>📷 {item.images!.length}枚</Text>
+            )}
+            {urgent && days !== null && (
+              <Text style={styles.urgentText}>⚠ あと{days}日</Text>
+            )}
+          </View>
+
+          {item.price && (
+            <Text style={styles.cardPrice}>¥{item.price.toLocaleString()}</Text>
+          )}
+        </View>
+      </View>
     </TouchableOpacity>
   );
 }
@@ -84,6 +122,7 @@ function CommissionCard({ item, onPress }: { item: Commission; onPress: () => vo
 export default function HomeScreen() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [filterStatus, setFilterStatus] = useState<'all' | CommissionStatus>('all');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const { commissions, loading, reload } = useCommissions(supabase);
   const { unreadCount, fetchUnreadCount } = useUnreadCount(supabase);
@@ -130,111 +169,120 @@ export default function HomeScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <>
+      <View style={styles.container}>
 
-      {/* ── ヘッダー ── */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>🎨 Commission Tracker</Text>
-          <Text style={styles.headerSub}>絵の依頼管理ツール</Text>
-        </View>
-        <View style={styles.headerRight}>
-          {unreadCount > 0 && (
-            <View style={styles.bellWrap}>
-              <Text style={styles.bellIcon}>🔔</Text>
-              <View style={styles.bellBadge}>
-                <Text style={styles.bellBadgeText}>
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </Text>
-              </View>
-            </View>
-          )}
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Text style={styles.logoutText}>ログアウト</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* ── 統計 ── */}
-      <View style={styles.statsRow}>
-        {[['合計', stats.total], ['進行中', stats.active], ['完成', stats.done]].map(([l, v]) => (
-          <View key={l as string} style={styles.statItem}>
-            <Text style={styles.statValue}>{v}</Text>
-            <Text style={styles.statLabel}>{l}</Text>
+        {/* ── ヘッダー ── */}
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.headerTitle}>🎨 Commission Tracker</Text>
+            <Text style={styles.headerSub}>絵の依頼管理ツール</Text>
           </View>
-        ))}
-        <View style={styles.statItem}>
-          <Text style={[styles.statValue, { fontSize: 13 }]}>
-            {planInfo.imageLimit === null ? `${imageCount}枚` : `${imageCount}/${planInfo.imageLimit}`}
-          </Text>
-          <Text style={styles.statLabel}>📷 画像</Text>
+          <View style={styles.headerRight}>
+            {unreadCount > 0 && (
+              <View style={styles.bellWrap}>
+                <Text style={styles.bellIcon}>🔔</Text>
+                <View style={styles.bellBadge}>
+                  <Text style={styles.bellBadgeText}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              </View>
+            )}
+            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+              <Text style={styles.logoutText}>ログアウト</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
 
-      {/* ── フィルタ ── */}
-      <View style={styles.filterWrap}>
-        <FlatList
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          data={[{ key: 'all', label: 'すべて', color: '#1a0a2e', bg: '#fff' }, ...STATUSES]}
-          keyExtractor={item => item.key}
-          renderItem={({ item }) => {
-            const active = filterStatus === item.key;
-            return (
-              <TouchableOpacity
-                style={[
-                  styles.filterChip,
-                  active && { backgroundColor: item.color, borderColor: item.color }
-                ]}
-                onPress={() => setFilterStatus(item.key as any)}
-              >
-                <Text style={[styles.filterChipText, active && { color: '#fff' }]}>
-                  {item.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          }}
-          contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
-        />
-      </View>
-
-      {/* ── 依頼一覧 ── */}
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color="#7c3aed" size="large" />
-        </View>
-      ) : (
-        <FlatList
-          data={filtered}
-          keyExtractor={item => item.id}
-          renderItem={({ item }) => (
-            <CommissionCard
-              item={item}
-              onPress={() => router.push(`/commission/${item.id}`)}
-            />
-          )}
-          refreshControl={
-            <RefreshControl refreshing={loading} onRefresh={reload} tintColor="#7c3aed" />
-          }
-          ListEmptyComponent={
-            <View style={styles.center}>
-              <Text style={styles.emptyText}>依頼がありません</Text>
+        {/* ── 統計 ── */}
+        <View style={styles.statsRow}>
+          {[['合計', stats.total], ['進行中', stats.active], ['完成', stats.done]].map(([l, v]) => (
+            <View key={l as string} style={styles.statItem}>
+              <Text style={styles.statValue}>{v}</Text>
+              <Text style={styles.statLabel}>{l}</Text>
             </View>
-          }
-          contentContainerStyle={filtered.length === 0 ? { flex: 1 } : { padding: 16, gap: 12 }}
-        />
-      )}
+          ))}
+          <View style={styles.statItem}>
+            <Text style={[styles.statValue, { fontSize: 13 }]}>
+              {planInfo.imageLimit === null ? `${imageCount}枚` : `${imageCount}/${planInfo.imageLimit}`}
+            </Text>
+            <Text style={styles.statLabel}>📷 画像</Text>
+          </View>
+        </View>
 
-      {/* ── 新規登録ボタン ── */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => router.push('/commission/new')}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.fabText}>＋</Text>
-      </TouchableOpacity>
+        {/* ── フィルタ ── */}
+        <View style={styles.filterWrap}>
+          <FlatList
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            data={[{ key: 'all', label: 'すべて', color: '#1a0a2e', bg: '#fff' }, ...STATUSES]}
+            keyExtractor={item => item.key}
+            renderItem={({ item }) => {
+              const active = filterStatus === item.key;
+              return (
+                <TouchableOpacity
+                  style={[
+                    styles.filterChip,
+                    active && { backgroundColor: item.color, borderColor: item.color }
+                  ]}
+                  onPress={() => setFilterStatus(item.key as any)}
+                >
+                  <Text style={[styles.filterChipText, active && { color: '#fff' }]}>
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            }}
+            contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
+          />
+        </View>
 
-    </View>
+        {/* ── 依頼一覧 ── */}
+        {loading ? (
+          <View style={styles.center}>
+            <ActivityIndicator color="#7c3aed" size="large" />
+          </View>
+        ) : (
+          <FlatList
+            data={filtered}
+            keyExtractor={item => item.id}
+            renderItem={({ item }) => (
+              <CommissionCard
+                item={item}
+                onPress={() => setSelectedId(item.id)}
+              />
+            )}
+            refreshControl={
+              <RefreshControl refreshing={loading} onRefresh={reload} tintColor="#7c3aed" />
+            }
+            ListEmptyComponent={
+              <View style={styles.center}>
+                <Text style={styles.emptyText}>依頼がありません</Text>
+              </View>
+            }
+            contentContainerStyle={filtered.length === 0 ? { flex: 1 } : { padding: 16, gap: 12 }}
+          />
+        )}
+
+        {/* ── 新規登録ボタン ── */}
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => router.push('/commission/new')}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.fabText}>＋</Text>
+        </TouchableOpacity>
+
+      </View>
+
+      {/* ── 詳細モーダル（View外に配置してModalネストを防ぐ） ── */}
+      <CommissionDetailModal
+        commissionId={selectedId}
+        onClose={() => setSelectedId(null)}
+        onUpdated={reload}
+      />
+    </>
   );
 }
 
@@ -276,25 +324,54 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   filterChipText: { fontSize: 12, fontWeight: '600', color: '#555' },
+  // カード
   card: {
-    backgroundColor: '#fff', borderRadius: 16, padding: 16,
+    backgroundColor: '#fff', borderRadius: 16,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
     borderWidth: 1.5, borderColor: 'transparent',
+    overflow: 'hidden',
   },
   cardUrgent: { borderColor: '#fca5a5' },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
-  cardTitle: { fontSize: 16, fontWeight: 'bold', color: '#1a0a2e', flex: 1, marginRight: 8 },
-  cardArtist: { fontSize: 13, color: '#555', marginBottom: 8 },
-  cardFooter: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  cardMeta: { fontSize: 12, color: '#888' },
-  urgentText: { fontSize: 12, color: '#ef4444', fontWeight: 'bold' },
-  cardPrice: { fontSize: 16, fontWeight: 'bold', color: '#1a0a2e', marginTop: 8, textAlign: 'right' },
-  badge: {
-    borderRadius: 999, paddingHorizontal: 10, paddingVertical: 2,
-    borderWidth: 1,
+  cardInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    overflow: 'hidden',
+    borderRadius: 14,
   },
-  badgeText: { fontSize: 11, fontWeight: 'bold' },
+  thumbnailWrap: {
+    width: 72,
+    height: 72,
+    flexShrink: 0,
+    overflow: 'hidden',
+    borderRadius: 12,
+    margin: 8,
+  },
+  thumbnail: {
+    width: 72,
+    height: 72,
+  },
+  thumbnailPlaceholder: {
+    width: 0,
+    height: 0,
+  },
+  // カード情報エリア
+  cardBody: { flex: 1, paddingHorizontal: 12, paddingVertical: 10, gap: 4, minHeight: 72 },
+  cardHeader: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', gap: 8,
+  },
+  cardTitle: { fontSize: 15, fontWeight: 'bold', color: '#1a0a2e', flex: 1 },
+  cardArtist: { fontSize: 13, color: '#555' },
+  cardFooter: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 2 },
+  cardMeta: { fontSize: 11, color: '#888' },
+  urgentText: { fontSize: 11, color: '#ef4444', fontWeight: 'bold' },
+  cardPrice: { fontSize: 15, fontWeight: 'bold', color: '#1a0a2e', textAlign: 'right' },
+  badge: {
+    borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2,
+    borderWidth: 1, flexShrink: 0,
+  },
+  badgeText: { fontSize: 10, fontWeight: 'bold' },
   emptyText: { color: '#aaa', fontSize: 15 },
   fab: {
     position: 'absolute', bottom: 32, right: 24,

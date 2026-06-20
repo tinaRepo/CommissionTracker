@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import type { SupabaseClient } from '../supabase/client';
-import { fetchMyProfile } from '../supabase/user';
+import type { SupabaseClient } from '../supabase/index';
+import { fetchMyProfile } from '../supabase/index';
 import type { UserProfile, Plan } from '../types/index';
 
 export interface UseAuthReturn {

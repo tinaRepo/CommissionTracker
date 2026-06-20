@@ -6,7 +6,9 @@ import { useState, useEffect } from 'react';
 import { useLocalSearchParams, router } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { fetchCommissionById, deleteCommission } from '../../lib/packages/supabase/commissions';
-import type { Commission, CommissionStatus } from '../../lib/packages/types/index';
+import { fetchMyProfile } from '../../lib/packages/supabase/user';
+import type { Commission, CommissionStatus, Plan } from '../../lib/packages/types/index';
+import ImageSection from '../../components/ImageSection';
 
 // ---- 定数 ----
 const STATUSES: { key: CommissionStatus; label: string; color: string; bg: string }[] = [
@@ -53,6 +55,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 export default function CommissionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [commission, setCommission] = useState<Commission | null>(null);
+  const [plan, setPlan] = useState<Plan>('free');
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
 
@@ -63,6 +66,12 @@ export default function CommissionDetailScreen() {
       .catch(() => setCommission(null))
       .finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => {
+    fetchMyProfile(supabase).then(p => {
+      if (p) setPlan(p.plan as Plan);
+    });
+  }, []);
 
   async function handleDelete() {
     Alert.alert(
@@ -161,17 +170,15 @@ export default function CommissionDetailScreen() {
           )}
         </View>
 
-        {/* 画像枚数 */}
-        {(commission.images?.length ?? 0) > 0 && (
-          <View style={styles.imageCountArea}>
-            <Text style={styles.imageCountText}>
-              📷 添付画像 {commission.images!.length}枚
-            </Text>
-            <Text style={styles.imageCountSub}>
-              ※ 画像の表示・追加は今後対応予定です
-            </Text>
-          </View>
-        )}
+        {/* 画像：表示のみ（追加・削除・プレビュー不可） */}
+        <View style={styles.imageArea}>
+          <ImageSection
+            commission={commission}
+            plan={plan}
+            onUpdated={() => { }}
+            readonly
+          />
+        </View>
 
       </ScrollView>
 
@@ -232,14 +239,14 @@ const styles = StyleSheet.create({
   infoValue: { flex: 1, fontSize: 13, color: '#1a0a2e' },
   notesArea: { gap: 6 },
   notesText: { fontSize: 13, color: '#1a0a2e', lineHeight: 20 },
-  imageCountArea: {
-    backgroundColor: '#f3f4f6', borderRadius: 12, padding: 14, gap: 4,
+  imageArea: {
+    backgroundColor: '#fff', borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: '#e5e7eb',
   },
-  imageCountText: { fontSize: 14, color: '#555', fontWeight: '600' },
-  imageCountSub: { fontSize: 11, color: '#aaa' },
   errorText: { color: '#aaa', fontSize: 15, marginBottom: 16 },
   backButton: {
-    backgroundColor: '#7c3aed', borderRadius: 10, paddingHorizontal: 20, paddingVertical: 10,
+    backgroundColor: '#7c3aed', borderRadius: 10,
+    paddingHorizontal: 20, paddingVertical: 10,
   },
   backButtonText: { color: '#fff', fontWeight: 'bold' },
   footer: {

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import type { SupabaseClient } from '../supabase/client';
+import type { SupabaseClient } from '../supabase/index';
 
 export interface UseUnreadCountReturn {
     unreadCount: number;

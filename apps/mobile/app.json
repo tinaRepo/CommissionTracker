@@ -14,7 +14,11 @@
     ],
     "plugins": [
       "@react-native-community/datetimepicker",
-      "expo-localization"
-    ]
+      "expo-localization",
+      "expo-sharing"
+    ],
+    "android": {
+      "package": "com.anonymous.commissiontracker"
+    }
   }
 }

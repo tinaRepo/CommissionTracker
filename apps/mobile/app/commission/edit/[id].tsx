@@ -1,13 +1,16 @@
 import {
   View, Text, StyleSheet, ScrollView, TextInput,
-  TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform,
+  TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useLocalSearchParams, router } from 'expo-router';
 import { supabase } from '../../../lib/supabase';
 import { fetchCommissionById, updateCommission } from '../../../lib/packages/supabase/commissions';
-import type { Commission, CommissionStatus } from '../../../lib/packages/types/index';
+import { deleteImage } from '../../../lib/packages/supabase/images';
+import { fetchMyProfile } from '../../../lib/packages/supabase/user';
+import type { Commission, CommissionStatus, CommissionImage, Plan } from '../../../lib/packages/types/index';
 import DatePickerField from '../../../components/DatePickerField';
+import ImageSection from '../../../components/ImageSection';
 
 // ---- 定数 ----
 const STATUSES: { key: CommissionStatus; label: string }[] = [
@@ -46,10 +49,13 @@ function Field({ label, required, children }: {
 
 export default function EditCommissionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const [commission, setCommission] = useState<Commission | null>(null);
   const [form, setForm] = useState<FormValues | null>(null);
+  const [plan, setPlan] = useState<Plan>('free');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingImageDeletes, setPendingImageDeletes] = useState<CommissionImage[]>([]);
 
   // ---- 既存データ取得 ----
   useEffect(() => {
@@ -57,6 +63,7 @@ export default function EditCommissionScreen() {
     fetchCommissionById(supabase, id)
       .then((c: Commission | null) => {
         if (!c) return;
+        setCommission(c);
         setForm({
           title: c.title,
           artist: c.artist,
@@ -72,6 +79,13 @@ export default function EditCommissionScreen() {
       })
       .finally(() => setLoading(false));
   }, [id]);
+
+  // ---- プロフィール取得 ----
+  useEffect(() => {
+    fetchMyProfile(supabase).then(p => {
+      if (p) setPlan(p.plan as Plan);
+    });
+  }, []);
 
   function update(key: keyof FormValues, value: string) {
     setForm(prev => prev ? { ...prev, [key]: value } : prev);
@@ -95,6 +109,13 @@ export default function EditCommissionScreen() {
         status: form.status,
         notes: form.notes.trim() || undefined,
       });
+
+      // 削除予定の画像をDB削除
+      for (const img of pendingImageDeletes) {
+        try { await deleteImage(supabase, img); } catch { }
+      }
+      setPendingImageDeletes([]);
+
       router.replace(`/commission/${id}`);
     } catch {
       setError('保存に失敗しました');
@@ -111,7 +132,7 @@ export default function EditCommissionScreen() {
     );
   }
 
-  if (!form) {
+  if (!form || !commission) {
     return (
       <View style={styles.center}>
         <Text style={styles.errorText}>データが見つかりませんでした</Text>
@@ -243,6 +264,21 @@ export default function EditCommissionScreen() {
           />
         </Field>
 
+        {/* 画像管理：追加・削除可能（更新ボタン押下でDB反映） */}
+        <View style={styles.imageArea}>
+          <ImageSection
+            commission={commission}
+            plan={plan}
+            onUpdated={() => {
+              fetchCommissionById(supabase, id!).then(c => {
+                if (c) setCommission(c);
+              });
+            }}
+            pendingDeletes={pendingImageDeletes}
+            onDeletesChange={setPendingImageDeletes}
+          />
+        </View>
+
       </ScrollView>
 
       {/* ── フッターボタン ── */}
@@ -261,7 +297,12 @@ export default function EditCommissionScreen() {
         >
           {saving
             ? <ActivityIndicator color="#fff" />
-            : <Text style={styles.saveButtonText}>更新する</Text>
+            : <Text style={styles.saveButtonText}>
+              {pendingImageDeletes.length > 0
+                ? `更新する（画像${pendingImageDeletes.length}枚削除）`
+                : '更新する'
+              }
+            </Text>
           }
         </TouchableOpacity>
       </View>
@@ -312,6 +353,10 @@ const styles = StyleSheet.create({
   statusChipActive: { backgroundColor: '#7c3aed', borderColor: '#7c3aed' },
   statusChipText: { fontSize: 13, fontWeight: '600', color: '#555' },
   statusChipTextActive: { color: '#fff' },
+  imageArea: {
+    backgroundColor: '#fff', borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: '#e5e7eb',
+  },
   footer: {
     flexDirection: 'row', gap: 12, padding: 16,
     borderTopWidth: 1, borderTopColor: '#e5e7eb', backgroundColor: '#fff',

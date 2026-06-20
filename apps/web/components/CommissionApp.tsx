@@ -188,8 +188,11 @@ function CardThumbnail({ storagePath }: { storagePath: string }) {
 }
 
 // ---- 画像セクション ----
-function ImageSection({ commission, plan, onUpdated }: {
-  commission: Commission; plan: Plan; onUpdated: () => void;
+// readonly=true  → 詳細モーダル：表示・DLのみ
+// readonly=false → 編集モーダル：削除のみ（アップロードはpendingImagesで管理）
+function ImageSection({ commission, plan, onUpdated, readonly = false, showPreview = true, pendingDeletes, onDeletesChange }: {
+  commission: Commission; plan: Plan; onUpdated: () => void; readonly?: boolean; showPreview?: boolean;
+  pendingDeletes?: CommissionImage[]; onDeletesChange?: (images: CommissionImage[]) => void;
 }) {
   const [uploading, setUploading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -202,9 +205,7 @@ function ImageSection({ commission, plan, onUpdated }: {
   useEffect(() => {
     const currentCount = commission.images?.length ?? 0;
     if (prevCount !== currentCount) {
-      if (currentCount > prevCount) {
-        setToast(`画像をアップロードしました（最新枚数: ${currentCount}枚）`);
-      } else if (currentCount < prevCount) {
+      if (currentCount < prevCount) {
         setToast(`画像を削除しました（最新枚数: ${currentCount}枚）`);
       }
       setTimeout(() => setToast(null), 3000);
@@ -212,11 +213,9 @@ function ImageSection({ commission, plan, onUpdated }: {
     }
   }, [commission.images?.length]);
 
-  const [imageType, setImageType] = useState<ImageType>("rough");
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const [preview, setPreview] = useState<string | null>(null);
   const [previewFileName, setPreviewFileName] = useState<string>("");
-  const [limitError, setLimitError] = useState<string | null>(null);
 
   async function handleDownload(url: string, fileName: string) {
     try {
@@ -241,33 +240,20 @@ function ImageSection({ commission, plan, onUpdated }: {
     })).then(entries => setSignedUrls(Object.fromEntries(entries)));
   }, [commission.images]);
 
-  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setLimitError(null);
-    setUploading(true);
-    try {
-      await uploadImage(supabase, commission.id, file, imageType, plan);
-    } catch (err: any) {
-      if (err.message?.startsWith("PLAN_LIMIT:")) {
-        const [, current, limit] = err.message.split(":");
-        const planLabel = PLAN_LIMITS[plan].label;
-        setLimitError(`${planLabel}プランの上限（${limit}枚）に達しています（現在${current}枚）`);
-      } else {
-        alert("アップロードに失敗しました");
-      }
-    } finally {
-      setUploading(false);
-      e.target.value = "";
-      onUpdated();
-      setTimeout(() => {
-        setToast(`画像をアップロードしました（最新枚数: ${(commission.images?.length ?? 0) + 1}枚）`);
-        setTimeout(() => setToast(null), 3000);
-      }, 500);
-    }
-  }
-
   async function handleDelete(img: CommissionImage) {
+    // 編集モーダルからの呼び出し（pendingDeletesが渡されている）場合は遅延削除
+    if (onDeletesChange && pendingDeletes !== undefined) {
+      const alreadyPending = pendingDeletes.some(d => d.id === img.id);
+      if (alreadyPending) {
+        // 取り消し
+        onDeletesChange(pendingDeletes.filter(d => d.id !== img.id));
+      } else {
+        if (!confirm(`「${img.file_name}」を削除対象にします。\n※「更新する」ボタンを押すまでDBからは削除されません。`)) return;
+        onDeletesChange([...pendingDeletes, img]);
+      }
+      return;
+    }
+    // 詳細モーダル（readonly=false）からの即時削除は現状維持
     if (!confirm(`「${img.file_name}」を削除しますか？`)) return;
     await deleteImage(supabase, img);
     onUpdated();
@@ -278,12 +264,12 @@ function ImageSection({ commission, plan, onUpdated }: {
   }
 
   const images = commission.images ?? [];
-  const limit = PLAN_LIMITS[plan].imageLimit;
-  const atLimit = limit !== null && images.length >= limit;
 
   return (
     <div style={{ marginTop: 20 }}>
-      <div style={{ fontWeight: 700, fontSize: 13, color: "#555", marginBottom: 10 }}>📷 添付画像</div>
+      {readonly && (
+        <div style={{ fontWeight: 700, fontSize: 13, color: "#555", marginBottom: 10 }}>📷 添付画像</div>
+      )}
 
       {toast && (
         <div style={{
@@ -295,29 +281,28 @@ function ImageSection({ commission, plan, onUpdated }: {
         </div>
       )}
 
-      {limitError && (
-        <div style={{
-          marginBottom: 10, padding: "8px 12px", background: "#fee2e2", border: "1px solid #fca5a5",
-          borderRadius: 10, fontSize: 12, color: "#b91c1c"
-        }}>
-          ⚠ {limitError}
-          <span style={{ marginLeft: 6, color: "#7c3aed", fontWeight: 700 }}>プランをアップグレードすると追加できます</span>
-        </div>
-      )}
-
-      {images.length > 0 && (
+      {images.length > 0 ? (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(100px,1fr))", gap: 8, marginBottom: 12 }}>
           {images.map(img => {
             const url = signedUrls[img.id];
             const typeLabel = IMAGE_TYPES.find(t => t.key === img.image_type)?.label ?? img.image_type;
+            const isPendingDelete = pendingDeletes?.some(d => d.id === img.id) ?? false;
             return (
               <div key={img.id} style={{
                 position: "relative", borderRadius: 10, overflow: "hidden",
-                border: "1.5px solid #e5e7eb", background: "#f3f4f6"
+                border: `1.5px solid ${isPendingDelete ? "#ef4444" : "#e5e7eb"}`,
+                background: "#f3f4f6", opacity: isPendingDelete ? 0.5 : 1,
               }}>
+                {isPendingDelete && (
+                  <div style={{
+                    position: "absolute", inset: 0, background: "#ef444420", zIndex: 1,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 10, fontWeight: 700, color: "#ef4444",
+                  }}>削除予定</div>
+                )}
                 {url ? (
                   <img src={url} alt={img.file_name}
-                    onClick={() => { setPreview(url); setPreviewFileName(img.file_name); }}
+                    onClick={() => { if (showPreview) { setPreview(url); setPreviewFileName(img.file_name); } }}
                     style={{ width: "100%", aspectRatio: "1", objectFit: "cover", cursor: "pointer" }} />
                 ) : (
                   <div style={{ width: "100%", aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>🖼</div>
@@ -326,13 +311,15 @@ function ImageSection({ commission, plan, onUpdated }: {
                   position: "absolute", top: 4, left: 4, background: "#1a0a2ecc", color: "#fff",
                   fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 6
                 }}>{typeLabel}</div>
-                <button onClick={() => handleDelete(img)}
-                  style={{
-                    position: "absolute", top: 4, right: 4, background: "#ef4444cc", color: "#fff",
-                    border: "none", borderRadius: "50%", width: 20, height: 20, fontSize: 12, cursor: "pointer",
-                    display: "flex", alignItems: "center", justifyContent: "center"
-                  }}>×</button>
-                {url && (
+                {!readonly && (
+                  <button onClick={() => handleDelete(img)}
+                    style={{
+                      position: "absolute", top: 4, right: 4, background: isPendingDelete ? "#10b981cc" : "#ef4444cc",
+                      color: "#fff", border: "none", borderRadius: "50%", width: 20, height: 20, fontSize: 12,
+                      cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center"
+                    }}>{isPendingDelete ? "↩" : "×"}</button>
+                )}
+                {readonly && url && (
                   <button onClick={e => { e.stopPropagation(); handleDownload(url, img.file_name); }}
                     title="ダウンロード"
                     style={{
@@ -345,27 +332,11 @@ function ImageSection({ commission, plan, onUpdated }: {
             );
           })}
         </div>
+      ) : (
+        <div style={{ fontSize: 13, color: "#aaa", marginBottom: 12 }}>画像はありません</div>
       )}
 
-      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <select value={imageType} onChange={e => setImageType(e.target.value as ImageType)}
-          style={{ ...inp, width: "auto", padding: "6px 10px" }}>
-          {IMAGE_TYPES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
-        </select>
-        <label style={{
-          flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-          padding: "8px 14px", border: `1.5px dashed ${atLimit ? "#fca5a5" : "#c4b5fd"}`,
-          borderRadius: 10, cursor: atLimit ? "not-allowed" : "pointer", fontSize: 13,
-          color: atLimit ? "#ef4444" : "#7c3aed", fontWeight: 600,
-          background: (uploading || atLimit) ? "#f3f4f6" : "#fff"
-        }}>
-          {uploading ? "アップロード中…" : atLimit ? `上限に達しました（${limit}枚）` : "＋ 画像を追加"}
-          <input type="file" accept="image/*" onChange={handleUpload}
-            disabled={uploading || atLimit} style={{ display: "none" }} />
-        </label>
-      </div>
-
-      {preview && (
+      {showPreview && preview && (
         <div onClick={() => setPreview(null)} style={{
           position: "fixed", inset: 0, background: "#000a",
           zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center", cursor: "zoom-out"
@@ -414,6 +385,9 @@ export default function CommissionApp() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [showNotifications, setShowNotifications] = useState(false);
   const [showContact, setShowContact] = useState(false);
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
+  const [platformForInstall, setPlatformForInstall] = useState<"ios" | "android" | "other" | null>(null);
+  const [pendingImageDeletes, setPendingImageDeletes] = useState<CommissionImage[]>([]);
 
   // ---- hooks ----
   const { commissions, loading, saving, reload: load, create, update, remove } = useCommissions(supabase);
@@ -454,6 +428,34 @@ export default function CommissionApp() {
   useEffect(() => {
     if (user) fetchUnreadCount(user.id);
   }, [user]);
+
+  // ---- PWAインストール案内バナー ----
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      // Push が利用可能な場合はバナー不要（Push トグルで表示される想定）
+      if ("serviceWorker" in navigator && "PushManager" in window) return;
+
+      const ua = navigator.userAgent || "";
+      const isiOS = /iPhone|iPad|iPod/i.test(ua) && !(window as any).MSStream;
+      const isAndroid = /Android/i.test(ua);
+      const isMobile = isiOS || isAndroid;
+      const isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || (navigator as any).standalone === true;
+      const dismissed = localStorage.getItem("ct_install_banner_dismissed") === "1";
+      if (!isMobile) return;
+      if (isStandalone) return;
+      if (dismissed) return;
+      setPlatformForInstall(isiOS ? "ios" : isAndroid ? "android" : "other");
+      setShowInstallBanner(true);
+    } catch (e) {
+      // ignore
+    }
+  }, []);
+
+  function dismissInstallBanner() {
+    try { localStorage.setItem("ct_install_banner_dismissed", "1"); } catch (e) { }
+    setShowInstallBanner(false);
+  }
 
   // ---- 表示名の保存 ----
   async function handleSaveName() {
@@ -514,6 +516,7 @@ export default function CommissionApp() {
   function openNew() {
     setForm(EMPTY_FORM);
     setEditId(null);
+    setDetailItem(null);
     setPendingImages([]);
     setPendingImageType("rough");
     setShowForm(true);
@@ -526,6 +529,10 @@ export default function CommissionApp() {
       status: c.status, rough_date: c.rough_date ?? "", notes: c.notes ?? ""
     });
     setEditId(c.id);
+    setDetailItem(c);
+    setPendingImages([]);
+    setPendingImageDeletes([]);
+    setPendingImageType("rough");
     setShowForm(true);
     setDetailId(null);
   }
@@ -540,26 +547,37 @@ export default function CommissionApp() {
         price: form.price ? Number(form.price) : undefined, currency: form.currency,
         status: form.status, rough_date: form.rough_date || undefined, notes: form.notes || undefined,
       };
+
+      // editIdがある場合は更新、ない場合は新規作成
       if (editId) {
+        // 削除予定の画像をDB削除
         await update(editId, payload);
+        for (const img of pendingImageDeletes) {
+          try { await deleteImage(supabase, img); } catch { }
+        }
+        // 新規追加画像をアップロード
+        for (const pi of pendingImages) {
+          try { await uploadImage(supabase, editId, pi.file, pi.imageType, plan); } catch { }
+          URL.revokeObjectURL(pi.previewUrl);
+        }
       } else {
         const newCommission = await create(payload);
-        if (pendingImages.length > 0) {
-          const plan = (profile?.plan ?? "free") as Plan;
-          for (const pi of pendingImages) {
-            try {
-              await uploadImage(supabase, newCommission.id, pi.file, pi.imageType, plan);
-            } catch { /* 1枚失敗しても続行 */ }
-            URL.revokeObjectURL(pi.previewUrl);
-          }
-          setPendingImages([]);
+        for (const pi of pendingImages) {
+          try {
+            await uploadImage(supabase, newCommission.id, pi.file, pi.imageType, plan);
+          } catch { /* 1枚失敗しても続行 */ }
+          URL.revokeObjectURL(pi.previewUrl);
         }
       }
-      if (detailId) {
-        fetchCommissionById(supabase, detailId).then(setDetailItem).catch(() => setDetailItem(null));
-      }
+
+      // 全処理完了後にまとめてload・state更新
+      setPendingImages([]);
+      setPendingImageDeletes([]);
       setShowForm(false);
       setEditId(null);
+      setDetailItem(null);
+      load(false);
+
     } catch {
       alert("保存に失敗しました");
     }
@@ -569,19 +587,22 @@ export default function CommissionApp() {
   async function handleDelete(id: string) {
     try {
       await remove(id);
-      if (detailId) {
-        fetchCommissionById(supabase, detailId).then(setDetailItem).catch(() => setDetailItem(null));
-      }
     } catch {
       alert("削除に失敗しました");
     }
     setDeleteConfirm(null);
     setDetailId(null);
+    setDetailItem(null);
+    load(false);
   }
 
   // ---- 詳細表示 ----
   useEffect(() => {
-    if (!detailId) { setDetailItem(null); return; }
+    if (!detailId) {
+      // フォームが開いているとき（編集中）はdetailItemをリセットしない
+      if (!showForm) setDetailItem(null);
+      return;
+    }
     const item = commissions.find(c => c.id === detailId) ?? null;
     setDetailItem(item);
   }, [detailId, commissions]);
@@ -804,13 +825,14 @@ export default function CommissionApp() {
                   background: "#fff", borderRadius: 16, padding: "18px 22px",
                   boxShadow: urgent ? "0 0 0 2px #ef444460,0 2px 12px #0001" : "0 1px 6px #0001,0 2px 12px #0001",
                   border: urgent ? "1.5px solid #fca5a5" : "1.5px solid transparent",
-                  cursor: "pointer", display: "flex", gap: 16, alignItems: "center", transition: "transform 0.1s"
+                  cursor: "pointer", display: "flex", gap: 16, alignItems: "flex-start", transition: "transform 0.1s"
                 }}
                 onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)"; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)"; }}>
-                {(c.images?.length ?? 0) > 0 && (
-                  <CardThumbnail storagePath={c.images![0].storage_path} />
-                )}
+                {(c.images?.length ?? 0) > 0
+                  ? <CardThumbnail storagePath={c.images![0].storage_path} />
+                  : <div style={{ width: 72, height: 72, flexShrink: 0 }} />
+                }
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
                     <span style={{ fontWeight: 800, fontSize: 16, color: "#1a0a2e" }}>{c.title}</span>
@@ -839,8 +861,8 @@ export default function CommissionApp() {
         </div>
       </main>
 
-      {/* ── 詳細モーダル ── */}
-      {detailItem && (
+      {/* ── 詳細モーダル（表示・DLのみ） ── */}
+      {detailItem && detailId && (
         <div style={{ position: "fixed", inset: 0, background: "#0006", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, overscrollBehavior: "contain", touchAction: "none" }}
           onClick={() => setDetailId(null)}>
           <div style={{
@@ -876,7 +898,8 @@ export default function CommissionApp() {
                   ))}
                 </tbody>
               </table>
-              <ImageSection commission={detailItem} plan={plan} onUpdated={load} />
+              {/* 詳細モーダル：表示・DLのみ（readonly） */}
+              <ImageSection commission={detailItem} plan={plan} onUpdated={load} readonly />
             </div>
             <div style={{ padding: "0 24px 16px", flexShrink: 0 }}>
               <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
@@ -987,10 +1010,10 @@ export default function CommissionApp() {
         </div>
       )}
 
-      {/* ── フォームモーダル ── */}
+      {/* ── 新規登録・編集フォームモーダル ── */}
       {showForm && (
         <div style={{ position: "fixed", inset: 0, background: "#0007", zIndex: 150, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", overscrollBehavior: "contain", touchAction: "none" }}
-          onClick={() => { pendingImages.forEach(pi => URL.revokeObjectURL(pi.previewUrl)); setPendingImages([]); setShowForm(false); setEditId(null); }}>
+          onClick={() => { pendingImages.forEach(pi => URL.revokeObjectURL(pi.previewUrl)); setPendingImages([]); setShowForm(false); setEditId(null); setDetailItem(null); }}>
           <div style={{ background: "#fff", borderRadius: 20, maxWidth: 520, width: "100%", height: "calc(100vh - 32px)", maxHeight: 600, display: "flex", flexDirection: "column", boxShadow: "0 8px 48px #0004" }}
             onClick={e => e.stopPropagation()}>
             <div style={{ padding: "16px 24px 0", flexShrink: 0 }}>
@@ -1036,15 +1059,37 @@ export default function CommissionApp() {
                     placeholder="色味の指定や注意点など" style={{ ...inp, minHeight: 70, resize: "vertical" }} />
                 </Field>
 
-                {/* 新規登録時のみ画像追加UI */}
-                {!editId && (() => {
+                {/* ── 画像エリア ── */}
+                {(() => {
                   const limit = PLAN_LIMITS[plan].imageLimit;
-                  const totalAfter = imageCount + pendingImages.length;
+                  // 編集時は既存画像枚数＋pending、新規時はimageCount＋pending
+                  const existingCount = editId
+                    ? (detailItem?.images?.length ?? 0)
+                    : imageCount;
+                  const totalAfter = existingCount + pendingImages.length;
                   const atLimit = limit !== null && totalAfter >= limit;
+
                   return (
-                    <Field label="画像（任意・登録後にも追加できます）">
+                    <Field label={editId ? "画像（削除・追加できます）" : "画像（任意・登録後にも追加できます）"}>
+
+                      {/* 編集時のみ：既存画像の表示・削除（アップロードUIなし） */}
+                      {editId && detailItem && (
+                        <ImageSection
+                          commission={detailItem}
+                          plan={plan}
+                          onUpdated={async () => {
+                            const updated = await fetchCommissionById(supabase, editId).catch(() => null);
+                            if (updated) setDetailItem(updated);
+                          }}
+                          showPreview={false}
+                          pendingDeletes={pendingImageDeletes}
+                          onDeletesChange={setPendingImageDeletes}
+                        />
+                      )}
+
+                      {/* 登録・編集共通：新規追加するpendingImagesのプレビュー */}
                       {pendingImages.length > 0 && (
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(80px,1fr))", gap: 8, marginBottom: 10 }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(80px,1fr))", gap: 8, marginBottom: 10, marginTop: editId ? 12 : 0 }}>
                           {pendingImages.map(pi => (
                             <div key={pi.id} style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: "1.5px solid #c4b5fd", background: "#f3f4f6" }}>
                               <img src={pi.previewUrl} alt={pi.file.name} style={{ width: "100%", aspectRatio: "1", objectFit: "cover" }} />
@@ -1060,13 +1105,15 @@ export default function CommissionApp() {
                           ))}
                         </div>
                       )}
-                      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+
+                      {/* 新規追加ボタン（登録・編集共通） */}
+                      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: editId ? 8 : 0 }}>
                         <select value={pendingImageType} onChange={e => setPendingImageType(e.target.value as ImageType)}
                           style={{ ...inp, width: "auto", padding: "6px 10px" }}>
                           {IMAGE_TYPES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
                         </select>
                         <label style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 14px", border: `1.5px dashed ${atLimit ? "#fca5a5" : "#c4b5fd"}`, borderRadius: 10, cursor: atLimit ? "not-allowed" : "pointer", fontSize: 13, color: atLimit ? "#ef4444" : "#7c3aed", fontWeight: 600, background: atLimit ? "#f3f4f6" : "#fff" }}>
-                          {atLimit ? `上限に達しています（${limit}枚）` : "＋ 画像を追加"}
+                          {atLimit ? `上限に達しました（${limit}枚）` : "＋ 画像を追加"}
                           <input type="file" accept="image/*" disabled={atLimit} style={{ display: "none" }}
                             onChange={e => {
                               const file = e.target.files?.[0];
@@ -1077,9 +1124,10 @@ export default function CommissionApp() {
                             }} />
                         </label>
                       </div>
+
                       {pendingImages.length > 0 && (
                         <div style={{ fontSize: 11, color: "#888", marginTop: 6 }}>
-                          ※ 登録ボタンを押すと画像もまとめてアップロードされます
+                          ※ {editId ? "更新する" : "登録"}ボタンを押すと画像もまとめてアップロードされます
                         </div>
                       )}
                     </Field>
@@ -1089,15 +1137,17 @@ export default function CommissionApp() {
             </div>
             <div style={{ padding: "0 24px 16px", flexShrink: 0 }}>
               <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-                <button onClick={() => { pendingImages.forEach(pi => URL.revokeObjectURL(pi.previewUrl)); setPendingImages([]); setShowForm(false); setEditId(null); }}
+                <button onClick={() => { pendingImages.forEach(pi => URL.revokeObjectURL(pi.previewUrl)); setPendingImages([]); setShowForm(false); setEditId(null); setDetailItem(null); }}
                   style={{ flex: 1, background: "#f3f4f6", border: "none", borderRadius: 10, padding: "12px", fontWeight: 600, cursor: "pointer" }}>
                   キャンセル
                 </button>
                 <button onClick={handleSave} disabled={!form.title || !form.artist || saving}
                   style={{ flex: 2, background: (!form.title || !form.artist || saving) ? "#c4b5fd" : "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "#fff", border: "none", borderRadius: 10, padding: "12px", fontWeight: 800, cursor: (!form.title || !form.artist || saving) ? "not-allowed" : "pointer", fontSize: 15 }}>
                   {saving
-                    ? (pendingImages.length > 0 && !editId ? "登録・画像アップロード中…" : "保存中…")
-                    : editId ? "更新する" : pendingImages.length > 0 ? `登録する（画像${pendingImages.length}枚）` : "登録する"
+                    ? (pendingImages.length > 0 ? (editId ? "保存・画像アップロード中…" : "登録・画像アップロード中…") : "保存中…")
+                    : editId
+                      ? pendingImages.length > 0 ? `更新する（画像${pendingImages.length}枚追加）` : "更新する"
+                      : pendingImages.length > 0 ? `登録する（画像${pendingImages.length}枚）` : "登録する"
                   }
                 </button>
               </div>
@@ -1115,6 +1165,34 @@ export default function CommissionApp() {
         onClose={() => setShowNotifications(false)}
         onRead={() => user && fetchUnreadCount(user.id)}
       />
+
+      {/* ── PWA インストール案内バナー（モバイル・未インストール時） ── */}
+      {showInstallBanner && (
+        <div style={{ position: "fixed", bottom: 96, left: 12, right: 12, zIndex: 50 }}>
+          <div style={{ position: "relative", borderRadius: 16, border: "1px solid #e5e7eb", background: "#fff", padding: "12px", maxWidth: 900, margin: "0 auto", boxShadow: "0 8px 48px rgba(0,0,0,0.12)" }}>
+            <button onClick={dismissInstallBanner} aria-label="閉じる"
+              style={{ position: "absolute", top: 8, right: 8, padding: 6, borderRadius: 999, border: "none", background: "transparent", cursor: "pointer", color: "#666" }}>
+              ×
+            </button>
+
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 12, paddingRight: 24 }}>
+              <img src="/icon-192.png" alt="Commission Tracker" width={48} height={48} style={{ borderRadius: 12, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }} />
+
+              <div style={{ flex: 1 }}>
+                <p style={{ fontWeight: 700, fontSize: 14, margin: 0 }}>ホーム画面に追加する</p>
+
+                <p style={{ fontSize: 12, color: "#666", marginTop: 6 }}>
+                  ブラウザメニューの <span style={{ display: "inline-block", margin: "0 4px", padding: "2px 6px", background: "#f3f4f6", borderRadius: 6, fontSize: 11, fontWeight: 700 }}>ホーム画面に追加</span> でアプリとして使えます 📲
+                </p>
+
+                {platformForInstall === "ios" && (
+                  <p style={{ marginTop: 8, fontSize: 11, color: "#666", textAlign: "center" }}>↓ 画面下の <span style={{ fontWeight: 700 }}>共有ボタン</span> をタップ</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── フッター ── */}
       <footer style={{ borderTop: "1px solid #e5e7eb", padding: "24px 32px", textAlign: "center" }}>
