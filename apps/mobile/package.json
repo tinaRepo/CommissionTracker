@@ -1,8 +1,11 @@
 {
   "name": "@commission-tracker/mobile",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "main": "expo-router/entry",
   "dependencies": {
+    "@commission-tracker/hooks": "workspace:*",
+    "@commission-tracker/supabase": "workspace:*",
+    "@commission-tracker/types": "workspace:*",
     "@expo/metro-runtime": "~56.0.15",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/datetimepicker": "9.1.0",
@@ -22,7 +25,9 @@
     "react-dom": "19.2.3",
     "react-native": "0.85.3",
     "react-native-modal-datetime-picker": "^18.0.0",
-    "react-native-web": "^0.21.2"
+    "react-native-reanimated": "4.3.1",
+    "react-native-web": "^0.21.2",
+    "react-native-worklets": "0.8.3"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
@@ -36,8 +41,7 @@
     "dev": "expo start",
     "build": "expo export",
     "lint": "expo lint",
-    "type-check": "tsc --noEmit",
-    "sync": "node scripts/sync-packages.js"
+    "type-check": "tsc --noEmit"
   },
   "private": true
 }

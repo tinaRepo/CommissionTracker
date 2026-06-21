@@ -7,9 +7,9 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library/legacy';
 import { supabase } from '../lib/supabase';
-import { getSignedImageUrl, deleteImage } from '../lib/packages/supabase/images';
-import { PLAN_LIMITS } from '../lib/packages/types/index';
-import type { Commission, CommissionImage, ImageType, Plan } from '../lib/packages/types/index';
+import { getSignedImageUrl, deleteImage } from '@commission-tracker/supabase';
+import { PLAN_LIMITS } from '@commission-tracker/types';
+import type { Commission, CommissionImage, ImageType, Plan } from '@commission-tracker/types';
 
 const IMAGE_TYPES: { key: ImageType; label: string }[] = [
   { key: 'rough', label: 'ラフ' },

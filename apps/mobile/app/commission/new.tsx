@@ -7,9 +7,9 @@ import { useState } from 'react';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../../lib/supabase';
-import { createCommission } from '../../lib/packages/supabase/commissions';
-import { PLAN_LIMITS } from '../../lib/packages/types/index';
-import type { CommissionStatus, ImageType, Plan } from '../../lib/packages/types/index';
+import { createCommission } from '@commission-tracker/supabase';
+import { PLAN_LIMITS } from '@commission-tracker/types';
+import type { CommissionStatus, ImageType, Plan } from '@commission-tracker/types';
 import DatePickerField from '../../components/DatePickerField';
 import * as FileSystem from 'expo-file-system/legacy';
 

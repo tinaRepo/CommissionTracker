@@ -7,9 +7,8 @@ import { router } from 'expo-router';
 import * as MediaLibrary from 'expo-media-library/legacy';
 import * as FileSystem from 'expo-file-system/legacy';
 import { supabase } from '../lib/supabase';
-import { fetchCommissionById, deleteCommission } from '../lib/packages/supabase/commissions';
-import { fetchMyProfile } from '../lib/packages/supabase/user';
-import type { Commission, CommissionStatus, UserProfile, Plan } from '../lib/packages/types/index';
+import { fetchCommissionById, deleteCommission, fetchMyProfile } from '@commission-tracker/supabase';
+import type { Commission, CommissionStatus, UserProfile, Plan } from '@commission-tracker/types';
 import ImageSection from './ImageSection';
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');

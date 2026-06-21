@@ -5,10 +5,8 @@ import {
 import { useState, useEffect } from 'react';
 import { useLocalSearchParams, router } from 'expo-router';
 import { supabase } from '../../../lib/supabase';
-import { fetchCommissionById, updateCommission } from '../../../lib/packages/supabase/commissions';
-import { deleteImage } from '../../../lib/packages/supabase/images';
-import { fetchMyProfile } from '../../../lib/packages/supabase/user';
-import type { Commission, CommissionStatus, CommissionImage, Plan } from '../../../lib/packages/types/index';
+import { fetchCommissionById, updateCommission, deleteImage, fetchMyProfile } from '@commission-tracker/supabase';
+import type { Commission, CommissionStatus, CommissionImage, Plan } from '@commission-tracker/types';
 import DatePickerField from '../../../components/DatePickerField';
 import ImageSection from '../../../components/ImageSection';
 
@@ -116,7 +114,14 @@ export default function EditCommissionScreen() {
       }
       setPendingImageDeletes([]);
 
-      router.replace(`/commission/${id}`);
+      // 画面遷移前に最新状態を取得し、ImageSectionの画像リストを確定させる
+      const updated = await fetchCommissionById(supabase, id);
+      if (updated) setCommission(updated);
+
+      // 次のフレームで遷移（ネイティブビューの更新を完了させてから遷移する）
+      requestAnimationFrame(() => {
+        router.replace(`/commission/${id}`);
+      });
     } catch {
       setError('保存に失敗しました');
     } finally {

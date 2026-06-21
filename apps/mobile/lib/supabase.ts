@@ -1,4 +1,4 @@
-import { createClient } from './packages/supabase/client';
+import { createClient } from '@commission-tracker/supabase/native';
 
 export const supabase = createClient(
     process.env.EXPO_PUBLIC_SUPABASE_URL!,

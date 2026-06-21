@@ -5,11 +5,10 @@ import {
 import { useState, useEffect } from 'react';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
-import { useCommissions, useUnreadCount } from '../lib/packages/hooks/index';
-import { fetchMyProfile } from '../lib/packages/supabase/user';
-import { getSignedImageUrl } from '../lib/packages/supabase/images';
-import { PLAN_LIMITS } from '../lib/packages/types/index';
-import type { Commission, CommissionStatus, UserProfile, Plan } from '../lib/packages/types/index';
+import { useCommissions, useUnreadCount } from '@commission-tracker/hooks';
+import { fetchMyProfile, getSignedImageUrl } from '@commission-tracker/supabase';
+import { PLAN_LIMITS } from '@commission-tracker/types';
+import type { Commission, CommissionStatus, UserProfile, Plan } from '@commission-tracker/types';
 import CommissionDetailModal from '../components/CommissionDetailModal';
 
 // ---- 定数 ----
