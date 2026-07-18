@@ -340,11 +340,23 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <a href="https://nextplus.link/q/FETOxlUlVtQMpI9H5fQGqe1s3Ot7ChW5" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:12px;max-width:360px;padding:14px 16px;border:2px solid #f97316;border-radius:16px;background:#fff7ed;text-decoration:none;font-family:sans-serif;">
-  <span style="font-size:22px;font-weight:900;color:#18181b;">NEXT<span style="color:#f97316;">+</span></span>
+      <a
+  href="https://nextplus.link/q/FETOxlUlVtQMpI9H5fQGqe1s3Ot7ChW5"
+  target="_blank"
+  rel="noopener"
+  className="flex items-center gap-3 max-w-[360px] rounded-2xl border-2 border-orange-500 bg-orange-50 px-4 py-3 no-underline"
+>
+  <span className="text-2xl font-black text-zinc-900">
+    NEXT<span className="text-orange-500">+</span>
+  </span>
+
   <span>
-    <span style="display:block;font-size:14px;font-weight:700;color:#18181b;">このあと使える、近くのお得</span>
-    <span style="display:block;font-size:12px;color:#71717a;">ご利用の方限定・特典を最大3つ紹介</span>
+    <span className="block text-sm font-bold text-zinc-900">
+      このあと使える、近くのお得
+    </span>
+    <span className="block text-xs text-zinc-500">
+      ご利用の方限定・特典を最大3つ紹介
+    </span>
   </span>
 </a>
 
