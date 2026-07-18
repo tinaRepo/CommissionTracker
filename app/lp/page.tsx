@@ -340,6 +340,14 @@ export default function LandingPage() {
         </div>
       </section>
 
+      <a href="https://nextplus.link/q/FETOxlUlVtQMpI9H5fQGqe1s3Ot7ChW5" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:12px;max-width:360px;padding:14px 16px;border:2px solid #f97316;border-radius:16px;background:#fff7ed;text-decoration:none;font-family:sans-serif;">
+  <span style="font-size:22px;font-weight:900;color:#18181b;">NEXT<span style="color:#f97316;">+</span></span>
+  <span>
+    <span style="display:block;font-size:14px;font-weight:700;color:#18181b;">このあと使える、近くのお得</span>
+    <span style="display:block;font-size:12px;color:#71717a;">ご利用の方限定・特典を最大3つ紹介</span>
+  </span>
+</a>
+
       {/* フッター */}
       <footer style={{ borderTop: "1px solid rgba(124,58,237,0.2)", padding: "40px 24px" }}>
         <div style={{ maxWidth: 900, margin: "0 auto", display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 20 }}>
