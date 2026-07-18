@@ -344,17 +344,48 @@ export default function LandingPage() {
   href="https://nextplus.link/q/FETOxlUlVtQMpI9H5fQGqe1s3Ot7ChW5"
   target="_blank"
   rel="noopener"
-  className="flex items-center gap-3 max-w-[360px] rounded-2xl border-2 border-orange-500 bg-orange-50 px-4 py-3 no-underline"
+  style={{
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    maxWidth: "360px",
+    padding: "14px 16px",
+    border: "2px solid #f97316",
+    borderRadius: "16px",
+    background: "#fff7ed",
+    textDecoration: "none",
+    fontFamily: "sans-serif",
+  }}
 >
-  <span className="text-2xl font-black text-zinc-900">
-    NEXT<span className="text-orange-500">+</span>
+  <span
+    style={{
+      fontSize: "22px",
+      fontWeight: 900,
+      color: "#18181b",
+    }}
+  >
+    NEXT<span style={{ color: "#f97316" }}>+</span>
   </span>
 
   <span>
-    <span className="block text-sm font-bold text-zinc-900">
+    <span
+      style={{
+        display: "block",
+        fontSize: "14px",
+        fontWeight: 700,
+        color: "#18181b",
+      }}
+    >
       このあと使える、近くのお得
     </span>
-    <span className="block text-xs text-zinc-500">
+
+    <span
+      style={{
+        display: "block",
+        fontSize: "12px",
+        color: "#71717a",
+      }}
+    >
       ご利用の方限定・特典を最大3つ紹介
     </span>
   </span>
