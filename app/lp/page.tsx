@@ -352,7 +352,7 @@ export default function LandingPage() {
     padding: "14px 16px",
     border: "2px solid #f97316",
     borderRadius: "16px",
-    background: "#fff7ed",
+    background: "#1f2937",
     textDecoration: "none",
     fontFamily: "sans-serif",
   }}
@@ -361,7 +361,7 @@ export default function LandingPage() {
     style={{
       fontSize: "22px",
       fontWeight: 900,
-      color: "#18181b",
+      color: "#f9fafb",
     }}
   >
     NEXT<span style={{ color: "#f97316" }}>+</span>
@@ -373,7 +373,7 @@ export default function LandingPage() {
         display: "block",
         fontSize: "14px",
         fontWeight: 700,
-        color: "#18181b",
+        color: "#f9fafb",
       }}
     >
       このあと使える、近くのお得
@@ -383,7 +383,7 @@ export default function LandingPage() {
       style={{
         display: "block",
         fontSize: "12px",
-        color: "#71717a",
+        color: "#9ca3af",
       }}
     >
       ご利用の方限定・特典を最大3つ紹介
