@@ -207,6 +207,8 @@ npx expo start
 › Press i │ open iOS simulator（Macが必要）
 ```
 
+> Android Studio等でエラーが出る場合、npx expo start --tunnelで起動してみること。
+
 ### 5-4. 実機ネイティブ機能を使う場合（画像保存など）
 
 `expo-media-library` など一部のネイティブ機能はExpo Goでは動作しないため、ネイティブビルドが必要です。
@@ -217,61 +219,6 @@ npx expo run:android
 ```
 
 初回はAndroidプロジェクトのビルドが走るため時間がかかります。
-
-> ⚠️ Windows環境ではリポジトリのパスを短くしてください（パスの長さ制限によりビルドが失敗する場合があります）。
-
-### 5-5. トラブルシューティング（Windows + pnpm + Androidビルド）
-
-Windows環境でpnpm運用時、Androidネイティブビルドが失敗する場合の対応です。
-
-**`ninja: error: manifest 'build.ninja' still dirty after 100 tries`**
-
-C++ネイティブビルド（CMake/ninja）のキャッシュが、シンボリックリンク構造との相性で壊れている状態です。
-
-```powershell
-# リポジトリルートで実行
-pnpm config set node-linker hoisted
-Remove-Item -Recurse -Force node_modules -ErrorAction SilentlyContinue
-Remove-Item -Force pnpm-lock.yaml -ErrorAction SilentlyContinue
-pnpm install
-```
-
-`node-linker` を `hoisted`（npm互換のフラットな`node_modules`構造）に切り替えることで解消します。
-
-**`unmet peer react-native-worklets` / `Worklets is not compatible with Reanimated`**
-
-`hoisted` 化後に `react-native-worklets` のバージョンが意図せず引き上がり、`react-native-reanimated` との互換性エラーになることがあります。両方を明示的にバージョン指定してください。
-
-```bash
-cd apps/mobile
-npx expo install react-native-reanimated
-npx expo install react-native-worklets
-```
-
-`expo install` が現在のExpo SDKと互換性のあるバージョンを自動選定して `package.json` に追記します。追記後、ルートで再インストールしてからビルドし直してください。
-
-```bash
-cd ../..
-pnpm install
-cd apps/mobile
-npx expo run:android
-```
-
-**ドライブ移動・パス変更後にビルドが通らない場合**
-
-リポジトリを別ドライブやフォルダに移動した直後は、シンボリックリンクの参照が壊れていることがあります。`node_modules`・lockファイル・Androidのネイティブビルド成果物をすべて削除してから入れ直すのが確実です。
-
-```powershell
-cd <リポジトリルート>
-Remove-Item -Recurse -Force node_modules -ErrorAction SilentlyContinue
-Remove-Item -Force pnpm-lock.yaml -ErrorAction SilentlyContinue
-Remove-Item -Recurse -Force apps/mobile/android/app/.cxx -ErrorAction SilentlyContinue
-Remove-Item -Recurse -Force apps/mobile/android/app/build -ErrorAction SilentlyContinue
-Remove-Item -Recurse -Force apps/mobile/android/build -ErrorAction SilentlyContinue
-Remove-Item -Recurse -Force apps/mobile/android/.gradle -ErrorAction SilentlyContinue
-pnpm store prune
-pnpm install
-```
 
 ---
 
