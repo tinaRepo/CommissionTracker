@@ -40,11 +40,20 @@ commission-tracker/
 パッケージ管理は **pnpm** に統一しています。ルートで一括インストールできます。
 
 ```bash
+# 以下、Linux環境で未実施の場合 
+# ➀nvmをインストール
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+# ②シェルを再読み込み
+source ~/.bashrc
+# ③Node.jsをインストール
+nvm install --lts
+# ④確認
+which node
+
+# pnpmをインストール
 npm i -g pnpm
 pnpm install
 ```
-
-> ⚠️ Windowsで開発する場合、リポジトリの配置パスはできるだけ短くしてください（例: `C:\CT`）。パスが長いとAndroidビルドが失敗する場合があります。
 
 ---
 
@@ -96,7 +105,7 @@ pnpm install
 
 `vercel dev` を使うと、コミット・デプロイなしでローカルから本番 DB に接続してアプリを確認できます。
 
-### 初回セットアップ（1 回だけ）
+### 初回セットアップ（必要な場合に1 回だけ）
 
 ```bash
 cd apps/web
