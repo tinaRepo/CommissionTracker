@@ -9,6 +9,7 @@ import {
   type Commission, type CommissionStatus, type CommissionImage,
   type ImageType, type UserProfile, type Plan,
   fetchCommissionById,
+  updateMyPassword, getLastSignInProvider, hasEmailIdentity,
 } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
@@ -50,6 +51,14 @@ const EMPTY_FORM: FormValues = {
   title: "", artist: "", x_id: "", ordered_at: "", deadline: "",
   price: "", currency: "JPY", status: "pending", rough_date: "", notes: "",
 };
+
+const [showPasswordModal, setShowPasswordModal] = useState(false);
+const [pwCurrent, setPwCurrent] = useState("");
+const [pwNew, setPwNew] = useState("");
+const [pwConfirm, setPwConfirm] = useState("");
+const [pwSaving, setPwSaving] = useState(false);
+const [pwError, setPwError] = useState<string | null>(null);
+const [pwDone, setPwDone] = useState(false);
 
 // --- 画像アップロード前にプランの上限をチェック ---
 function fmtDate(d?: string) {
@@ -491,6 +500,30 @@ export default function CommissionApp() {
     }
   }
 
+  // --- パスワード編集モーダル ---
+  function openPasswordModal() {
+    setPwCurrent(""); setPwNew(""); setPwConfirm("");
+    setPwError(null); setPwDone(false);
+    setShowPasswordModal(true); setShowUserMenu(false);
+  }
+
+  // --- パスワード保存 ---
+  async function handleSavePassword() {
+    setPwError(null);
+    if (pwNew.length < 6) { setPwError("パスワードは6文字以上で入力してください"); return; }
+    if (pwNew !== pwConfirm) { setPwError("新しいパスワードが一致しません"); return; }
+    if (hasPassword && !pwCurrent) { setPwError("現在のパスワードを入力してください"); return; }
+    setPwSaving(true);
+    try {
+      await updateMyPassword(pwNew, hasPassword ? pwCurrent : undefined);
+      setPwDone(true);
+    } catch (e: any) {
+      setPwError(e.message ?? "パスワードの変更に失敗しました");
+    } finally {
+      setPwSaving(false);
+    }
+  }
+
   // ログアウト処理
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -602,6 +635,8 @@ export default function CommissionApp() {
     return () => { document.body.style.overflow = ""; };
   }, [showForm, detailId]);
   const plan = (profile?.plan ?? "free") as Plan;
+  const lastProvider = getLastSignInProvider(user);
+  const hasPassword = hasEmailIdentity(user);
   const displayName = profile?.display_name;
   const userLabel = displayName ?? user?.user_metadata?.full_name ?? (user?.email?.split("@")[0]) ?? "ユーザー";
   const userAvatar = user?.user_metadata?.avatar_url as string | undefined;
@@ -702,16 +737,27 @@ export default function CommissionApp() {
                 border: "1px solid #ffffff30", borderRadius: 99, padding: "6px 12px 6px 6px",
                 cursor: "pointer", color: "#fff", fontSize: 13, fontWeight: 600
               }}>
-              {userAvatar ? (
-                <img src={userAvatar} alt="avatar" style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover" }} />
-              ) : (
-                <div style={{
-                  width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,#7c3aed,#4f46e5)",
-                  display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800
-                }}>
-                  {userLabel.charAt(0).toUpperCase()}
-                </div>
-              )}
+              <span style={{ position: "relative", display: "inline-flex" }}>
+                {userAvatar ? (
+                  <img src={userAvatar} alt="avatar" style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover" }} />
+                ) : (
+                  <div style={{
+                    width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,#7c3aed,#4f46e5)",
+                    display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800
+                  }}>
+                    {userLabel.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                {lastProvider === "google" && (
+                  <span title="前回はGoogleでログイン" style={{
+                    position: "absolute", bottom: -2, right: -2,
+                    width: 14, height: 14, borderRadius: "50%",
+                    background: "#fff", border: "1px solid #e5e7eb",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 8, fontWeight: 900, color: "#4285f4",
+                  }}>G</span>
+                )}
+              </span>
               <span style={{ maxWidth: 100, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{userLabel}</span>
               <span style={{ fontSize: 10, opacity: 0.7 }}>▼</span>
             </button>
@@ -740,6 +786,14 @@ export default function CommissionApp() {
                     color: "#1a0a2e", fontWeight: 600, textAlign: "left", whiteSpace: "nowrap"
                   }}>
                   ✏️ 名前を変更
+                </button>
+                <button onClick={openPasswordModal}
+                  style={{
+                    width: "100%", padding: "11px 16px", background: "none", border: "none",
+                    borderBottom: "1px solid #f3f4f6", cursor: "pointer", fontSize: 13,
+                    color: "#1a0a2e", fontWeight: 600, textAlign: "left", whiteSpace: "nowrap"
+                  }}>
+                  🔑 {hasPassword ? "パスワードを変更" : "パスワードを設定"}
                 </button>
                 {profile?.is_admin && (
                   <button onClick={() => window.location.href = "/mgmt-c7f2a91e"}
@@ -1014,6 +1068,91 @@ export default function CommissionApp() {
                 保存する
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* パスワード設定/変更モーダル */}
+      {showPasswordModal && (
+        <div style={{ position: "fixed", inset: 0, background: "#0006", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}
+          onClick={() => !pwSaving && setShowPasswordModal(false)}>
+          <div style={{ background: "#fff", borderRadius: 20, padding: "32px", maxWidth: 380, width: "90%", boxShadow: "0 8px 48px #0004" }}
+            onClick={e => e.stopPropagation()}>
+            {pwDone ? (
+              <>
+                <div style={{ fontSize: 40, marginBottom: 12, textAlign: "center" }}>🔑</div>
+                <div style={{ fontWeight: 800, fontSize: 17, color: "#1a0a2e", marginBottom: 10, textAlign: "center" }}>
+                  パスワードを{hasPassword ? "変更" : "設定"}しました
+                </div>
+                {!hasPassword && (
+                  <div style={{ fontSize: 13, color: "#666", lineHeight: 1.7, marginBottom: 20, textAlign: "center" }}>
+                    次回からメールアドレスとパスワードでもログインできます。
+                  </div>
+                )}
+                <button onClick={() => setShowPasswordModal(false)}
+                  style={{
+                    width: "100%", background: "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "#fff",
+                    border: "none", borderRadius: 10, padding: "12px", fontWeight: 800, cursor: "pointer"
+                  }}>
+                  閉じる
+                </button>
+              </>
+            ) : (
+              <>
+                <div style={{ fontWeight: 800, fontSize: 18, color: "#1a0a2e", marginBottom: 8 }}>
+                  パスワードを{hasPassword ? "変更" : "設定"}
+                </div>
+                {!hasPassword && (
+                  <p style={{ fontSize: 12, color: "#888", lineHeight: 1.7, marginBottom: 16 }}>
+                    現在Googleアカウントでログインしています。パスワードを設定すると、次回からメールアドレスとパスワードでもログインできるようになります。
+                  </p>
+                )}
+                {pwError && (
+                  <div style={{
+                    marginBottom: 14, padding: "10px 14px", borderRadius: 10, fontSize: 13,
+                    background: "#fee2e2", color: "#b91c1c", border: "1px solid #fca5a5"
+                  }}>
+                    ⚠ {pwError}
+                  </div>
+                )}
+                <div style={{ display: "grid", gap: 12, marginBottom: 18 }}>
+                  {hasPassword && (
+                    <input type="password" placeholder="現在のパスワード" value={pwCurrent}
+                      onChange={e => setPwCurrent(e.target.value)}
+                      style={{
+                        width: "100%", padding: "10px 13px", border: "1.5px solid #e5e7eb", borderRadius: 12,
+                        fontSize: 16, outline: "none", background: "#faf8f5", boxSizing: "border-box"
+                      }} />
+                  )}
+                  <input type="password" placeholder="新しいパスワード（6文字以上）" value={pwNew}
+                    onChange={e => setPwNew(e.target.value)}
+                    style={{
+                      width: "100%", padding: "10px 13px", border: "1.5px solid #e5e7eb", borderRadius: 12,
+                      fontSize: 16, outline: "none", background: "#faf8f5", boxSizing: "border-box"
+                    }} />
+                  <input type="password" placeholder="新しいパスワード（確認）" value={pwConfirm}
+                    onChange={e => setPwConfirm(e.target.value)}
+                    style={{
+                      width: "100%", padding: "10px 13px", border: "1.5px solid #e5e7eb", borderRadius: 12,
+                      fontSize: 16, outline: "none", background: "#faf8f5", boxSizing: "border-box"
+                    }} />
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button onClick={() => setShowPasswordModal(false)} disabled={pwSaving}
+                    style={{ flex: 1, background: "#f3f4f6", border: "none", borderRadius: 10, padding: "11px", fontWeight: 600, cursor: "pointer" }}>
+                    キャンセル
+                  </button>
+                  <button onClick={handleSavePassword} disabled={pwSaving}
+                    style={{
+                      flex: 2, background: pwSaving ? "#c4b5fd" : "linear-gradient(135deg,#7c3aed,#4f46e5)",
+                      color: "#fff", border: "none", borderRadius: 10, padding: "11px", fontWeight: 800,
+                      cursor: pwSaving ? "not-allowed" : "pointer"
+                    }}>
+                    {pwSaving ? "処理中…" : hasPassword ? "変更する" : "設定する"}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
