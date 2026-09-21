@@ -363,3 +363,6 @@ flexDirection: column
   これにより、Google登録ユーザーも管理者画面で最初から表示名が見える。
 - `last_sign_in_at`はログイン成功のたびに`/api/auth/last-login-provider`のPOSTで更新される。
   ログイン処理そのものとは独立した「補助的な記録」のため、更新に失敗してもログイン自体は成功する。
+- メールアドレス形式チェック（`isValidEmailFormat`）、表示名の文字数上限（`DISPLAY_NAME_MAX_LENGTH=30`）、
+  パスワードの最小文字数（`PASSWORD_MIN_LENGTH=6`）は`lib/supabase.ts`に定数・関数として共通化している。
+  ログイン画面・パスワード変更/設定画面（モーダル含む）で重複実装せず、この共通定義を参照すること。

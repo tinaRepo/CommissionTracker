@@ -67,6 +67,14 @@ export const PLAN_LIMITS: Record<Plan, { label: string; imageLimit: number | nul
   premium: { label: "プレミアム", imageLimit: null, color: "#f59e0b", bg: "#fef3c7" },
 };
 
+// --- 簡易メールアドレス形式チェック ---
+export function isValidEmailFormat(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+export const DISPLAY_NAME_MAX_LENGTH = 30;
+export const PASSWORD_MIN_LENGTH = 6;
+
 // ---- プロフィール ----
 export async function fetchMyProfile(): Promise<UserProfile | null> {
   const { data: { user } } = await supabase.auth.getUser();

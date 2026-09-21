@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase, PASSWORD_MIN_LENGTH } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
 // エラーメッセージを日本語に変換
@@ -13,7 +13,7 @@ function toJapanese(msg: string): string {
   }
 
   if (m.includes("password should be at least")) {
-    return "パスワードは6文字以上で入力してください。";
+    return `パスワードは${PASSWORD_MIN_LENGTH}文字以上で入力してください。`;
   }
 
   return msg;
@@ -79,20 +79,21 @@ export default function UpdatePasswordPage() {
           </div>
         )}
         <input
-          type="password" placeholder="新しいパスワード（6文字以上）"
+          type="password" placeholder={`新しいパスワード（${PASSWORD_MIN_LENGTH}文字以上）`}
           value={password} onChange={e => setPassword(e.target.value)}
+          minLength={PASSWORD_MIN_LENGTH}
           style={{ width: "100%", padding: "11px 14px", border: "1.5px solid #e5e7eb", borderRadius: 12, fontSize: 14, outline: "none", color: "#1a0a2e", background: "#faf8f5", boxSizing: "border-box", fontFamily: "inherit", marginBottom: 14 }}
         />
         <button
           onClick={handleUpdate}
           disabled={
             loading ||
-            password.length < 6 ||
+            password.length < PASSWORD_MIN_LENGTH ||
             !sessionValid
           }
           style={{
             width: "100%", padding: "12px",
-            background: (loading || password.length < 6 || !sessionValid) ? "#c4b5fd" : "linear-gradient(135deg,#7c3aed,#4f46e5)",
+            background: (loading || password.length < PASSWORD_MIN_LENGTH || !sessionValid) ? "#c4b5fd" : "linear-gradient(135deg,#7c3aed,#4f46e5)",
             color: "#fff", border: "none", borderRadius: 12,
             fontWeight: 800, fontSize: 15, cursor: "pointer",
           }}

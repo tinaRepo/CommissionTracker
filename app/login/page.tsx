@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase, isValidEmailFormat, DISPLAY_NAME_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@/lib/supabase";
 import dynamic from "next/dynamic";
 import ContactModal from "@/components/ContactModal";
 const DemoApp = dynamic(() => import("@/components/DemoApp"), { ssr: false });
@@ -40,11 +40,16 @@ export default function LoginPage() {
   const [lastProvider, setLastProvider] = useState<string | null>(null);
 
   // メインボタンの活性/非活性判定（disabledと見た目のstyleで条件がズレないよう一箇所にまとめる）
+  const isEmailValid = isValidEmailFormat(email);
+  const isPasswordValid = mode === "reset" || password.length >= PASSWORD_MIN_LENGTH;
+  const isDisplayNameValid = mode !== "signup" || (displayName.trim().length > 0 && displayName.trim().length <= DISPLAY_NAME_MAX_LENGTH);
+
   const isSubmitDisabled =
     loading ||
     !email ||
-    (mode !== "reset" && !password) ||
-    (mode === "signup" && !displayName.trim());
+    !isEmailValid ||
+    (mode !== "reset" && !isPasswordValid) ||
+    !isDisplayNameValid;
 
   // ログイン済みの場合はトップページにリダイレクト
   useEffect(() => {
@@ -74,15 +79,30 @@ export default function LoginPage() {
     setLoading(true);
     setMessage(null);
     try {
+      if (!isValidEmailFormat(email)) {
+        setMessage({ type: "error", text: "メールアドレスの形式が正しくありません" });
+        setLoading(false);
+        return;
+      }
       if (mode === "login") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        // セッションが反映されるまで少し待ってからリダイレクト
         await new Promise(resolve => setTimeout(resolve, 500));
         window.location.href = "/";
       } else if (mode === "signup") {
-        if (!displayName.trim()) {
+        const trimmedName = displayName.trim();
+        if (!trimmedName) {
           setMessage({ type: "error", text: "表示名を入力してください" });
+          setLoading(false);
+          return;
+        }
+        if (trimmedName.length > DISPLAY_NAME_MAX_LENGTH) {
+          setMessage({ type: "error", text: `表示名は${DISPLAY_NAME_MAX_LENGTH}文字以内で入力してください` });
+          setLoading(false);
+          return;
+        }
+        if (password.length < PASSWORD_MIN_LENGTH) {
+          setMessage({ type: "error", text: `パスワードは${PASSWORD_MIN_LENGTH}文字以上で入力してください` });
           setLoading(false);
           return;
         }
@@ -90,7 +110,7 @@ export default function LoginPage() {
           email, password,
           options: {
             emailRedirectTo: `${location.origin}/`,
-            data: { display_name: displayName.trim() },
+            data: { display_name: trimmedName },
           }
         });
         if (error) throw error;
@@ -217,8 +237,9 @@ export default function LoginPage() {
           style={{ display: "grid", gap: 12, marginBottom: 16 }}>
           {mode === "signup" && (
             <InputField
-              type="text" placeholder="表示名（例: 山田太郎）"
+              type="text" placeholder={`表示名（例: 山田太郎・${DISPLAY_NAME_MAX_LENGTH}文字まで）`}
               value={displayName} onChange={setDisplayName}
+              maxLength={DISPLAY_NAME_MAX_LENGTH}
             />
           )}
           <InputField
@@ -227,8 +248,9 @@ export default function LoginPage() {
           />
           {mode !== "reset" && (
             <InputField
-              type="password" placeholder="パスワード（6文字以上）"
+              type="password" placeholder={`パスワード（${PASSWORD_MIN_LENGTH}文字以上）`}
               value={password} onChange={setPassword}
+              minLength={PASSWORD_MIN_LENGTH}
             />
           )}
           <button type="submit" style={{ display: "none" }} />
@@ -356,14 +378,17 @@ function OAuthButton({ onClick, disabled, icon, label, color }: {
 }
 
 // メール入力欄
-function InputField({ type, placeholder, value, onChange }: {
+function InputField({ type, placeholder, value, onChange, maxLength, minLength }: {
   type: string; placeholder: string; value: string; onChange: (v: string) => void;
+  maxLength?: number; minLength?: number;
 }) {
   const autoComplete = type === "email" ? "email" : type === "password" ? "current-password" : "off";
   return (
     <input
       type={type} placeholder={placeholder} value={value}
       autoComplete={autoComplete}
+      maxLength={maxLength}
+      minLength={minLength}
       onChange={e => onChange(e.target.value)}
       style={{
         width: "100%", padding: "10px 12px",

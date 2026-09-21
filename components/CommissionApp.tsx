@@ -11,6 +11,7 @@ import {
   fetchCommissionById,
   changeMyPassword, requestSetPasswordEmail, getLastSignInProvider,
   linkGoogleAccount, unlinkGoogleAccount, hasGoogleIdentity,
+  PASSWORD_MIN_LENGTH,
 } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
@@ -533,7 +534,7 @@ export default function CommissionApp() {
     try {
       if (hasPassword) {
         // 既にパスワードがある場合：その場で変更
-        if (pwNew.length < 6) { setPwError("パスワードは6文字以上で入力してください"); setPwSaving(false); return; }
+        if (pwNew.length < PASSWORD_MIN_LENGTH) { setPwError(`パスワードは${PASSWORD_MIN_LENGTH}文字以上で入力してください`); setPwSaving(false); return; }
         if (pwNew !== pwConfirm) { setPwError("新しいパスワードが一致しません"); setPwSaving(false); return; }
         if (!pwCurrent) { setPwError("現在のパスワードを入力してください"); setPwSaving(false); return; }
         await changeMyPassword(pwNew, pwCurrent);
@@ -1270,14 +1271,9 @@ export default function CommissionApp() {
                   </div>
                 )}
                 <div style={{ display: "grid", gap: 12, marginBottom: 18 }}>
-                  <input type="password" placeholder="現在のパスワード" value={pwCurrent}
-                    onChange={e => setPwCurrent(e.target.value)}
-                    style={{
-                      width: "100%", padding: "10px 13px", border: "1.5px solid #e5e7eb", borderRadius: 12,
-                      fontSize: 16, outline: "none", background: "#faf8f5", boxSizing: "border-box"
-                    }} />
-                  <input type="password" placeholder="新しいパスワード（6文字以上）" value={pwNew}
+                  <input type="password" placeholder={`新しいパスワード（${PASSWORD_MIN_LENGTH}文字以上）`} value={pwNew}
                     onChange={e => setPwNew(e.target.value)}
+                    minLength={PASSWORD_MIN_LENGTH}
                     style={{
                       width: "100%", padding: "10px 13px", border: "1.5px solid #e5e7eb", borderRadius: 12,
                       fontSize: 16, outline: "none", background: "#faf8f5", boxSizing: "border-box"
@@ -1294,11 +1290,14 @@ export default function CommissionApp() {
                     style={{ flex: 1, background: "#f3f4f6", border: "none", borderRadius: 10, padding: "11px", fontWeight: 600, cursor: "pointer" }}>
                     キャンセル
                   </button>
-                  <button onClick={handleSavePassword} disabled={pwSaving}
+                  <button
+                    onClick={handleSavePassword}
+                    disabled={pwSaving || pwNew.length < PASSWORD_MIN_LENGTH || pwNew !== pwConfirm || !pwCurrent}
                     style={{
-                      flex: 2, background: pwSaving ? "#c4b5fd" : "linear-gradient(135deg,#7c3aed,#4f46e5)",
+                      flex: 2,
+                      background: (pwSaving || pwNew.length < PASSWORD_MIN_LENGTH || pwNew !== pwConfirm || !pwCurrent) ? "#c4b5fd" : "linear-gradient(135deg,#7c3aed,#4f46e5)",
                       color: "#fff", border: "none", borderRadius: 10, padding: "11px", fontWeight: 800,
-                      cursor: pwSaving ? "not-allowed" : "pointer"
+                      cursor: (pwSaving || pwNew.length < PASSWORD_MIN_LENGTH || pwNew !== pwConfirm || !pwCurrent) ? "not-allowed" : "pointer"
                     }}>
                     {pwSaving ? "処理中…" : "変更する"}
                   </button>
