@@ -9,7 +9,8 @@ import {
   type Commission, type CommissionStatus, type CommissionImage,
   type ImageType, type UserProfile, type Plan,
   fetchCommissionById,
-  updateMyPassword, getLastSignInProvider
+  updateMyPassword, getLastSignInProvider,
+  linkGoogleAccount, unlinkGoogleAccount, hasGoogleIdentity,
 } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
@@ -421,6 +422,10 @@ export default function CommissionApp() {
   const [pwSaving, setPwSaving] = useState(false);
   const [pwError, setPwError] = useState<string | null>(null);
   const [pwDone, setPwDone] = useState(false);
+  const [showUnlinkWarning, setShowUnlinkWarning] = useState(false);
+  const [unlinking, setUnlinking] = useState(false);
+  const [linking, setLinking] = useState(false);
+  const [showLogoutWarning, setShowLogoutWarning] = useState(false);
 
   useEffect(() => {
     // 初回: セッション確認してuserをセット、なければloginへ
@@ -539,6 +544,50 @@ export default function CommissionApp() {
     }
   }
 
+  // --- Google連携 ---
+  async function handleLinkGoogle() {
+    setLinking(true);
+    try {
+      await linkGoogleAccount();
+      // このあとGoogleの認証画面へ遷移するため、以降の処理は基本実行されない
+    } catch (e: any) {
+      alert(e.message ?? "連携に失敗しました");
+      setLinking(false);
+    }
+  }
+
+  // --- Google連携解除（パスワード未設定時は警告モーダルで確認） ---
+  function requestUnlinkGoogle() {
+    setShowUserMenu(false);
+    setShowUnlinkWarning(true);
+  }
+
+  // --- Google連携解除処理 ---
+  async function handleUnlinkGoogle() {
+    setUnlinking(true);
+    try {
+      await unlinkGoogleAccount(user!);
+      setShowUnlinkWarning(false);
+      await supabase.auth.refreshSession(); // identitiesの反映のためセッション再取得
+      const { data: { user: refreshed } } = await supabase.auth.getUser();
+      setUser(refreshed);
+    } catch (e: any) {
+      alert(e.message ?? "解除に失敗しました");
+    } finally {
+      setUnlinking(false);
+    }
+  }
+
+  // --- ログアウト（パスワード未設定 かつ Google未連携の場合は警告） ---
+  function requestLogout() {
+    setShowUserMenu(false);
+    if (!hasPassword && !isGoogleLinked) {
+      setShowLogoutWarning(true);
+    } else {
+      handleLogout();
+    }
+  }
+
   // ログアウト処理
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -652,6 +701,7 @@ export default function CommissionApp() {
   const plan = (profile?.plan ?? "free") as Plan;
   const lastProvider = getLastSignInProvider(user);
   const hasPassword = profile?.has_password ?? true;
+  const isGoogleLinked = hasGoogleIdentity(user);
   const displayName = profile?.display_name;
   const userLabel = displayName ?? user?.user_metadata?.full_name ?? (user?.email?.split("@")[0]) ?? "ユーザー";
   const userAvatar = user?.user_metadata?.avatar_url as string | undefined;
@@ -810,6 +860,25 @@ export default function CommissionApp() {
                   }}>
                   🔑 {hasPassword ? "パスワードを変更" : "パスワードを設定"}
                 </button>
+                {isGoogleLinked ? (
+                  <button onClick={requestUnlinkGoogle}
+                    style={{
+                      width: "100%", padding: "11px 16px", background: "none", border: "none",
+                      borderBottom: "1px solid #f3f4f6", cursor: "pointer", fontSize: 13,
+                      color: "#1a0a2e", fontWeight: 600, textAlign: "left", whiteSpace: "nowrap"
+                    }}>
+                    🔗 Google連携を解除
+                  </button>
+                ) : (
+                  <button onClick={handleLinkGoogle} disabled={linking}
+                    style={{
+                      width: "100%", padding: "11px 16px", background: "none", border: "none",
+                      borderBottom: "1px solid #f3f4f6", cursor: linking ? "not-allowed" : "pointer", fontSize: 13,
+                      color: "#1a0a2e", fontWeight: 600, textAlign: "left", whiteSpace: "nowrap"
+                    }}>
+                    🔗 {linking ? "連携中…" : "Googleと連携する"}
+                  </button>
+                )}
                 {profile?.is_admin && (
                   <button onClick={() => window.location.href = "/mgmt-c7f2a91e"}
                     style={{
@@ -830,7 +899,7 @@ export default function CommissionApp() {
                     🗑 アカウント削除を申請
                   </button>
                 )}
-                <button onClick={handleLogout}
+                <button onClick={requestLogout}
                   style={{
                     width: "100%", padding: "11px 16px", background: "none", border: "none",
                     cursor: "pointer", fontSize: 13, color: "#ef4444", fontWeight: 700, textAlign: "left", whiteSpace: "nowrap"
@@ -1087,6 +1156,49 @@ export default function CommissionApp() {
         </div>
       )}
 
+      {/* 連携解除の警告モーダル */}
+      {showUnlinkWarning && (
+        <div style={{ position: "fixed", inset: 0, background: "#0007", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+          onClick={() => !unlinking && setShowUnlinkWarning(false)}>
+          <div style={{ background: "#fff", borderRadius: 20, padding: "32px", maxWidth: 380, width: "100%", boxShadow: "0 8px 48px #0004" }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 40, marginBottom: 12, textAlign: "center" }}>⚠️</div>
+            <div style={{ fontWeight: 800, fontSize: 17, color: "#1a0a2e", marginBottom: 12, textAlign: "center" }}>
+              Google連携を解除しますか？
+            </div>
+            {!hasPassword ? (
+              <div style={{
+                fontSize: 13, color: "#b91c1c", lineHeight: 1.8, marginBottom: 20,
+                background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: 12, padding: "14px 16px"
+              }}>
+                <strong>パスワードが未設定です。</strong><br />
+                このまま解除すると、メールアドレス・パスワードでもGoogleでもログインできなくなり、
+                <strong>アカウントに二度とアクセスできなくなる可能性があります。</strong><br />
+                先に「パスワードを設定」してから解除することを強く推奨します。
+              </div>
+            ) : (
+              <div style={{ fontSize: 13, color: "#666", lineHeight: 1.7, marginBottom: 20, textAlign: "center" }}>
+                解除後もメールアドレスとパスワードでログインできます。
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setShowUnlinkWarning(false)} disabled={unlinking}
+                style={{ flex: 1, background: "#f3f4f6", border: "none", borderRadius: 10, padding: "12px", fontWeight: 600, cursor: "pointer" }}>
+                キャンセル
+              </button>
+              <button onClick={handleUnlinkGoogle} disabled={unlinking}
+                style={{
+                  flex: 1, background: unlinking ? "#fca5a5" : "#ef4444", color: "#fff",
+                  border: "none", borderRadius: 10, padding: "12px", fontWeight: 800,
+                  cursor: unlinking ? "not-allowed" : "pointer"
+                }}>
+                {unlinking ? "解除中…" : !hasPassword ? "それでも解除する" : "解除する"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* パスワード設定/変更モーダル */}
       {showPasswordModal && (
         <div style={{ position: "fixed", inset: 0, background: "#0006", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}
@@ -1182,6 +1294,38 @@ export default function CommissionApp() {
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => setDeleteConfirm(null)} style={{ flex: 1, background: "#f3f4f6", border: "none", borderRadius: 10, padding: "10px", fontWeight: 600, cursor: "pointer" }}>キャンセル</button>
               <button onClick={() => handleDelete(deleteConfirm)} style={{ flex: 1, background: "#ef4444", color: "#fff", border: "none", borderRadius: 10, padding: "10px", fontWeight: 700, cursor: "pointer" }}>削除する</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ログアウトの警告モーダル */}
+      {showLogoutWarning && (
+        <div style={{ position: "fixed", inset: 0, background: "#0007", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+          onClick={() => setShowLogoutWarning(false)}>
+          <div style={{ background: "#fff", borderRadius: 20, padding: "32px", maxWidth: 380, width: "100%", boxShadow: "0 8px 48px #0004" }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 40, marginBottom: 12, textAlign: "center" }}>⚠️</div>
+            <div style={{ fontWeight: 800, fontSize: 17, color: "#1a0a2e", marginBottom: 12, textAlign: "center" }}>
+              ログアウトしますか？
+            </div>
+            <div style={{
+              fontSize: 13, color: "#b91c1c", lineHeight: 1.8, marginBottom: 20,
+              background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: 12, padding: "14px 16px"
+            }}>
+              <strong>このアカウントはパスワード未設定・Google連携もされていません。</strong><br />
+              ログアウトすると、再度ログインする手段がなくなる可能性があります。<br />
+              先に「パスワードを設定」または「Googleと連携する」ことを強く推奨します。
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setShowLogoutWarning(false)}
+                style={{ flex: 1, background: "#f3f4f6", border: "none", borderRadius: 10, padding: "12px", fontWeight: 600, cursor: "pointer" }}>
+                キャンセル
+              </button>
+              <button onClick={handleLogout}
+                style={{ flex: 1, background: "#ef4444", color: "#fff", border: "none", borderRadius: 10, padding: "12px", fontWeight: 800, cursor: "pointer" }}>
+                それでもログアウト
+              </button>
             </div>
           </div>
         </div>

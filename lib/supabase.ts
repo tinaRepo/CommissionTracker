@@ -93,6 +93,30 @@ export function getLastSignInProvider(user: User | null): string | null {
   return sorted[0]?.provider ?? null;
 }
 
+// --- Googleのidentityを持っているか（連携済みか） ---
+// identitiesはlinkIdentity/unlinkIdentityで正しく同期されるため、DB保存は不要
+export function hasGoogleIdentity(user: User | null): boolean {
+  return !!user?.identities?.some(i => i.provider === "google");
+}
+
+// --- Googleアカウントとの連携（メール登録ユーザー向け） ---
+export async function linkGoogleAccount(): Promise<void> {
+  const { error } = await supabase.auth.linkIdentity({
+    provider: "google",
+    options: { redirectTo: `${location.origin}/` },
+  });
+  if (error) throw error;
+  // 成功後はGoogleの認証画面へ遷移し、完了後にredirectToへ戻ってくる
+}
+
+// --- Google連携の解除 ---
+export async function unlinkGoogleAccount(user: User): Promise<void> {
+  const googleIdentity = user.identities?.find(i => i.provider === "google");
+  if (!googleIdentity) throw new Error("Googleアカウントは連携されていません");
+  const { error } = await supabase.auth.unlinkIdentity(googleIdentity);
+  if (error) throw error;
+}
+
 // --- パスワードの設定・変更 ---
 export async function updateMyPassword(newPassword: string, currentPassword?: string): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();

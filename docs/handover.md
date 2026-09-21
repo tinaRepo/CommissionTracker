@@ -7,6 +7,18 @@
 - **リポジトリ**: https://github.com/tinaRepo/CommissionTracker
 - **ブランチ運用**: `main`（本番）/ `dev`（開発）
 
+## 環境別URL設定（Supabase / Google OAuth）
+
+| 環境          | Supabase Redirect URLs                                    | Supabase Site URL                           |
+| ------------- | --------------------------------------------------------- | ------------------------------------------- |
+| ローカル/検証 | https://commission-tracker-local.vercel.app/auth/callback | https://commission-tracker-local.vercel.app |
+
+Google Cloud Console → 承認済みのリダイレクトURI：
+```
+https://endyhlszymdlxyrzdnwn.supabase.co/auth/v1/callback
+```
+詳細手順は `docs/google-login-setup.md` を参照。
+
 ---
 
 ## 技術スタック
@@ -266,6 +278,8 @@ update user_profiles set is_admin = true where id = 'UUID';
 - ✅ お知らせ・バージョン管理モーダル（ベルマーク押下でモーダル表示、既読管理）
 - ✅ 全モーダル固定サイズ統一・iOS Safari対応（背景スクロールロック）
 - ✅ ユーザーメニューのテキスト折り返し防止
+- ✅ Googleアカウントとの連携・解除（メール登録ユーザー向け、`linkIdentity`/`unlinkIdentity`）
+- ✅ 連携解除時・ログアウト時、パスワード未設定かつGoogle未連携の場合の警告表示
 
 ---
 
@@ -317,3 +331,6 @@ flexDirection: column
 - 直近ログインプロバイダーは `user_profiles.last_login_provider` をDBの正としつつ、
   未認証のログイン画面向けにはHttpOnly Cookie（`ct_last_login_provider`）経由でのみ提供する。
   localStorageや通常のJS読み取り可能なCookieは使用しない（XSS時の詐称・漏えいリスク低減のため）。
+- Google連携機能を使うには、Supabase Dashboard → Authentication → Sign In / Providers →
+  「Allow manual linking」を有効化する必要がある（詳細: docs/google-login-setup.md）
+- 連携解除・ログアウトの警告は「ブロック」ではなく「確認」。最終的な実行はユーザーの判断に委ねる

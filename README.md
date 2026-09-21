@@ -41,6 +41,8 @@
 2. Client ID / Secret を Supabase の Google プロバイダー設定に入力
 3. Redirect URL: `https://your-project.supabase.co/auth/v1/callback`
 
+> 📄 詳細な設定手順（Manual Linkingの有効化を含む）は `docs/google-login-setup.md` を参照してください。
+
 ### 1-4. URL Configuration
 
 **Dashboard → Authentication → URL Configuration** で設定します。
