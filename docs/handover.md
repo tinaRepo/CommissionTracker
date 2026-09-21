@@ -53,7 +53,8 @@ app/
 │   ├── notifications/page.tsx  # 管理者ページ（お知らせ・バージョン情報編集）
 │   └── page.tsx                # 管理者ページ（URLは推測されにくい形式）
 ├── auth/
-│   │   └── last-login-provider/route.ts  # 直近ログインプロバイダーのDB保存・Cookie発行/取得
+│   │   ├── last-login-provider/route.ts  # 直近ログインプロバイダーのDB保存・Cookie発行/取得
+│   │   └── set-password/route.ts         # パスワード設定・変更（Admin API経由、email identityの正規リンク）
 │   ├── callback/
 │   │   └── route.ts      # OAuth コールバック
 │   └─── comfirm/
@@ -331,6 +332,10 @@ flexDirection: column
 - 直近ログインプロバイダーは `user_profiles.last_login_provider` をDBの正としつつ、
   未認証のログイン画面向けにはHttpOnly Cookie（`ct_last_login_provider`）経由でのみ提供する。
   localStorageや通常のJS読み取り可能なCookieは使用しない（XSS時の詐称・漏えいリスク低減のため）。
-- Google連携機能を使うには、Supabase Dashboard → Authentication → Sign In / Providers →
-  「Allow manual linking」を有効化する必要がある（詳細: docs/google-login-setup.md）
+- Googleのみで登録したユーザーがパスワードを設定する際は、必ずサーバーの
+  `/api/auth/set-password`（Admin API `admin.updateUserById`）経由で行う。
+  クライアントの`supabase.auth.updateUser({password})`はauth.identitiesに
+  email identityを作らないが、Admin API経由であれば正規にemail identityが
+  作成・リンクされ、以降は標準の`unlinkIdentity()`でGoogle連携を問題なく
+  解除できる。auth.identitiesを直接SQLで操作するアプローチは採用しない。
 - 連携解除・ログアウトの警告は「ブロック」ではなく「確認」。最終的な実行はユーザーの判断に委ねる

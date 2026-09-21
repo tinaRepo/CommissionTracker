@@ -110,14 +110,20 @@ export async function linkGoogleAccount(): Promise<void> {
 }
 
 // --- Google連携の解除 ---
+// パスワード設定はAdmin API経由でemail identityを正規にリンクしているため、
+// ここでは標準のunlinkIdentity()のみで解除できる
 export async function unlinkGoogleAccount(user: User): Promise<void> {
   const googleIdentity = user.identities?.find(i => i.provider === "google");
   if (!googleIdentity) throw new Error("Googleアカウントは連携されていません");
+
   const { error } = await supabase.auth.unlinkIdentity(googleIdentity);
   if (error) throw error;
 }
 
 // --- パスワードの設定・変更 ---
+// 現在パスワードがある場合は事前にクライアント側で再認証し、
+// 実際の設定はサーバーのAdmin API経由で行う
+// （email identityを正規にリンクするため。詳細はset-password/route.ts参照）
 export async function updateMyPassword(newPassword: string, currentPassword?: string): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.email) throw new Error("ユーザー情報を取得できませんでした");
@@ -130,15 +136,21 @@ export async function updateMyPassword(newPassword: string, currentPassword?: st
     if (reauthError) throw new Error("現在のパスワードが正しくありません");
   }
 
-  const { error } = await supabase.auth.updateUser({ password: newPassword });
-  if (error) throw error;
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("セッションが切れています。再度ログインしてください");
 
-  // has_passwordフラグを更新（Googleのみ登録ユーザーが初めてパスワードを設定した場合に反映）
-  const { error: profileError } = await supabase
-    .from("user_profiles")
-    .update({ has_password: true })
-    .eq("id", user.id);
-  if (profileError) throw profileError;
+  const res = await fetch("/api/auth/set-password", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+    body: JSON.stringify({ newPassword }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error ?? "パスワードの設定に失敗しました");
+  }
+
+  // サーバー側でauth.usersが更新されたので、クライアントのセッション情報も最新化する
+  await supabase.auth.refreshSession();
 }
 
 // ---- 画像枚数チェック ----

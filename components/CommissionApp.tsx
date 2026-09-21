@@ -535,7 +535,10 @@ export default function CommissionApp() {
     setPwSaving(true);
     try {
       await updateMyPassword(pwNew, hasPassword ? pwCurrent : undefined);
-      setProfile(prev => prev ? { ...prev, has_password: true } : prev); // ← 追加：即座に「変更」表記に切り替え
+      setProfile(prev => prev ? { ...prev, has_password: true } : prev);
+      // identitiesが更新されている可能性があるためuserも最新化
+      const { data: { user: refreshed } } = await supabase.auth.getUser();
+      setUser(refreshed);
       setPwDone(true);
     } catch (e: any) {
       setPwError(e.message ?? "パスワードの変更に失敗しました");
