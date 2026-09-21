@@ -1167,39 +1167,67 @@ export default function CommissionApp() {
           onClick={() => !unlinking && setShowUnlinkWarning(false)}>
           <div style={{ background: "#fff", borderRadius: 20, padding: "32px", maxWidth: 380, width: "100%", boxShadow: "0 8px 48px #0004" }}
             onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: 40, marginBottom: 12, textAlign: "center" }}>⚠️</div>
-            <div style={{ fontWeight: 800, fontSize: 17, color: "#1a0a2e", marginBottom: 12, textAlign: "center" }}>
-              Google連携を解除しますか？
-            </div>
             {!hasPassword ? (
-              <div style={{
-                fontSize: 13, color: "#b91c1c", lineHeight: 1.8, marginBottom: 20,
-                background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: 12, padding: "14px 16px"
-              }}>
-                <strong>パスワードが未設定です。</strong><br />
-                このまま解除すると、メールアドレス・パスワードでもGoogleでもログインできなくなり、
-                <strong>アカウントに二度とアクセスできなくなる可能性があります。</strong><br />
-                先に「パスワードを設定」してから解除することを強く推奨します。
-              </div>
-            ) : (
-              <div style={{ fontSize: 13, color: "#666", lineHeight: 1.7, marginBottom: 20, textAlign: "center" }}>
-                解除後もメールアドレスとパスワードでログインできます。
-              </div>
-            )}
-            <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setShowUnlinkWarning(false)} disabled={unlinking}
-                style={{ flex: 1, background: "#f3f4f6", border: "none", borderRadius: 10, padding: "12px", fontWeight: 600, cursor: "pointer" }}>
-                キャンセル
-              </button>
-              <button onClick={handleUnlinkGoogle} disabled={unlinking}
-                style={{
-                  flex: 1, background: unlinking ? "#fca5a5" : "#ef4444", color: "#fff",
-                  border: "none", borderRadius: 10, padding: "12px", fontWeight: 800,
-                  cursor: unlinking ? "not-allowed" : "pointer"
+              <>
+                {/* パスワード未設定＝Google識別子が1件のみ → 解除は不可能なので案内する */}
+                <div style={{ fontSize: 40, marginBottom: 12, textAlign: "center" }}>⚠️</div>
+                <div style={{ fontWeight: 800, fontSize: 17, color: "#1a0a2e", marginBottom: 12, textAlign: "center" }}>
+                  現在Googleアカウントが唯一のログイン手段です
+                </div>
+                <div style={{
+                  fontSize: 13, color: "#666", lineHeight: 1.8, marginBottom: 22,
                 }}>
-                {unlinking ? "解除中…" : !hasPassword ? "それでも解除する" : "解除する"}
-              </button>
-            </div>
+                  他のログイン手段が無いため、このままではGoogle連携を解除できません。
+                  解除するには、先に<strong>パスワードを設定</strong>していただくか、
+                  利用をやめる場合は<strong>アカウント削除を申請</strong>してください。
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <button onClick={() => { setShowUnlinkWarning(false); openPasswordModal(); }}
+                    style={{
+                      background: "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "#fff",
+                      border: "none", borderRadius: 10, padding: "12px", fontWeight: 800, cursor: "pointer"
+                    }}>
+                    🔑 パスワードを設定する
+                  </button>
+                  <button onClick={() => { setShowUnlinkWarning(false); setShowDeleteRequest(true); }}
+                    style={{
+                      background: "#fff", color: "#ef4444", border: "1.5px solid #fca5a5",
+                      borderRadius: 10, padding: "12px", fontWeight: 700, cursor: "pointer"
+                    }}>
+                    🗑 アカウント削除を申請する
+                  </button>
+                  <button onClick={() => setShowUnlinkWarning(false)}
+                    style={{ background: "#f3f4f6", border: "none", borderRadius: 10, padding: "12px", fontWeight: 600, cursor: "pointer" }}>
+                    キャンセル
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* パスワード設定済み → 通常の解除確認 */}
+                <div style={{ fontSize: 40, marginBottom: 12, textAlign: "center" }}>⚠️</div>
+                <div style={{ fontWeight: 800, fontSize: 17, color: "#1a0a2e", marginBottom: 12, textAlign: "center" }}>
+                  Google連携を解除しますか？
+                </div>
+                <div style={{ fontSize: 13, color: "#666", lineHeight: 1.7, marginBottom: 20, textAlign: "center" }}>
+                  解除後もメールアドレスとパスワードでログインできます。
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button onClick={() => setShowUnlinkWarning(false)} disabled={unlinking}
+                    style={{ flex: 1, background: "#f3f4f6", border: "none", borderRadius: 10, padding: "12px", fontWeight: 600, cursor: "pointer" }}>
+                    キャンセル
+                  </button>
+                  <button onClick={handleUnlinkGoogle} disabled={unlinking}
+                    style={{
+                      flex: 1, background: unlinking ? "#fca5a5" : "#ef4444", color: "#fff",
+                      border: "none", borderRadius: 10, padding: "12px", fontWeight: 800,
+                      cursor: unlinking ? "not-allowed" : "pointer"
+                    }}>
+                    {unlinking ? "解除中…" : "解除する"}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
