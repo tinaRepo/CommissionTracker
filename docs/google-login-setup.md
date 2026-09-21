@@ -46,12 +46,19 @@ https://<project-ref>.supabase.co/auth/v1/callback
 
 ### 2-3. Supabase Dashboard → Authentication → URL Configuration
 
-| 項目          | 値                                                          | 備考                                                                                                |
-| ------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| Site URL      | `https://commission-tracker-local.vercel.app`               | 本番/検証環境のURLに合わせる                                                                        |
-| Redirect URLs | `https://commission-tracker-local.vercel.app/auth/callback` | ワイルドカード運用時は末尾に `/**` を付ける（例: `https://commission-tracker-local.vercel.app/**`） |
+| 項目          | 値                                                                                                                        | 備考                                                                                                                           |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Site URL      | `https://commission-tracker-local.vercel.app`                                                                             | 本番/検証環境のURLに合わせる                                                                                                   |
+| Redirect URLs | `https://commission-tracker-local.vercel.app/auth/callback`<br>`https://commission-tracker-local.vercel.app/auth/confirm` | 個別指定の場合は両方登録すること。まとめて許可する場合はワイルドカード `https://commission-tracker-local.vercel.app/**` でも可 |
 
-> ⚠️ 環境（本番・プレビュー・ローカル）ごとにURLが異なる場合は、Redirect URLsに複数行追加できます。
+> ⚠️ **重要**：`redirectTo`に指定したURLがこのRedirect URLsに含まれていない場合、
+> Supabaseはエラーを出さずに黙って`Site URL`へフォールバックし、
+> 認証トークンがURLのハッシュフラグメントとして付与されます。
+> supabase-jsクライアントは`detectSessionInUrl`がデフォルト有効なため、
+> このフォールバック先ページで意図せずセッションが自動確立され、
+> 「パスワードリセットのつもりが、ただログインしただけになる」という
+> 分かりにくい不具合につながります。`resetPasswordForEmail`や`signInWithOAuth`で
+> 使う`redirectTo`/`redirectTo`のパスは、必ずこのRedirect URLsに事前登録すること。
 
 ### 2-4.【本アプリのアカウント連携機能に必須】Manual Linking の有効化
 

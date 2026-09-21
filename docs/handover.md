@@ -351,3 +351,8 @@ flexDirection: column
   「解除を試みて失敗させる」のではなく、UI側で「パスワード設定」または
   「アカウント削除申請」に誘導する。削除申請が承認されアカウントが削除されれば、
   identitiesごと削除されるため、実質的に連携解除と同じ結果になる。
+- Supabaseの`resetPasswordForEmail`・`linkIdentity`・`signInWithOAuth`など、`redirectTo`を
+  指定するAPIを新たに使う際は、そのURLを必ずSupabase Dashboard → Authentication →
+  URL Configuration → Redirect URLsに事前登録すること。未登録の場合、GoTrueは
+  エラーを出さず黙ってSite URLへフォールバックし、認証トークンがハッシュフラグメントとして
+  付与されるため、supabase-jsが意図せず自動ログインしてしまう（詳細: docs/google-login-setup.md）。
