@@ -332,10 +332,14 @@ flexDirection: column
 - 直近ログインプロバイダーは `user_profiles.last_login_provider` をDBの正としつつ、
   未認証のログイン画面向けにはHttpOnly Cookie（`ct_last_login_provider`）経由でのみ提供する。
   localStorageや通常のJS読み取り可能なCookieは使用しない（XSS時の詐称・漏えいリスク低減のため）。
-- Googleのみで登録したユーザーがパスワードを設定する際は、必ずサーバーの
-  `/api/auth/set-password`（Admin API `admin.updateUserById`）経由で行う。
-  クライアントの`supabase.auth.updateUser({password})`はauth.identitiesに
-  email identityを作らないが、Admin API経由であれば正規にemail identityが
-  作成・リンクされ、以降は標準の`unlinkIdentity()`でGoogle連携を問題なく
-  解除できる。auth.identitiesを直接SQLで操作するアプローチは採用しない。
+- Google専用で登録したユーザーがパスワードログインを追加する場合、
+  Admin API（`admin.updateUserById`）や通常の`updateUser({password})`では
+  `auth.identities`にemail identityが正規にリンクされない
+  （Admin API経由はさらにセッション無効化を伴いログアウトされる場合がある）。
+  そのため、既存のパスワードリセット導線
+  （`resetPasswordForEmail` → `/auth/confirm` → `/update-password`）を再利用し、
+  正規のリカバリーセッション上で`updateUser({password})`を実行する方式に統一する。
+  この際、Supabase Dashboardの「Automatic Linking」設定が有効であることが前提となる。
+- 既にパスワードを持つユーザーのパスワード変更は、識別子の追加が不要なため
+  通常の`signInWithPassword`による再認証＋`updateUser({password})`で完結する。
 - 連携解除・ログアウトの警告は「ブロック」ではなく「確認」。最終的な実行はユーザーの判断に委ねる

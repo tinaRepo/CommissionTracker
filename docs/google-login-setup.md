@@ -63,6 +63,14 @@ https://<project-ref>.supabase.co/auth/v1/callback
 > この設定がオフのままだと、`supabase.auth.linkIdentity()` がエラーを返し、
 > アプリ内の「Googleと連携する」ボタンが機能しません。
 
+### 2-5.【推奨】Automatic Linking の確認
+
+Google専用ユーザーがパスワードリセットフローでパスワードを設定した際に、
+`auth.identities`へemail identityが正しくリンクされるよう、
+Supabase Dashboard → Authentication → Sign In / Providers 内の
+「Automatic Linking」（メールアドレスが一致し、かつ確認済みの場合に自動でアカウントを統合する設定）
+も有効になっているか確認してください。Manual Linkingとは別設定です。
+
 ---
 
 ## 3. 動作確認チェックリスト

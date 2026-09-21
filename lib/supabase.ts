@@ -110,47 +110,42 @@ export async function linkGoogleAccount(): Promise<void> {
 }
 
 // --- Google連携の解除 ---
-// パスワード設定はAdmin API経由でemail identityを正規にリンクしているため、
-// ここでは標準のunlinkIdentity()のみで解除できる
 export async function unlinkGoogleAccount(user: User): Promise<void> {
   const googleIdentity = user.identities?.find(i => i.provider === "google");
   if (!googleIdentity) throw new Error("Googleアカウントは連携されていません");
-
   const { error } = await supabase.auth.unlinkIdentity(googleIdentity);
   if (error) throw error;
 }
 
-// --- パスワードの設定・変更 ---
-// 現在パスワードがある場合は事前にクライアント側で再認証し、
-// 実際の設定はサーバーのAdmin API経由で行う
-// （email identityを正規にリンクするため。詳細はset-password/route.ts参照）
-export async function updateMyPassword(newPassword: string, currentPassword?: string): Promise<void> {
+// --- パスワード変更（既にパスワードが設定済みのユーザー向け） ---
+// identityは既にemailが存在するため、通常のupdateUserで問題ない
+export async function changeMyPassword(newPassword: string, currentPassword: string): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.email) throw new Error("ユーザー情報を取得できませんでした");
 
-  if (currentPassword) {
-    const { error: reauthError } = await supabase.auth.signInWithPassword({
-      email: user.email,
-      password: currentPassword,
-    });
-    if (reauthError) throw new Error("現在のパスワードが正しくありません");
-  }
-
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error("セッションが切れています。再度ログインしてください");
-
-  const res = await fetch("/api/auth/set-password", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-    body: JSON.stringify({ newPassword }),
+  const { error: reauthError } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: currentPassword,
   });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error ?? "パスワードの設定に失敗しました");
-  }
+  if (reauthError) throw new Error("現在のパスワードが正しくありません");
 
-  // サーバー側でauth.usersが更新されたので、クライアントのセッション情報も最新化する
-  await supabase.auth.refreshSession();
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) throw error;
+}
+
+// --- パスワード設定リクエスト（Google専用ユーザー向け） ---
+// Supabaseが公式に案内する「OAuthユーザーにパスワードログインを追加する」方法。
+// 通常のupdateUser({password})はemail identityを正規に紐付けないため、
+// 既存のパスワードリセット導線（/auth/confirm → /update-password）を再利用する。
+// このフローで設定すると、以降は標準のunlinkIdentity()でGoogle連携を解除できる。
+export async function requestSetPasswordEmail(): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.email) throw new Error("ユーザー情報を取得できませんでした");
+
+  const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+    redirectTo: `${location.origin}/auth/confirm`,
+  });
+  if (error) throw error;
 }
 
 // ---- 画像枚数チェック ----

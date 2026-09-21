@@ -9,7 +9,7 @@ import {
   type Commission, type CommissionStatus, type CommissionImage,
   type ImageType, type UserProfile, type Plan,
   fetchCommissionById,
-  updateMyPassword, getLastSignInProvider,
+  changeMyPassword, requestSetPasswordEmail, getLastSignInProvider,
   linkGoogleAccount, unlinkGoogleAccount, hasGoogleIdentity,
 } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
@@ -529,19 +529,21 @@ export default function CommissionApp() {
   // --- パスワード保存 ---
   async function handleSavePassword() {
     setPwError(null);
-    if (pwNew.length < 6) { setPwError("パスワードは6文字以上で入力してください"); return; }
-    if (pwNew !== pwConfirm) { setPwError("新しいパスワードが一致しません"); return; }
-    if (hasPassword && !pwCurrent) { setPwError("現在のパスワードを入力してください"); return; }
     setPwSaving(true);
     try {
-      await updateMyPassword(pwNew, hasPassword ? pwCurrent : undefined);
-      setProfile(prev => prev ? { ...prev, has_password: true } : prev);
-      // identitiesが更新されている可能性があるためuserも最新化
-      const { data: { user: refreshed } } = await supabase.auth.getUser();
-      setUser(refreshed);
+      if (hasPassword) {
+        // 既にパスワードがある場合：その場で変更
+        if (pwNew.length < 6) { setPwError("パスワードは6文字以上で入力してください"); setPwSaving(false); return; }
+        if (pwNew !== pwConfirm) { setPwError("新しいパスワードが一致しません"); setPwSaving(false); return; }
+        if (!pwCurrent) { setPwError("現在のパスワードを入力してください"); setPwSaving(false); return; }
+        await changeMyPassword(pwNew, pwCurrent);
+      } else {
+        // 未設定の場合：設定用メールを送信するフローへ
+        await requestSetPasswordEmail();
+      }
       setPwDone(true);
     } catch (e: any) {
-      setPwError(e.message ?? "パスワードの変更に失敗しました");
+      setPwError(e.message ?? "処理に失敗しました");
     } finally {
       setPwSaving(false);
     }
@@ -1210,13 +1212,14 @@ export default function CommissionApp() {
             onClick={e => e.stopPropagation()}>
             {pwDone ? (
               <>
-                <div style={{ fontSize: 40, marginBottom: 12, textAlign: "center" }}>🔑</div>
+                <div style={{ fontSize: 40, marginBottom: 12, textAlign: "center" }}>{hasPassword ? "🔑" : "📨"}</div>
                 <div style={{ fontWeight: 800, fontSize: 17, color: "#1a0a2e", marginBottom: 10, textAlign: "center" }}>
-                  パスワードを{hasPassword ? "変更" : "設定"}しました
+                  {hasPassword ? "パスワードを変更しました" : "設定用メールを送信しました"}
                 </div>
                 {!hasPassword && (
                   <div style={{ fontSize: 13, color: "#666", lineHeight: 1.7, marginBottom: 20, textAlign: "center" }}>
-                    次回からメールアドレスとパスワードでもログインできます。
+                    メール内のリンクから新しいパスワードを設定してください。<br />
+                    設定が完了すると、次回からメールアドレスとパスワードでもログインできます。
                   </div>
                 )}
                 <button onClick={() => setShowPasswordModal(false)}
@@ -1227,16 +1230,9 @@ export default function CommissionApp() {
                   閉じる
                 </button>
               </>
-            ) : (
+            ) : hasPassword ? (
               <>
-                <div style={{ fontWeight: 800, fontSize: 18, color: "#1a0a2e", marginBottom: 8 }}>
-                  パスワードを{hasPassword ? "変更" : "設定"}
-                </div>
-                {!hasPassword && (
-                  <p style={{ fontSize: 12, color: "#888", lineHeight: 1.7, marginBottom: 16 }}>
-                    現在Googleアカウントでログインしています。パスワードを設定すると、次回からメールアドレスとパスワードでもログインできるようになります。
-                  </p>
-                )}
+                <div style={{ fontWeight: 800, fontSize: 18, color: "#1a0a2e", marginBottom: 8 }}>パスワードを変更</div>
                 {pwError && (
                   <div style={{
                     marginBottom: 14, padding: "10px 14px", borderRadius: 10, fontSize: 13,
@@ -1246,14 +1242,12 @@ export default function CommissionApp() {
                   </div>
                 )}
                 <div style={{ display: "grid", gap: 12, marginBottom: 18 }}>
-                  {hasPassword && (
-                    <input type="password" placeholder="現在のパスワード" value={pwCurrent}
-                      onChange={e => setPwCurrent(e.target.value)}
-                      style={{
-                        width: "100%", padding: "10px 13px", border: "1.5px solid #e5e7eb", borderRadius: 12,
-                        fontSize: 16, outline: "none", background: "#faf8f5", boxSizing: "border-box"
-                      }} />
-                  )}
+                  <input type="password" placeholder="現在のパスワード" value={pwCurrent}
+                    onChange={e => setPwCurrent(e.target.value)}
+                    style={{
+                      width: "100%", padding: "10px 13px", border: "1.5px solid #e5e7eb", borderRadius: 12,
+                      fontSize: 16, outline: "none", background: "#faf8f5", boxSizing: "border-box"
+                    }} />
                   <input type="password" placeholder="新しいパスワード（6文字以上）" value={pwNew}
                     onChange={e => setPwNew(e.target.value)}
                     style={{
@@ -1278,7 +1272,38 @@ export default function CommissionApp() {
                       color: "#fff", border: "none", borderRadius: 10, padding: "11px", fontWeight: 800,
                       cursor: pwSaving ? "not-allowed" : "pointer"
                     }}>
-                    {pwSaving ? "処理中…" : hasPassword ? "変更する" : "設定する"}
+                    {pwSaving ? "処理中…" : "変更する"}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontWeight: 800, fontSize: 18, color: "#1a0a2e", marginBottom: 8 }}>パスワードを設定</div>
+                <p style={{ fontSize: 12, color: "#888", lineHeight: 1.7, marginBottom: 16 }}>
+                  現在Googleアカウントでログインしています。設定用のメールを送信しますので、
+                  メール内のリンクから新しいパスワードを設定してください。
+                  設定すると、次回からメールアドレスとパスワードでもログインできるようになります。
+                </p>
+                {pwError && (
+                  <div style={{
+                    marginBottom: 14, padding: "10px 14px", borderRadius: 10, fontSize: 13,
+                    background: "#fee2e2", color: "#b91c1c", border: "1px solid #fca5a5"
+                  }}>
+                    ⚠ {pwError}
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button onClick={() => setShowPasswordModal(false)} disabled={pwSaving}
+                    style={{ flex: 1, background: "#f3f4f6", border: "none", borderRadius: 10, padding: "11px", fontWeight: 600, cursor: "pointer" }}>
+                    キャンセル
+                  </button>
+                  <button onClick={handleSavePassword} disabled={pwSaving}
+                    style={{
+                      flex: 2, background: pwSaving ? "#c4b5fd" : "linear-gradient(135deg,#7c3aed,#4f46e5)",
+                      color: "#fff", border: "none", borderRadius: 10, padding: "11px", fontWeight: 800,
+                      cursor: pwSaving ? "not-allowed" : "pointer"
+                    }}>
+                    {pwSaving ? "送信中…" : "設定用メールを送信する"}
                   </button>
                 </div>
               </>

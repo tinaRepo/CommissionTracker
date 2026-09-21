@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
+// エラーメッセージを日本語に変換
 function toJapanese(msg: string): string {
   const m = msg.toLowerCase();
 
@@ -18,6 +19,7 @@ function toJapanese(msg: string): string {
   return msg;
 }
 
+// パスワード再設定ページ
 export default function UpdatePasswordPage() {
   const router = useRouter();
   const [password, setPassword] = useState("");
@@ -25,6 +27,7 @@ export default function UpdatePasswordPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [sessionValid, setSessionValid] = useState(false);
 
+  // ページロード時にセッションの有効性をチェック
   useEffect(() => {
     async function checkSession() {
       const { data } = await supabase.auth.getSession();
@@ -41,12 +44,18 @@ export default function UpdatePasswordPage() {
     checkSession();
   }, []);
 
+  // パスワード更新処理
   async function handleUpdate() {
     setLoading(true);
     const { error } = await supabase.auth.updateUser({ password });
     if (error) {
       setMessage(toJapanese(error.message));
     } else {
+      // has_passwordフラグを更新（バッジ・メニュー表示の切り替え用）
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from("user_profiles").update({ has_password: true }).eq("id", user.id);
+      }
       router.push("/");
     }
     setLoading(false);
