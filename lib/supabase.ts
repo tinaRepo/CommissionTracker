@@ -1,4 +1,5 @@
 import { createBrowserClient } from "@supabase/ssr";
+import type { User } from "@supabase/supabase-js";
 
 // --- Supabaseクライアントの作成 ---
 export function createClient() {
@@ -77,6 +78,40 @@ export async function fetchMyProfile(): Promise<UserProfile | null> {
     return null;
   }
   return data;
+}
+
+// --- 直近ログインで使われた認証プロバイダーを判定（identitiesのlast_sign_in_atを比較） ---
+export function getLastSignInProvider(user: User | null): string | null {
+  if (!user?.identities || user.identities.length === 0) return null;
+  const sorted = [...user.identities].sort((a, b) => {
+    const at = new Date(a.last_sign_in_at ?? a.updated_at ?? 0).getTime();
+    const bt = new Date(b.last_sign_in_at ?? b.updated_at ?? 0).getTime();
+    return bt - at;
+  });
+  return sorted[0]?.provider ?? null;
+}
+
+// --- メール/パスワードでのidentityを持っているか（＝パスワード設定済みか） ---
+export function hasEmailIdentity(user: User | null): boolean {
+  return !!user?.identities?.some(i => i.provider === "email");
+}
+
+// --- パスワードの設定・変更 ---
+// currentPasswordを渡した場合のみ再認証してから変更する（既にパスワードがある人向け）
+export async function updateMyPassword(newPassword: string, currentPassword?: string): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.email) throw new Error("ユーザー情報を取得できませんでした");
+
+  if (currentPassword) {
+    const { error: reauthError } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: currentPassword,
+    });
+    if (reauthError) throw new Error("現在のパスワードが正しくありません");
+  }
+
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) throw error;
 }
 
 // ---- 画像枚数チェック ----
