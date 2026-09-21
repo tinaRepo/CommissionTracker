@@ -41,6 +41,7 @@ app/
 │   ├── notifications/page.tsx  # 管理者ページ（お知らせ・バージョン情報編集）
 │   └── page.tsx                # 管理者ページ（URLは推測されにくい形式）
 ├── auth/
+│   │   └── last-login-provider/route.ts  # 直近ログインプロバイダーのDB保存・Cookie発行/取得
 │   ├── callback/
 │   │   └── route.ts      # OAuth コールバック
 │   └─── comfirm/
@@ -125,15 +126,17 @@ CRON_SECRET=                        # Cron Job認証用シークレット
 ## Supabaseテーブル構成
 
 ### `user_profiles`
-| カラム                 | 型      | 説明                      |
-| ---------------------- | ------- | ------------------------- |
-| id                     | uuid    | auth.users参照            |
-| plan                   | text    | free / standard / premium |
-| is_admin               | boolean | 管理者フラグ              |
-| display_name           | text    | 表示名                    |
-| stripe_customer_id     | text    | StripeカスタマーID        |
-| stripe_subscription_id | text    | サブスクリプションID      |
-| subscription_status    | text    | active / inactive         |
+| カラム                 | 型      | 説明                                                       |
+| ---------------------- | ------- | ---------------------------------------------------------- |
+| id                     | uuid    | auth.users参照                                             |
+| plan                   | text    | free / standard / premium                                  |
+| is_admin               | boolean | 管理者フラグ                                               |
+| display_name           | text    | 表示名                                                     |
+| has_password           | boolean | パスワード設定済みか（Google専用ユーザーの初期設定判定用） |
+| last_login_provider    | text    | 直近ログインしたプロバイダー（email/google）               |
+| stripe_customer_id     | text    | StripeカスタマーID                                         |
+| stripe_subscription_id | text    | サブスクリプションID                                       |
+| subscription_status    | text    | active / inactive                                          |
 
 ### `commissions`
 依頼情報。user_idでRLS分離。
@@ -311,3 +314,6 @@ flexDirection: column
 - モーダル内の `autoFocus` は全コンポーネントで削除済み（iOS Safariでキーボードが即時展開されるのを防止）
 - 一覧カードのサムネイルはSignedUrl遅延取得方式のため、初回表示時に一覧全体が重くなることはない
 - パスワード設定・変更、直近ログインプロバイダー判定はSupabaseの`user.identities`を利用しており、テーブル追加・マイグレーションは不要
+- 直近ログインプロバイダーは `user_profiles.last_login_provider` をDBの正としつつ、
+  未認証のログイン画面向けにはHttpOnly Cookie（`ct_last_login_provider`）経由でのみ提供する。
+  localStorageや通常のJS読み取り可能なCookieは使用しない（XSS時の詐称・漏えいリスク低減のため）。

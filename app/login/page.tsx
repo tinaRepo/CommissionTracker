@@ -29,14 +29,15 @@ type Mode = "login" | "signup" | "reset";
 export default function LoginPage() {
   const [mode, setMode] = useState<Mode>("login");
 
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
   const [demoMode, setDemoMode] = useState(false);
   const [showContact, setShowContact] = useState(false);
+  const [lastProvider, setLastProvider] = useState<string | null>(null);
 
+  // ログイン済みの場合はトップページにリダイレクト
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) window.location.href = "/";
@@ -46,10 +47,20 @@ export default function LoginPage() {
     if (params.get("demo") === "1") setDemoMode(true);
   }, []);
 
+  // ログイン画面にアクセスした際に、前回のログインプロバイダを取得して表示する
+  useEffect(() => {
+    fetch("/api/auth/last-login-provider")
+      .then(res => res.json())
+      .then(data => setLastProvider(data.provider ?? null))
+      .catch(() => { });
+  }, []);
+
+  // デモモードの場合はDemoAppを表示
   if (demoMode) {
     return <DemoApp onExit={() => setDemoMode(false)} />;
   }
 
+  // メールログイン・サインアップ・パスワードリセットの処理
   async function handleEmail() {
     setLoading(true);
     setMessage(null);
@@ -118,6 +129,7 @@ export default function LoginPage() {
     }
   }
 
+  // UIのレンダリング
   const titles: Record<Mode, string> = {
     login: "ログイン",
     signup: "新規登録",
@@ -159,22 +171,25 @@ export default function LoginPage() {
         {mode !== "reset" && (
           <>
             <div style={{ display: "grid", gap: 10, marginBottom: 20 }}>
-              <OAuthButton
-                onClick={() => handleOAuth("google")}
-                disabled={loading}
-                icon="G"
-                label="Googleで続ける"
-                color="#4285f4"
-              />
-              {/* 一時無効化
-              <OAuthButton
-                onClick={() => handleOAuth("twitter")}
-                disabled={loading}
-                icon="𝕏"
-                label="X (Twitter) でログイン"
-                color="#000"
-              />
-              */}
+              <div style={{ position: "relative" }}>
+                <OAuthButton
+                  onClick={() => handleOAuth("google")}
+                  disabled={loading}
+                  icon="G"
+                  label="Googleで続ける"
+                  color="#4285f4"
+                />
+                {lastProvider === "google" && mode === "login" && (
+                  <span style={{
+                    position: "absolute", top: -8, right: -8,
+                    background: "#10b981", color: "#fff", fontSize: 9, fontWeight: 700,
+                    borderRadius: 999, padding: "2px 8px", boxShadow: "0 2px 6px #0003",
+                    whiteSpace: "nowrap", pointerEvents: "none",
+                  }}>
+                    前回ログイン
+                  </span>
+                )}
+              </div>
             </div>
             <Divider />
           </>

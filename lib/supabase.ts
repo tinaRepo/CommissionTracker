@@ -23,6 +23,8 @@ export interface UserProfile {
   plan: Plan;
   is_admin: boolean;
   display_name?: string;
+  has_password: boolean;
+  last_login_provider?: string;
   created_at: string;
   updated_at: string;
   email?: string;
@@ -59,9 +61,9 @@ export interface CommissionImage {
 
 // ---- プラン制限 ----
 export const PLAN_LIMITS: Record<Plan, { label: string; imageLimit: number | null; color: string; bg: string }> = {
-  free:     { label: "無料",        imageLimit: 10,   color: "#6b7280", bg: "#f3f4f6" },
-  standard: { label: "スタンダード", imageLimit: 50,   color: "#3b82f6", bg: "#dbeafe" },
-  premium:  { label: "プレミアム",   imageLimit: null, color: "#f59e0b", bg: "#fef3c7" },
+  free: { label: "無料", imageLimit: 10, color: "#6b7280", bg: "#f3f4f6" },
+  standard: { label: "スタンダード", imageLimit: 50, color: "#3b82f6", bg: "#dbeafe" },
+  premium: { label: "プレミアム", imageLimit: null, color: "#f59e0b", bg: "#fef3c7" },
 };
 
 // ---- プロフィール ----
@@ -91,13 +93,7 @@ export function getLastSignInProvider(user: User | null): string | null {
   return sorted[0]?.provider ?? null;
 }
 
-// --- メール/パスワードでのidentityを持っているか（＝パスワード設定済みか） ---
-export function hasEmailIdentity(user: User | null): boolean {
-  return !!user?.identities?.some(i => i.provider === "email");
-}
-
 // --- パスワードの設定・変更 ---
-// currentPasswordを渡した場合のみ再認証してから変更する（既にパスワードがある人向け）
 export async function updateMyPassword(newPassword: string, currentPassword?: string): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.email) throw new Error("ユーザー情報を取得できませんでした");
@@ -112,6 +108,13 @@ export async function updateMyPassword(newPassword: string, currentPassword?: st
 
   const { error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) throw error;
+
+  // has_passwordフラグを更新（Googleのみ登録ユーザーが初めてパスワードを設定した場合に反映）
+  const { error: profileError } = await supabase
+    .from("user_profiles")
+    .update({ has_password: true })
+    .eq("id", user.id);
+  if (profileError) throw profileError;
 }
 
 // ---- 画像枚数チェック ----

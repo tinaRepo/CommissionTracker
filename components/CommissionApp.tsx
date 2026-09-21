@@ -9,7 +9,7 @@ import {
   type Commission, type CommissionStatus, type CommissionImage,
   type ImageType, type UserProfile, type Plan,
   fetchCommissionById,
-  updateMyPassword, getLastSignInProvider, hasEmailIdentity,
+  updateMyPassword, getLastSignInProvider
 } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
@@ -475,6 +475,21 @@ export default function CommissionApp() {
 
   useEffect(() => { if (user) fetchUnreadCount(user.id); }, [user]);
 
+  // --- 最後にログインしたプロバイダをサーバーに送信（バッジ表示用） ---
+  useEffect(() => {
+    if (!user) return;
+    const provider = getLastSignInProvider(user);
+    if (!provider) return;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) return;
+      fetch("/api/auth/last-login-provider", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ provider }),
+      }).catch(() => { /* バッジ表示用の補助情報なので失敗しても無視 */ });
+    });
+  }, [user]);
+
   // --- プロフィールの更新 ---
   async function handleSaveName() {
     if (!nameInput.trim()) return;
@@ -515,6 +530,7 @@ export default function CommissionApp() {
     setPwSaving(true);
     try {
       await updateMyPassword(pwNew, hasPassword ? pwCurrent : undefined);
+      setProfile(prev => prev ? { ...prev, has_password: true } : prev); // ← 追加：即座に「変更」表記に切り替え
       setPwDone(true);
     } catch (e: any) {
       setPwError(e.message ?? "パスワードの変更に失敗しました");
@@ -635,7 +651,7 @@ export default function CommissionApp() {
   }, [showForm, detailId]);
   const plan = (profile?.plan ?? "free") as Plan;
   const lastProvider = getLastSignInProvider(user);
-  const hasPassword = hasEmailIdentity(user);
+  const hasPassword = profile?.has_password ?? true;
   const displayName = profile?.display_name;
   const userLabel = displayName ?? user?.user_metadata?.full_name ?? (user?.email?.split("@")[0]) ?? "ユーザー";
   const userAvatar = user?.user_metadata?.avatar_url as string | undefined;
