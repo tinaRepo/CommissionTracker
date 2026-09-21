@@ -52,14 +52,6 @@ const EMPTY_FORM: FormValues = {
   price: "", currency: "JPY", status: "pending", rough_date: "", notes: "",
 };
 
-const [showPasswordModal, setShowPasswordModal] = useState(false);
-const [pwCurrent, setPwCurrent] = useState("");
-const [pwNew, setPwNew] = useState("");
-const [pwConfirm, setPwConfirm] = useState("");
-const [pwSaving, setPwSaving] = useState(false);
-const [pwError, setPwError] = useState<string | null>(null);
-const [pwDone, setPwDone] = useState(false);
-
 // --- 画像アップロード前にプランの上限をチェック ---
 function fmtDate(d?: string) {
   if (!d) return "—";
@@ -422,6 +414,13 @@ export default function CommissionApp() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showContact, setShowContact] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [pwCurrent, setPwCurrent] = useState("");
+  const [pwNew, setPwNew] = useState("");
+  const [pwConfirm, setPwConfirm] = useState("");
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwError, setPwError] = useState<string | null>(null);
+  const [pwDone, setPwDone] = useState(false);
 
   useEffect(() => {
     // 初回: セッション確認してuserをセット、なければloginへ
