@@ -578,7 +578,12 @@ export default function CommissionApp() {
       const { data: { user: refreshed } } = await supabase.auth.getUser();
       setUser(refreshed);
     } catch (e: any) {
-      alert(e.message ?? "解除に失敗しました");
+      const isIdentityCountError = e.message?.toLowerCase().includes("at least 1 identity");
+      alert(
+        isIdentityCountError
+          ? "解除できませんでした。一度ログアウトし、メールアドレスとパスワードで再ログインしてから再度お試しください。"
+          : (e.message ?? "解除に失敗しました")
+      );
     } finally {
       setUnlinking(false);
     }
@@ -1212,6 +1217,14 @@ export default function CommissionApp() {
                 </div>
                 <div style={{ fontSize: 13, color: "#666", lineHeight: 1.7, marginBottom: 20, textAlign: "center" }}>
                   解除後もメールアドレスとパスワードでログインできます。
+                </div>
+                <div style={{
+                  fontSize: 12, color: "#92400e", lineHeight: 1.7, marginBottom: 20,
+                  background: "#fef3c7", border: "1px solid #fbbf24", borderRadius: 10, padding: "12px 14px"
+                }}>
+                  ⚠ 直近でパスワードを設定した場合、稀に解除がうまく反映されないことがあります。
+                  その場合は一度<strong>ログアウトし、メールアドレスとパスワードで再ログイン</strong>してから、
+                  もう一度お試しください。
                 </div>
                 <div style={{ display: "flex", gap: 10 }}>
                   <button onClick={() => setShowUnlinkWarning(false)} disabled={unlinking}
