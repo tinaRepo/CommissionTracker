@@ -31,6 +31,7 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
   const [demoMode, setDemoMode] = useState(false);
@@ -72,9 +73,17 @@ export default function LoginPage() {
         await new Promise(resolve => setTimeout(resolve, 500));
         window.location.href = "/";
       } else if (mode === "signup") {
+        if (!displayName.trim()) {
+          setMessage({ type: "error", text: "表示名を入力してください" });
+          setLoading(false);
+          return;
+        }
         const { error } = await supabase.auth.signUp({
           email, password,
-          options: { emailRedirectTo: `${location.origin}/` }
+          options: {
+            emailRedirectTo: `${location.origin}/`,
+            data: { display_name: displayName.trim() },
+          }
         });
         if (error) throw error;
         setMessage({ type: "success", text: "確認メールを送りました。メールのリンクをクリックしてください。" });
@@ -198,6 +207,12 @@ export default function LoginPage() {
         {/* メール入力 */}
         <form onSubmit={(e) => { e.preventDefault(); handleEmail(); }}
           style={{ display: "grid", gap: 12, marginBottom: 16 }}>
+          {mode === "signup" && (
+            <InputField
+              type="text" placeholder="表示名（例: 山田太郎）"
+              value={displayName} onChange={setDisplayName}
+            />
+          )}
           <InputField
             type="email" placeholder="メールアドレス"
             value={email} onChange={setEmail}
@@ -214,7 +229,7 @@ export default function LoginPage() {
         {/* メインボタン */}
         <button
           onClick={handleEmail}
-          disabled={loading || !email || (mode !== "reset" && !password)}
+          disabled={loading || !email || (mode !== "reset" && !password) || (mode === "signup" && !displayName.trim())}
           style={{
             width: "100%", padding: "12px",
             background: (loading || !email || (mode !== "reset" && !password))
@@ -248,7 +263,7 @@ export default function LoginPage() {
           {mode === "login" && (
             <>
               <span>アカウントをお持ちでない方は
-                <TextLink onClick={() => { setMode("signup"); setMessage(null); }}>新規登録</TextLink>
+                <TextLink onClick={() => { setMode("signup"); setMessage(null); setDisplayName(""); }}>新規登録</TextLink>
               </span>
               <TextLink onClick={() => { setMode("reset"); setMessage(null); }}>
                 パスワードを忘れた方はこちら

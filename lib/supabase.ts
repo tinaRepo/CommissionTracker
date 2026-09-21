@@ -25,6 +25,7 @@ export interface UserProfile {
   display_name?: string;
   has_password: boolean;
   last_login_provider?: string;
+  last_sign_in_at?: string;
   created_at: string;
   updated_at: string;
   email?: string;

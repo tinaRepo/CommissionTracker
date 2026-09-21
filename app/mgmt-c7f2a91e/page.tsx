@@ -191,6 +191,11 @@ export default function AdminPage() {
                       </div>
                       <div style={{ fontSize: 10, color: "#bbb", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.id}</div>
                       <div style={{ fontSize: 11, color: "#bbb", marginTop: 1 }}>登録: {regDate}</div>
+                      {u.last_sign_in_at && (
+                        <div style={{ fontSize: 11, color: "#bbb", marginTop: 1 }}>
+                          最終ログイン: {new Date(u.last_sign_in_at).toLocaleString("ja-JP")}
+                        </div>
+                      )}
                     </div>
                   </div>
 

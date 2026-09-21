@@ -31,10 +31,10 @@ export async function POST(request: NextRequest) {
         const { data: { user }, error } = await adminSupabase.auth.getUser(token);
         if (error || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-        // DBを正として保存（ログイン後の画面用）
+        // DBを正として保存（ログイン後の画面用・最終ログイン日時も同時に記録）
         await adminSupabase
             .from("user_profiles")
-            .update({ last_login_provider: provider })
+            .update({ last_login_provider: provider, last_sign_in_at: new Date().toISOString() })
             .eq("id", user.id);
 
         // ログイン画面（未認証）用にHttpOnly Cookieを発行（JSからは読み書き不可）
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
             secure: true,
             sameSite: "lax",
             path: "/",
-            maxAge: 60 * 60 * 24 * 90, // 90日
+            maxAge: 60 * 60 * 24 * 90,
         });
         return response;
     } catch (e: any) {

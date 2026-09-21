@@ -139,17 +139,18 @@ CRON_SECRET=                        # Cron Job認証用シークレット
 ## Supabaseテーブル構成
 
 ### `user_profiles`
-| カラム                 | 型      | 説明                                                       |
-| ---------------------- | ------- | ---------------------------------------------------------- |
-| id                     | uuid    | auth.users参照                                             |
-| plan                   | text    | free / standard / premium                                  |
-| is_admin               | boolean | 管理者フラグ                                               |
-| display_name           | text    | 表示名                                                     |
-| has_password           | boolean | パスワード設定済みか（Google専用ユーザーの初期設定判定用） |
-| last_login_provider    | text    | 直近ログインしたプロバイダー（email/google）               |
-| stripe_customer_id     | text    | StripeカスタマーID                                         |
-| stripe_subscription_id | text    | サブスクリプションID                                       |
-| subscription_status    | text    | active / inactive                                          |
+| カラム                 | 型          | 説明                                                                        |
+| ---------------------- | ----------- | --------------------------------------------------------------------------- |
+| id                     | uuid        | auth.users参照                                                              |
+| plan                   | text        | free / standard / premium                                                   |
+| is_admin               | boolean     | 管理者フラグ                                                                |
+| display_name           | text        | 表示名                                                                      |
+| has_password           | boolean     | パスワード設定済みか（Google専用ユーザーの初期設定判定用）                  |
+| last_login_provider    | text        | 直近ログインしたプロバイダー（email/google）                                |
+| last_sign_in_at        | timestamptz | 最終ログイン日時（ログインのたびに`/api/auth/last-login-provider`から更新） |
+| stripe_customer_id     | text        | StripeカスタマーID                                                          |
+| stripe_subscription_id | text        | サブスクリプションID                                                        |
+| subscription_status    | text        | active / inactive                                                           |
 
 ### `commissions`
 依頼情報。user_idでRLS分離。
@@ -356,3 +357,9 @@ flexDirection: column
   URL Configuration → Redirect URLsに事前登録すること。未登録の場合、GoTrueは
   エラーを出さず黙ってSite URLへフォールバックし、認証トークンがハッシュフラグメントとして
   付与されるため、supabase-jsが意図せず自動ログインしてしまう（詳細: docs/google-login-setup.md）。
+- 新規ユーザー作成トリガー（`handle_new_user`）は、`display_name`の初期値も設定する。
+  メール登録は`signUp`の`options.data.display_name`（フォーム必須項目）から、
+  Google登録は`raw_user_meta_data`の`full_name`/`name`から取得する。
+  これにより、Google登録ユーザーも管理者画面で最初から表示名が見える。
+- `last_sign_in_at`はログイン成功のたびに`/api/auth/last-login-provider`のPOSTで更新される。
+  ログイン処理そのものとは独立した「補助的な記録」のため、更新に失敗してもログイン自体は成功する。
