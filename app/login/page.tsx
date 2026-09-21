@@ -26,6 +26,7 @@ function toJapanese(msg: string): string {
 
 type Mode = "login" | "signup" | "reset";
 
+// ログインページ
 export default function LoginPage() {
   const [mode, setMode] = useState<Mode>("login");
 
@@ -37,6 +38,13 @@ export default function LoginPage() {
   const [demoMode, setDemoMode] = useState(false);
   const [showContact, setShowContact] = useState(false);
   const [lastProvider, setLastProvider] = useState<string | null>(null);
+
+  // メインボタンの活性/非活性判定（disabledと見た目のstyleで条件がズレないよう一箇所にまとめる）
+  const isSubmitDisabled =
+    loading ||
+    !email ||
+    (mode !== "reset" && !password) ||
+    (mode === "signup" && !displayName.trim());
 
   // ログイン済みの場合はトップページにリダイレクト
   useEffect(() => {
@@ -229,14 +237,13 @@ export default function LoginPage() {
         {/* メインボタン */}
         <button
           onClick={handleEmail}
-          disabled={loading || !email || (mode !== "reset" && !password) || (mode === "signup" && !displayName.trim())}
+          disabled={isSubmitDisabled}
           style={{
             width: "100%", padding: "12px",
-            background: (loading || !email || (mode !== "reset" && !password))
-              ? "#c4b5fd"
-              : "linear-gradient(135deg,#7c3aed,#4f46e5)",
+            background: isSubmitDisabled ? "#c4b5fd" : "linear-gradient(135deg,#7c3aed,#4f46e5)",
             color: "#fff", border: "none", borderRadius: 12,
-            fontWeight: 800, fontSize: 15, cursor: "pointer",
+            fontWeight: 800, fontSize: 15,
+            cursor: isSubmitDisabled ? "not-allowed" : "pointer",
             transition: "opacity 0.15s",
           }}
         >
@@ -326,6 +333,7 @@ export default function LoginPage() {
   );
 }
 
+// UIコンポーネント群
 function OAuthButton({ onClick, disabled, icon, label, color }: {
   onClick: () => void; disabled: boolean;
   icon: string; label: string; color: string;
@@ -347,6 +355,7 @@ function OAuthButton({ onClick, disabled, icon, label, color }: {
   );
 }
 
+// メール入力欄
 function InputField({ type, placeholder, value, onChange }: {
   type: string; placeholder: string; value: string; onChange: (v: string) => void;
 }) {
@@ -367,6 +376,7 @@ function InputField({ type, placeholder, value, onChange }: {
   );
 }
 
+// 区切り線
 function Divider() {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
@@ -377,6 +387,7 @@ function Divider() {
   );
 }
 
+// テキストリンク（モード切替用）
 function TextLink({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
   return (
     <button onClick={onClick} style={{
