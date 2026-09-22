@@ -64,7 +64,6 @@ export default function NotificationsModal({ open, onClose, onRead }: Props) {
   const [unreadAnnouncementIds, setUnreadAnnouncementIds] = useState<Set<string>>(new Set());
   const [hasUnreadRelease, setHasUnreadRelease] = useState(false);
   const [loading, setLoading] = useState(false);
-  // ✅ 最適化: getUser() の結果を state で保持し、以降の操作で再取得しない
   const [userId, setUserId] = useState<string | null>(null);
 
   // モーダルが開いたときにデータ取得
@@ -95,38 +94,39 @@ export default function NotificationsModal({ open, onClose, onRead }: Props) {
     onRead?.();
   }
 
-  // ✅ 最適化: getUser() はここで1回だけ呼び、uid を state に保存
   async function fetchAll() {
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    const uid = user?.id ?? null;
+    const { data: { session } } = await supabase.auth.getSession();
+    const uid = session?.user?.id ?? null;
     setUserId(uid);
     await Promise.all([fetchAnnouncements(uid), fetchReleases(uid)]);
     setLoading(false);
   }
 
   async function fetchAnnouncements(uid: string | null) {
-    const { data } = await supabase
-      .from("announcements")
-      .select("*")
-      .order("published_at", { ascending: false });
+    // announcements本体と既読ステータスは互いに依存しないクエリなので並列実行する
+    const [{ data }, { data: statusData }] = await Promise.all([
+      supabase.from("announcements").select("*").order("published_at", { ascending: false }),
+      uid
+        ? supabase.from("user_notification_status").select("announcement_id, is_read").eq("user_id", uid)
+        : Promise.resolve({ data: [] as { announcement_id: string; is_read: boolean }[] }),
+    ]);
     if (!data) return;
     setAnnouncements(data);
     if (!uid) return;
 
-    const { data: statusData } = await supabase
-      .from("user_notification_status")
-      .select("announcement_id, is_read")
-      .eq("user_id", uid);
     const readIds = new Set((statusData ?? []).filter(s => s.is_read).map(s => s.announcement_id));
     setUnreadAnnouncementIds(new Set(data.map(a => a.id).filter(id => !readIds.has(id))));
   }
 
   async function fetchReleases(uid: string | null) {
-    const { data } = await supabase
-      .from("version_releases")
-      .select("*, version_release_items(*)")
-      .order("released_at", { ascending: false });
+    // version_releases本体とuser_settingsも互いに依存しないため並列実行する
+    const [{ data }, { data: settings }] = await Promise.all([
+      supabase.from("version_releases").select("*, version_release_items(*)").order("released_at", { ascending: false }),
+      uid
+        ? supabase.from("user_settings").select("last_seen_release_id").eq("user_id", uid).maybeSingle()
+        : Promise.resolve({ data: null as { last_seen_release_id: string | null } | null }),
+    ]);
     if (!data) return;
 
     const formatted: VersionRelease[] = data.map(r => ({
@@ -138,11 +138,6 @@ export default function NotificationsModal({ open, onClose, onRead }: Props) {
     setReleases(formatted);
     if (!uid || formatted.length === 0) return;
 
-    const { data: settings } = await supabase
-      .from("user_settings")
-      .select("last_seen_release_id")
-      .eq("user_id", uid)
-      .maybeSingle();
     setHasUnreadRelease(!settings || settings.last_seen_release_id !== formatted[0].id);
   }
 

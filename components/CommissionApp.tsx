@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   supabase, requestDeleteAccount, fetchCommissions, createCommission, updateCommission,
-  deleteCommission, uploadImage, deleteImage, getSignedImageUrl,
+  deleteCommission, uploadImage, deleteImage, getSignedImageUrls,
   fetchMyProfile, canUploadImage,
   PLAN_LIMITS,
   type Commission, type CommissionStatus, type CommissionImage,
@@ -15,9 +15,10 @@ import {
 } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import PushNotificationToggle from "./PushNotificationToggle";
-import NotificationsModal from "./NotificationsModal";
-import ContactModal from "./ContactModal";
+const NotificationsModal = dynamic(() => import("./NotificationsModal"), { ssr: false });
+const ContactModal = dynamic(() => import("./ContactModal"), { ssr: false });
 
 // ---- 定数とユーティリティ ----
 const STATUSES: { key: CommissionStatus; label: string; color: string; bg: string }[] = [
@@ -174,12 +175,8 @@ function ImageUsageBar({ plan, imageCount }: { plan: Plan; imageCount: number })
   );
 }
 
-// ---- カード一覧サムネイル（signed URL を遅延取得） ----
-function CardThumbnail({ storagePath }: { storagePath: string }) {
-  const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => {
-    getSignedImageUrl(storagePath).then(setUrl).catch(() => { });
-  }, [storagePath]);
+// ---- カード一覧サムネイル ----
+function CardThumbnail({ url }: { url: string | undefined }) {
   if (!url) return <div style={{ width: 72, height: 72, borderRadius: 10, background: "#e5e7eb", flexShrink: 0 }} />;
   return (
     <img src={url} alt="thumbnail"
@@ -232,11 +229,17 @@ function ImageSection({ commission, plan, onUpdated }: {
 
   useEffect(() => {
     const images = commission.images ?? [];
-    if (!images.length) return;
-    Promise.all(images.map(async img => {
-      const url = await getSignedImageUrl(img.storage_path).catch(() => "");
-      return [img.id, url] as [string, string];
-    })).then(entries => setSignedUrls(Object.fromEntries(entries)));
+    if (!images.length) { setSignedUrls({}); return; }
+    getSignedImageUrls(images.map(img => img.storage_path))
+      .then(pathToUrl => {
+        const byId: Record<string, string> = {};
+        images.forEach(img => {
+          const url = pathToUrl[img.storage_path];
+          if (url) byId[img.id] = url;
+        });
+        setSignedUrls(byId);
+      })
+      .catch(() => setSignedUrls({}));
   }, [commission.images]);
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -394,6 +397,7 @@ export default function CommissionApp() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [imageCount, setImageCount] = useState(0);
   const [commissions, setCommissions] = useState<Commission[]>([]);
+  const [thumbnailUrls, setThumbnailUrls] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<"all" | CommissionStatus>("all");
   const [showForm, setShowForm] = useState(false);
@@ -457,8 +461,30 @@ export default function CommissionApp() {
       // 合計画像枚数カウント
       const total = data.reduce((sum, c) => sum + (c.images?.length ?? 0), 0);
       setImageCount(total);
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+
+      setLoading(false);
+
+      // ---- 一覧サムネイルの署名付きURLをまとめて取得 ----
+      // ここで「各依頼の先頭画像」のパスだけを集めて1回のリクエストで取得する。
+      const firstImagePaths = data
+        .map(c => c.images?.[0]?.storage_path)
+        .filter((p): p is string => !!p);
+      if (firstImagePaths.length === 0) { setThumbnailUrls({}); return; }
+      try {
+        const pathToUrl = await getSignedImageUrls(firstImagePaths);
+        const byCommissionId: Record<string, string> = {};
+        data.forEach(c => {
+          const path = c.images?.[0]?.storage_path;
+          if (path && pathToUrl[path]) byCommissionId[c.id] = pathToUrl[path];
+        });
+        setThumbnailUrls(byCommissionId);
+      } catch {
+        setThumbnailUrls({});
+      }
+    } catch (e) {
+      console.error(e);
+      setLoading(false);
+    }
   }
 
   useEffect(() => { if (user) load(); }, [user]);
@@ -499,7 +525,8 @@ export default function CommissionApp() {
   // --- プロフィールの更新 ---
   async function handleSaveName() {
     if (!nameInput.trim()) return;
-    const { data: { user: u } } = await supabase.auth.getUser();
+    const { data: { session } } = await supabase.auth.getSession();
+    const u = session?.user;
     if (!u) return;
     await supabase.from("user_profiles").update({ display_name: nameInput.trim() }).eq("id", u.id);
     await load();
@@ -975,9 +1002,9 @@ export default function CommissionApp() {
                 }}
                 onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)"; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)"; }}>
-                {/* サムネイル（最初の画像） */}
+                {/* サムネイル（最初の画像。親でまとめて取得したURLをpropsで渡す） */}
                 {(c.images?.length ?? 0) > 0 && (
-                  <CardThumbnail storagePath={c.images![0].storage_path} />
+                  <CardThumbnail url={thumbnailUrls[c.id]} />
                 )}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>

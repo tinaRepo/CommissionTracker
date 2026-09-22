@@ -87,7 +87,6 @@ export default function LoginPage() {
       if (mode === "login") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        await new Promise(resolve => setTimeout(resolve, 500));
         window.location.href = "/";
       } else if (mode === "signup") {
         const trimmedName = displayName.trim();

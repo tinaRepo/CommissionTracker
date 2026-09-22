@@ -77,7 +77,8 @@ export const PASSWORD_MIN_LENGTH = 6;
 
 // ---- プロフィール ----
 export async function fetchMyProfile(): Promise<UserProfile | null> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user;
   if (!user) return null;
   const { data, error } = await supabase
     .from("user_profiles")
@@ -129,7 +130,8 @@ export async function unlinkGoogleAccount(user: User): Promise<void> {
 // --- パスワード変更（既にパスワードが設定済みのユーザー向け） ---
 // identityは既にemailが存在するため、通常のupdateUserで問題ない
 export async function changeMyPassword(newPassword: string, currentPassword: string): Promise<void> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user;
   if (!user?.email) throw new Error("ユーザー情報を取得できませんでした");
 
   const { error: reauthError } = await supabase.auth.signInWithPassword({
@@ -148,7 +150,8 @@ export async function changeMyPassword(newPassword: string, currentPassword: str
 // 既存のパスワードリセット導線（/auth/confirm → /update-password）を再利用する。
 // このフローで設定すると、以降は標準のunlinkIdentity()でGoogle連携を解除できる。
 export async function requestSetPasswordEmail(): Promise<void> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user;
   if (!user?.email) throw new Error("ユーザー情報を取得できませんでした");
 
   const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
@@ -159,14 +162,14 @@ export async function requestSetPasswordEmail(): Promise<void> {
 
 // ---- 画像枚数チェック ----
 export async function countMyImages(): Promise<number> {
-  // 自分の全commissionに紐づく画像数を合計
+  const { data: { session } } = await supabase.auth.getSession();
+  const userId = session?.user?.id;
+  if (!userId) return 0;
+
   const { count, error } = await supabase
     .from("commission_images")
-    .select("id", { count: "exact", head: true })
-    .in(
-      "commission_id",
-      (await supabase.from("commissions").select("id")).data?.map(c => c.id) ?? []
-    );
+    .select("id, commissions!inner(user_id)", { count: "exact", head: true })
+    .eq("commissions.user_id", userId);
   if (error) return 0;
   return count ?? 0;
 }
@@ -193,7 +196,8 @@ export async function fetchCommissions(): Promise<Commission[]> {
 export async function createCommission(
   values: Omit<Commission, "id" | "user_id" | "created_at" | "updated_at" | "images">
 ): Promise<Commission> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user;
   if (!user) throw new Error("Not authenticated");
   const { data, error } = await supabase
     .from("commissions")
@@ -241,7 +245,8 @@ export async function uploadImage(
   imageType: ImageType,
   plan: Plan
 ): Promise<CommissionImage> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user;
   if (!user) throw new Error("Not authenticated");
 
   // --- プラン制限チェック ---
@@ -272,12 +277,29 @@ export async function deleteImage(image: CommissionImage): Promise<void> {
   await supabase.from("commission_images").delete().eq("id", image.id);
 }
 
-// --- 画像の署名付きURLを取得 ---
+// --- 画像の署名付きURLを取得（1枚） ---
 export async function getSignedImageUrl(storagePath: string): Promise<string> {
   const { data, error } = await supabase.storage
     .from(BUCKET).createSignedUrl(storagePath, 3600);
   if (error) throw error;
   return data.signedUrl;
+}
+
+// --- 画像の署名付きURLをまとめて取得（N+1回避）---
+// 一覧のサムネイルや詳細モーダルなど、複数枚の画像URLが必要な場面で
+// createSignedUrl()を1枚ずつ呼ぶと画像枚数分のリクエストが発生してしまう(N+1)。
+// createSignedUrls()で1回のリクエストにまとめて取得する。
+export async function getSignedImageUrls(storagePaths: string[]): Promise<Record<string, string>> {
+  const uniquePaths = Array.from(new Set(storagePaths));
+  if (uniquePaths.length === 0) return {};
+  const { data, error } = await supabase.storage
+    .from(BUCKET).createSignedUrls(uniquePaths, 3600);
+  if (error) throw error;
+  const map: Record<string, string> = {};
+  (data ?? []).forEach(d => {
+    if (d.signedUrl && d.path) map[d.path] = d.signedUrl;
+  });
+  return map;
 }
 
 // ---- 管理者用 ----

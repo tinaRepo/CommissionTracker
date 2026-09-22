@@ -100,10 +100,14 @@ export default function AdminNotificationsPage() {
   const [rSaving, setRSaving] = useState(false);
 
   // ── 管理者チェック ─────────────────────────────────────────
+  // NOTE: getUser()はSupabase Authサーバーへの検証往復が毎回発生するため、
+  // ローカルのセッション情報のみで済む getSession() に変更（RLSはJWT署名で
+  // サーバー側検証されるため、is_admin判定のためのuser.id取得にはこれで十分）。
 
   useEffect(() => {
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
       if (!user) { router.replace("/login"); return; }
       const { data } = await supabase
         .from("user_profiles").select("is_admin").eq("id", user.id).maybeSingle();
