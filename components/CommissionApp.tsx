@@ -16,24 +16,16 @@ import {
 import type { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
+import { useNotifications } from "@/hooks/useNotifications";
+import { useCommissionSearch } from "@/hooks/useCommissionSearch";
+import {
+  STATUSES, IMAGE_TYPES, fmtDate, fmtPrice,
+  inp, inp_date, Field, DateField, StatusBadge, CommissionListCard,
+} from "./CommissionShared";
+import { CommissionSearchBar } from "./CommissionSearchBar";
 import PushNotificationToggle from "./PushNotificationToggle";
 const NotificationsModal = dynamic(() => import("./NotificationsModal"), { ssr: false });
 const ContactModal = dynamic(() => import("./ContactModal"), { ssr: false });
-
-// ---- 定数とユーティリティ ----
-const STATUSES: { key: CommissionStatus; label: string; color: string; bg: string }[] = [
-  { key: "pending", label: "依頼済み", color: "#f59e0b", bg: "#fef3c7" },
-  { key: "rough", label: "ラフ確認中", color: "#8b5cf6", bg: "#ede9fe" },
-  { key: "progress", label: "制作中", color: "#3b82f6", bg: "#dbeafe" },
-  { key: "done", label: "完成", color: "#10b981", bg: "#d1fae5" },
-  { key: "cancelled", label: "キャンセル", color: "#6b7280", bg: "#f3f4f6" },
-];
-
-// --- 画像タイプのラベル ---
-const IMAGE_TYPES: { key: ImageType; label: string }[] = [
-  { key: "rough", label: "ラフ" }, { key: "wip", label: "作業中" },
-  { key: "finished", label: "完成" }, { key: "other", label: "その他" },
-];
 
 // --- 画像アップロード前のプラン制限チェック ---
 type FormValues = {
@@ -54,88 +46,6 @@ const EMPTY_FORM: FormValues = {
   title: "", artist: "", x_id: "", ordered_at: "", deadline: "",
   price: "", currency: "JPY", status: "pending", rough_date: "", notes: "",
 };
-
-// --- 画像アップロード前にプランの上限をチェック ---
-function fmtDate(d?: string) {
-  if (!d) return "—";
-  const [y, m, day] = d.split("-");
-  return `${y}/${m}/${day}`;
-}
-
-// --- 金額をフォーマット ---
-function fmtPrice(price?: number, currency?: string) {
-  if (!price) return "—";
-  return `${price.toLocaleString()} 円`;
-}
-
-// --- 締切までの日数を計算 ---
-function daysUntil(d?: string) {
-  if (!d) return null;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const [y, m, day] = d.split("-").map(Number);
-  const deadline = new Date(y, m - 1, day);
-  return Math.ceil((deadline.getTime() - today.getTime()) / 86400000);
-}
-
-// --- テキストボックスのスタイル ---
-const inp: React.CSSProperties = {
-  width: "100%", padding: "8px 10px", border: "1.5px solid #e5e7eb",
-  borderRadius: 10, fontSize: 16, outline: "none", color: "#1a0a2e",
-  background: "#faf8f5", boxSizing: "border-box",
-};
-
-// --- 日付の入力フィールドスタイル ---
-const inp_date: React.CSSProperties = {
-  minWidth: 0, padding: "9px 8px", border: "1.5px solid #e5e7eb",
-  borderRadius: 10, fontSize: 16, outline: "none", color: "#1a0a2e",
-  background: "#faf8f5", boxSizing: "border-box",
-};
-
-// --- 日付入力フィールド ---
-function DateField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
-  return (
-    <Field label={label}>
-      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-        <input type="date" value={value} onChange={e => onChange(e.target.value)}
-          style={{ ...inp_date, flex: 1 }} />
-        {value && (
-          <button type="button" onClick={() => onChange("")}
-            style={{
-              flexShrink: 0, background: "#f3f4f6", border: "1.5px solid #e5e7eb", borderRadius: 8,
-              width: 32, height: 36, cursor: "pointer", fontSize: 14, color: "#888", display: "flex",
-              alignItems: "center", justifyContent: "center"
-            }}>
-            ×
-          </button>
-        )}
-      </div>
-    </Field>
-  );
-}
-
-// --- 画像アップロード前にプランの上限をチェック ---
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#555", marginBottom: 6, letterSpacing: "0.04em" }}>{label}</label>
-      {children}
-    </div>
-  );
-}
-
-// --- ステータスバッジ ---
-function StatusBadge({ status }: { status: CommissionStatus }) {
-  const s = STATUSES.find(x => x.key === status) ?? STATUSES[0];
-  return (
-    <span style={{
-      background: s.bg, color: s.color, border: `1px solid ${s.color}40`,
-      borderRadius: 999, padding: "2px 10px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap"
-    }}>
-      {s.label}
-    </span>
-  );
-}
 
 // --- プランバッジ ---
 function PlanBadge({ plan }: { plan: Plan }) {
@@ -172,15 +82,6 @@ function ImageUsageBar({ plan, imageCount }: { plan: Plan; imageCount: number })
         <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 99, transition: "width 0.4s" }} />
       </div>
     </div>
-  );
-}
-
-// ---- カード一覧サムネイル ----
-function CardThumbnail({ url }: { url: string | undefined }) {
-  if (!url) return <div style={{ width: 72, height: 72, borderRadius: 10, background: "#e5e7eb", flexShrink: 0 }} />;
-  return (
-    <img src={url} alt="thumbnail"
-      style={{ width: 72, height: 72, borderRadius: 10, objectFit: "cover", flexShrink: 0, border: "1.5px solid #e5e7eb" }} />
   );
 }
 
@@ -397,9 +298,9 @@ export default function CommissionApp() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [imageCount, setImageCount] = useState(0);
   const [commissions, setCommissions] = useState<Commission[]>([]);
+  const search = useCommissionSearch(commissions);
   const [thumbnailUrls, setThumbnailUrls] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
-  const [filterStatus, setFilterStatus] = useState<"all" | CommissionStatus>("all");
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<FormValues>(EMPTY_FORM);
@@ -415,9 +316,6 @@ export default function CommissionApp() {
   const [showDeleteRequest, setShowDeleteRequest] = useState(false);
   const [deleteRequesting, setDeleteRequesting] = useState(false);
   const [deleteRequestDone, setDeleteRequestDone] = useState(false);
-  const [sortKey, setSortKey] = useState<"ordered_at" | "deadline" | "price" | "status">("ordered_at");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
-  const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showContact, setShowContact] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -489,23 +387,9 @@ export default function CommissionApp() {
 
   useEffect(() => { if (user) load(); }, [user]);
 
-  // お知らせ・バージョンの未読件数を取得
-  async function fetchUnreadCount(userId: string) {
-    const [{ data: announcements }, { data: readStatuses }, { data: latestRelease }, { data: settings }] =
-      await Promise.all([
-        supabase.from("announcements").select("id"),
-        supabase.from("user_notification_status").select("announcement_id").eq("user_id", userId).eq("is_read", true),
-        supabase.from("version_releases").select("id").order("released_at", { ascending: false }).limit(1).maybeSingle(),
-        supabase.from("user_settings").select("last_seen_release_id").eq("user_id", userId).maybeSingle(),
-      ]);
-
-    const readIds = new Set((readStatuses ?? []).map((s: any) => s.announcement_id));
-    const unreadAnnouncements = (announcements ?? []).filter((a: any) => !readIds.has(a.id)).length;
-    const unreadRelease = latestRelease && (!settings || settings.last_seen_release_id !== (latestRelease as any).id) ? 1 : 0;
-    setUnreadCount(unreadAnnouncements + unreadRelease);
-  }
-
-  useEffect(() => { if (user) fetchUnreadCount(user.id); }, [user]);
+  // お知らせ・バージョンの未読管理、
+  // 作成日より前に公開されたお知らせは未読カウントの対象から自動的に除外される。
+  const notifications = useNotifications(user?.id ?? null, profile?.created_at ?? null);
 
   // --- 最後にログインしたプロバイダをサーバーに送信（バッジ表示用） ---
   useEffect(() => {
@@ -632,23 +516,10 @@ export default function CommissionApp() {
     window.location.href = "/login";
   }
 
-  // フィルタリング＋ソート
-  const filtered = useMemo(() => {
-    const list = filterStatus === "all" ? commissions : commissions.filter(c => c.status === filterStatus);
-    return [...list].sort((a, b) => {
-      let av: any, bv: any;
-      if (sortKey === "ordered_at") { av = a.ordered_at ?? ""; bv = b.ordered_at ?? ""; }
-      else if (sortKey === "deadline") { av = a.deadline ?? ""; bv = b.deadline ?? ""; }
-      else if (sortKey === "price") { av = a.price ?? 0; bv = b.price ?? 0; }
-      else if (sortKey === "status") {
-        const order = ["pending", "rough", "progress", "done", "cancelled"];
-        av = order.indexOf(a.status); bv = order.indexOf(b.status);
-      }
-      if (av < bv) return sortDir === "asc" ? -1 : 1;
-      if (av > bv) return sortDir === "asc" ? 1 : -1;
-      return 0;
-    });
-  }, [commissions, filterStatus, sortKey, sortDir]);
+  // フィルタ・検索結果一覧（filtered/totalPrice/activeFilterCount等はすべて
+  // useCommissionSearchフックから提供される。詳細ロジックは
+  // hooks/useCommissionSearch.ts を参照）
+  const filtered = search.filtered;
 
   // ステータスごとの統計
   const stats = useMemo(() => ({
@@ -810,7 +681,7 @@ export default function CommissionApp() {
             >
               🔔
             </button>
-            {unreadCount > 0 && (
+            {notifications.unreadCount > 0 && (
               <span style={{
                 position: "absolute", top: -4, right: -4,
                 minWidth: 18, height: 18, borderRadius: 999,
@@ -819,7 +690,7 @@ export default function CommissionApp() {
                 textAlign: "center", padding: "0 4px",
                 pointerEvents: "none",
               }}>
-                {unreadCount > 99 ? "99+" : unreadCount}
+                {notifications.unreadCount > 99 ? "99+" : notifications.unreadCount}
               </span>
             )}
           </div>
@@ -950,87 +821,29 @@ export default function CommissionApp() {
         </div>
       </header>
 
-      {/* フィルタ＋ソート */}
-      <div style={{ padding: "16px 32px 0", display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-        {[{ key: "all", label: "すべて" } as const, ...STATUSES].map(s => (
-          <button key={s.key} onClick={() => setFilterStatus(s.key as any)}
-            style={{
-              background: filterStatus === s.key ? ("color" in s ? s.color : "#1a0a2e") : "#fff",
-              color: filterStatus === s.key ? "#fff" : "#555",
-              border: `1.5px solid ${filterStatus === s.key ? ("color" in s ? s.color : "#1a0a2e") : "#e5e7eb"}`,
-              borderRadius: 999, padding: "5px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer"
-            }}>
-            {s.label}
-          </button>
-        ))}
-        {/* 並び替え */}
-        <div style={{ display: "flex", gap: 6, alignItems: "center", marginLeft: "auto" }}>
-          <select
-            value={sortKey}
-            onChange={e => setSortKey(e.target.value as any)}
-            style={{ padding: "5px 10px", border: "1.5px solid #e5e7eb", borderRadius: 10, fontSize: 12, outline: "none", background: "#fff", color: "#555", cursor: "pointer" }}>
-            <option value="ordered_at">依頼日順</option>
-            <option value="deadline">納期順</option>
-            <option value="price">金額順</option>
-            <option value="status">ステータス順</option>
-          </select>
-          <button
-            onClick={() => setSortDir(d => d === "asc" ? "desc" : "asc")}
-            style={{ padding: "5px 10px", border: "1.5px solid #e5e7eb", borderRadius: 10, fontSize: 12, background: "#fff", color: "#555", cursor: "pointer", fontWeight: 700 }}>
-            {sortDir === "asc" ? "↑ 昇順" : "↓ 降順"}
-          </button>
-        </div>
-      </div>
+      {/* フィルタ＋ソート＋詳細検索パネル（CommissionApp/DemoApp共通コンポーネント） */}
+      <CommissionSearchBar search={search} />
 
       {/* リスト */}
       <main style={{ padding: "20px 32px 60px", maxWidth: 900 }}>
         {filtered.length === 0 && (
           <div style={{ textAlign: "center", color: "#aaa", marginTop: 60, fontSize: 15 }}>依頼がありません</div>
         )}
-        <div style={{ display: "grid", gap: 14 }}>
-          {filtered.map(c => {
-            const days = daysUntil(c.deadline);
-            const urgent = days !== null && days <= 7 && c.status !== "done" && c.status !== "cancelled";
-            return (
-              <div key={c.id} onClick={() => setDetailId(c.id)}
-                style={{
-                  background: "#fff", borderRadius: 16, padding: "18px 22px",
-                  boxShadow: urgent ? "0 0 0 2px #ef444460,0 2px 12px #0001" : "0 1px 6px #0001,0 2px 12px #0001",
-                  border: urgent ? "1.5px solid #fca5a5" : "1.5px solid transparent",
-                  cursor: "pointer", display: "flex", gap: 16, alignItems: "center",
-                  transition: "transform 0.1s"
-                }}
-                onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)"; }}>
-                {/* サムネイル（最初の画像。親でまとめて取得したURLをpropsで渡す） */}
-                {(c.images?.length ?? 0) > 0 && (
-                  <CardThumbnail url={thumbnailUrls[c.id]} />
-                )}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
-                    <span style={{ fontWeight: 800, fontSize: 16, color: "#1a0a2e" }}>{c.title}</span>
-                    <StatusBadge status={c.status} />
-                    {urgent && <span style={{ fontSize: 11, color: "#ef4444", fontWeight: 700 }}>⚠ あと{days}日</span>}
-                    {(c.images?.length ?? 0) > 0 && <span style={{ fontSize: 11, color: "#7c3aed" }}>📷 {c.images!.length}枚</span>}
-                  </div>
-                  <div style={{ display: "flex", gap: 16, flexWrap: "wrap", fontSize: 13, color: "#555" }}>
-                    <span>🖌 {c.artist}{c.x_id && <span style={{ color: "#7c3aed", marginLeft: 4 }}>{c.x_id}</span>}</span>
-                    <span>📅 {fmtDate(c.ordered_at)}</span>
-                    <span>⏰ 納期: {fmtDate(c.deadline)}</span>
-                    {c.rough_date && <span>✏️ ラフ: {fmtDate(c.rough_date)}</span>}
-                  </div>
-                </div>
-                <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div style={{ fontWeight: 800, fontSize: 18, color: "#1a0a2e" }}>{fmtPrice(c.price, c.currency)}</div>
-                  {days !== null && c.status !== "done" && c.status !== "cancelled" && (
-                    <div style={{ fontSize: 11, color: days < 0 ? "#ef4444" : days <= 7 ? "#f59e0b" : "#aaa", marginTop: 2 }}>
-                      {days < 0 ? `${Math.abs(days)}日超過` : days === 0 ? "今日が納期" : `残${days}日`}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+        <div style={{ display: "grid", gap: 10 }}>
+          {filtered.map(c => (
+            <CommissionListCard
+              key={c.id}
+              title={c.title}
+              artist={c.artist}
+              xId={c.x_id}
+              status={c.status}
+              deadline={c.deadline}
+              price={c.price}
+              imageCount={c.images?.length ?? 0}
+              thumbnailUrl={thumbnailUrls[c.id]}
+              onClick={() => setDetailId(c.id)}
+            />
+          ))}
         </div>
       </main>
 
@@ -1594,7 +1407,13 @@ export default function CommissionApp() {
       <NotificationsModal
         open={showNotifications}
         onClose={() => setShowNotifications(false)}
-        onRead={() => fetchUnreadCount(user!.id)}
+        announcements={notifications.announcements}
+        releases={notifications.releases}
+        unreadAnnouncementIds={notifications.unreadAnnouncementIds}
+        hasUnreadRelease={notifications.hasUnreadRelease}
+        loading={notifications.loading}
+        onMarkAnnouncementRead={notifications.markAnnouncementRead}
+        onMarkReleasesRead={notifications.markReleasesRead}
       />
 
       {/* フッター */}

@@ -76,11 +76,20 @@ app/
 components/
 ├── CommissionApp.tsx           # メインアプリUI（一覧・フィルタ・ソート・カレンダー切替）
 ├── DemoApp.tsx                 # デモモード（Supabase不使用・メモリのみ）
+├── CommissionShared.tsx        # CommissionApp/DemoApp共通の定数・フォーマッタ・UI部品（STATUSES/IMAGE_TYPES/fmtDate/fmtShortDate/fmtPrice/daysUntil/Field/DateField/DateRangeField/StatusBadge/CommissionListCard）
+├── CommissionSearchBar.tsx     # CommissionApp/DemoApp共通の検索バー（ステータス・並び替え・開閉式の詳細検索パネル・合計金額表示）
 ├── PageViewTracker.tsx         # Google Analytics（GA4）のページビュー計測用
 ├── PushNotificationToggle.tsx  # プッシュ通知オン/オフトグル
-├── NotificationsModal.tsx      # お知らせ・リリースノート統合モーダル（ユーザー向け・✉️🔔共通）
+├── NotificationsModal.tsx      # お知らせ・リリースノート統合モーダル（表示専用。データはuseNotificationsフック経由でCommissionApp/DemoAppから受け取る）
 ├── ContactModal.tsx            # お問い合わせモーダル（メインアプリ・デモ・ログイン画面で共通利用）
 └── AdminNotificationsPage.tsx  # 管理者向けお知らせ・バージョン管理画面
+
+hooks/
+├── useNotifications.ts         # お知らせ・リリースノートの取得＋未読管理を集約した共有フック
+│                                # （ヘッダーの未読バッジ・NotificationsModal・DemoAppの3箇所が利用。
+│                                #   未ログイン(userId=null)でも内容の閲覧はでき、未読管理のみ無効化される）
+└── useCommissionSearch.ts      # 検索・フィルタ・並び替えのロジックを集約した共有フック
+                                 # （CommissionApp・DemoAppの両方が利用）
 
 docs/
 ├── sql/xxx.sql                 # DML、DDL
@@ -262,7 +271,9 @@ update user_profiles set is_admin = true where id = 'UUID';
 - ✅ 一覧カードにサムネイル表示（最初の1枚・Signed URLはまとめて1回で取得・詳細は後述の「パフォーマンス改善」参照）
 - ✅ 画像の拡大プレビュー・削除・ダウンロード（元画質保持・blob download）
 - ✅ プランごとの画像枚数制限
-- ✅ 依頼一覧の並び替え・フィルタ
+- ✅ 依頼一覧の並び替え・フィルタ（ステータスはプルダウン方式）
+- ✅ 開閉式の詳細検索パネル（キーワード・依頼日/納期のFrom-To日付範囲・金額範囲、既定は折りたたみ）
+- ✅ 検索結果の合計金額表示（チェックボックスで切替、既定は非表示）
 - ✅ 表示名設定
 - ✅ プッシュ通知（毎朝8時・納期7日以内）
 - ✅ Stripeサブスク（月額課金・解約・カスタマーポータル）
@@ -277,7 +288,7 @@ update user_profiles set is_admin = true where id = 'UUID';
 - ✅ 法的ページ（利用規約・プライバシー・特定商取引法）
 - ✅ Google AdSense（審査中）
 - ✅ お知らせ・リリースノート統合管理（DB管理・タブ切替・未読バッジ通知）
-- ✅ お知らせ・バージョン管理モーダル（ベルマーク押下でモーダル表示、既読管理）
+- ✅ お知らせ・バージョン管理モーダル（ベルマーク押下でモーダル表示、既読管理。アカウント作成日より前に公開されたお知らせは自動的に既読扱い）
 - ✅ 全モーダル固定サイズ統一・iOS Safari対応（背景スクロールロック）
 - ✅ ユーザーメニューのテキスト折り返し防止
 - ✅ Googleアカウントとの連携・解除（メール登録ユーザー向け、`linkIdentity`/`unlinkIdentity`）
@@ -392,6 +403,48 @@ PostgreSQLは外部キー列に自動でインデックスを作成しないた�
 `supabase db push`すること（このマイグレーションファイルを作成しただけでは
 DBには反映されない）。
 
+### 10. お知らせ関連クエリの一本化（`hooks/useNotifications.ts`）＋ アカウント作成日より前のお知らせの既読扱い
+
+以前は「ヘッダーの未読バッジ（`CommissionApp.fetchUnreadCount`）」と
+「お知らせモーダル（`NotificationsModal.fetchAll`）」がそれぞれ独自に
+announcements / user_notification_status / version_releases / user_settings を
+取得しており、実質同じデータを二重に取得していた（モーダルを開くたびに
+再取得が走り、開いてから表示されるまでの間が生じる原因にもなっていた）。
+
+**設計変更**：
+- 新設した `hooks/useNotifications.ts` にデータ取得・未読判定・既読化の
+  ロジックをすべて集約した。`CommissionApp`がこのフックを1回だけ呼び出し、
+  取得結果（`announcements` / `releases` / `unreadAnnouncementIds` /
+  `hasUnreadRelease` / `unreadCount`）と既読化関数（`markAnnouncementRead` /
+  `markReleasesRead`）をpropsとして`NotificationsModal`へ渡す。
+- `NotificationsModal`はsupabaseを直接呼ばない「制御されたコンポーネント」に
+  変更した。開いた時点で既にデータが手元にあるため、以前あった
+  「モーダルを開いてからのわずかな表示の間」も解消される。
+- お知らせを既読にする（`markAnnouncementRead`）・リリースノートを既読にする
+  （`markReleasesRead`）操作は共有フックのstateを直接更新するため、
+  モーダルを開いたままでもヘッダーの未読バッジがリアルタイムに減る
+  （以前の`onRead`コールバックによる再取得は不要になり削除した）。
+
+**新しい仕様：アカウント作成日より前の告知は既読扱い（お知らせ・リリースノート共通）**：
+- `announcements.published_at` が、そのユーザーの`user_profiles.created_at`
+  （アカウント作成日時）より**前**のお知らせは、そのユーザーにとっては
+  登録前のサービス側の告知であり新着とは言えないため、
+  `user_notification_status`に既読レコードが無くても未読カウント・
+  一覧の未読マーク（赤い丸）の対象から自動的に除外し、既読として扱う。
+- `version_releases`側も同様の考え方を適用した。リリースノートは元々
+  「最新の1件が既読かどうか」のみを`user_settings.last_seen_release_id`で
+  管理する設計のため、**最新リリースの`released_at`がアカウント作成日より前**
+  であれば、`last_seen_release_id`の値に関わらず常に既読（未読バッジなし）
+  として扱う。新規登録後に新しいバージョンがリリースされれば、通常通り
+  未読バッジが立つ。
+- いずれの判定もクライアント側で`useNotifications`が`accountCreatedAt`
+  （`profile.created_at`）と比較して行う導出値であり、DBへの書き込みは
+  発生しない（DBに保存する必要のないステータスのため）。一覧上には
+  引き続き表示されるが、未読の赤丸・バッジは付かない。
+
+このため、新規登録直後のユーザーは（管理者が過去に投稿した古いお知らせや
+過去のバージョンのリリースノートで）不要に未読バッジが立つことがなくなる。
+
 ---
 
 ## TODO / 今後の対応予定
@@ -422,6 +475,141 @@ flexDirection: column
 - **ボタンエリア**（`flexShrink: 0` で固定）
 
 オーバーレイには `overscrollBehavior: contain` + `touchAction: none` を設定し、iOS Safariで背景がスクロールする問題を防止。
+
+---
+
+## 検索条件パネルの設計方針（依頼一覧）
+
+`CommissionApp.tsx`の依頼一覧は、ステータス・並び替えに加えて
+キーワード・日付範囲・金額範囲による詳細検索に対応している。
+検索条件を並べすぎるとUXが低下するため、以下の方針を採用している。
+
+- **常時表示するのは最小限**：ステータス（プルダウン）・並び替え・「🔍 詳細検索」の
+  開閉ボタンのみを常時表示する。
+- **詳細な検索条件は開閉式パネルに格納**：キーワード検索、依頼日/納期のFrom-To日付範囲、
+  金額の範囲、「検索結果の合計金額を表示する」チェックボックスは、`showFilters`が
+  `true`の時だけレンダリングする折りたたみパネルに入れる。既定値は`false`（閉）。
+- **閉じていても状態が分かるようにする**：詳細検索パネルを閉じていても、
+  何らかの条件（キーワード・日付範囲・金額範囲のいずれか）が入力されていれば、
+  開閉ボタンに件数バッジ（`activeFilterCount`）を表示し、ユーザーが
+  「検索条件が効いていることに気づかない」状態を防ぐ。
+- **合計金額はデフォルト非表示**：「検索結果の合計金額を表示する」チェックボックスは
+  既定でオフ。オンにすると、現在の検索条件（`filtered`）に一致する依頼の金額合計を
+  一覧の上部に表示する（`showTotalPrice`とは独立して`filtered`自体は常に計算されるため、
+  チェックのオン/オフ自体はフィルタリング結果に影響しない、あくまで表示のオプション）。
+- **日付・金額のレンジ検索の未設定値の扱い**：`inDateRange` / `inPriceRange`
+  ヘルパーは、from/toどちらも未入力なら無条件で通過させ、片方のみ入力されている
+  場合はその条件だけで判定する。ただし対象となる依頼側の日付・金額が
+  そもそも未設定（`undefined`）の場合は、レンジ検索の対象外として除外する
+  （「金額を絞り込んでいるのに金額未設定の依頼が紛れ込む」ことを防ぐため）。
+- 新しく検索条件を追加する場合も、常時表示のUIには足さず、この開閉パネルに追加すること。
+
+---
+
+## CommissionApp / DemoApp の共通化（2026年9月実施）
+
+`CommissionApp.tsx`（本番）と`DemoApp.tsx`（ログイン不要のデモ）は、
+UI構造がほぼ同じであるにも関わらずコードが別々にコピーされており、
+検索UX改善のように片方だけ機能追加すると、もう片方には反映されず
+表示のズレ・型不整合によるビルドエラーが発生する状態だった
+（実際に、`NotificationsModal`のprops仕様変更がDemoApp側に反映されておらず
+ビルドエラーになっていた）。これを受けて、以下の範囲で共通化した。
+
+### 共通化した範囲
+1. **定数・フォーマッタ・見た目のUI部品**（`components/CommissionShared.tsx`）：
+   `STATUSES`・`IMAGE_TYPES`・`fmtDate`・`fmtPrice`・`daysUntil`・
+   `inp`/`inp_date`（入力欄のスタイル）・`Field`・`DateField`・
+   `DateRangeField`・`StatusBadge`。CommissionApp・DemoAppどちらも
+   ここからimportし、それぞれで再定義しない。
+   - `CommissionStatus`・`ImageType`型も、DemoApp側でのローカル再定義をやめ、
+     `@/lib/supabase`からimportする形に統一した。
+   - `fmtPrice`の表示形式がCommissionApp（`"12,000 円"`）とDemoApp
+     （`"¥12,000"`）で微妙に異なっていたため、共通化にあたり
+     CommissionApp側の形式（本番の表示）に統一した。
+2. **検索・フィルタ・並び替えのロジック**（`hooks/useCommissionSearch.ts`）：
+   ステータス・キーワード・依頼日/納期のFrom-To日付範囲・金額範囲・
+   合計金額表示チェックボックス等のstateと、それに基づく`filtered`配列・
+   `totalPrice`・`activeFilterCount`の算出ロジックを1つのフックに集約した。
+   対象データの型が`Commission`（本番）と`DemoCommission`（デモ）で
+   完全に同一ではないため、検索に使うフィールド（title/artist/x_id/
+   ordered_at/deadline/price/status/notes）だけを満たす`SearchableCommission`
+   という最小限の型を要求するジェネリック関数にしている。
+3. **検索バーのUI**（`components/CommissionSearchBar.tsx`）：
+   ステータスのプルダウン・並び替え・詳細検索の開閉ボタン・開閉式パネル・
+   合計金額表示行をまとめたコンポーネント。`useCommissionSearch()`の
+   戻り値をそのまま`<CommissionSearchBar search={search} />`として渡すだけで、
+   CommissionApp・DemoAppどちらでも同じ見た目・挙動になる。
+
+### 意図的に共通化しなかった範囲
+- **画像アップロード・プラン制限**：CommissionAppはSupabase Storageへの
+  実アップロード・署名付きURL・課金プランに応じた枚数制限を扱うのに対し、
+  DemoAppは`URL.createObjectURL`によるメモリ上の疑似画像・固定の
+  `DEMO_MAX_IMAGES`枚数制限であり、実装の意味が本質的に異なるため、
+  無理に共通化していない。
+- **認証・データ永続化まわり全般**（Supabase呼び出し・フォーム送信処理など）。
+
+### `NotificationsModal`のprops不足によるビルドエラーの修正
+`useNotifications`フックが`userId`に加えて`accountCreatedAt`を要求する形に
+変更されていたが、DemoApp側は未ログインであるため`user`も`profile`も
+存在せず、`NotificationsModal`に必要なprops（`announcements`・`releases`・
+`unreadAnnouncementIds`・`hasUnreadRelease`・`loading`・
+`onMarkAnnouncementRead`・`onMarkReleasesRead`）を渡せずビルドエラーに
+なっていた。これに対し、`useNotifications`を次のように拡張して解消した。
+
+- `userId`が`null`（未ログイン）の場合でも、announcements・
+  version_releasesの**本体**はRLS上どのロールからでも閲覧できるため、
+  そのまま取得して返す（読み取り専用ブラウジング）。
+- 既読状態（`user_notification_status`・`user_settings`）は個人に
+  紐づく情報のため、`userId`がある時だけ取得する。
+- `userId`が`null`の間は、`unreadAnnouncementIds`は常に空集合、
+  `hasUnreadRelease`は常に`false`を返す（＝未読バッジは一切出さない）。
+  `markAnnouncementRead`・`markReleasesRead`も内部で`userId`の有無を
+  チェックしており、未ログイン時は何もしない（no-op）。
+
+これにより、`DemoApp`は`useNotifications(null, null)`を呼ぶだけで
+`CommissionApp`と全く同じ`NotificationsModal`を、未読管理なしの
+読み取り専用モードで利用できる。
+
+---
+
+## 依頼一覧カードのコンパクト化（2026年9月実施）
+
+スマホ実機で確認したところ、画像付きの依頼カードが縦にとても長くなり、
+「何がどの項目か分かりにくい」との指摘があった。原因は、ステータス・
+⚠警告・画像枚数をヘッダー行に、絵師名・依頼日・納期・ラフ日を
+`flexWrap`のメタ情報行にそれぞれ詰め込んでおり、スマホの狭い画面幅では
+折り返しが多発して1件あたり縦に何行にもなってしまっていたこと。
+
+これを受けて、`components/CommissionShared.tsx`に共通の
+`CommissionListCard`コンポーネントを新設し、CommissionApp・DemoAppの
+一覧カードをそれに置き換えた（`CardThumbnail`は廃止しこの中に統合）。
+
+### 変更点
+- **画像枚数はサムネイルに重ねるバッジに**：「📷 N枚」という独立した
+  テキストをやめ、サムネイル画像の右下に小さな丸バッジ（`📷N`）として
+  重ねて表示する。ヘッダー行のテキスト量が減り、視覚的にも
+  「どの画像の枚数か」が一目で分かる。
+- **「⚠ あと0日」を削除**：カード右側に既にある納期カウントダウン
+  （残N日／本日納期／N日超過）と意味が重複していたため削除し、
+  情報を一本化した。
+- **依頼日・ラフ提出日は一覧から省略**：一覧で必要なのは
+  「今どのステータスで、納期はいつか」が中心という判断で、
+  依頼日・ラフ提出日は詳細モーダル側でのみ表示するようにした。
+- **絵師名＋納期を1行に固定**：2行目を「🖌 絵師名 ・ 納期 MM/DD」の
+  1行だけにし、`flexWrap`をやめてflexboxの`flex`/`minWidth:0`+
+  `text-overflow: ellipsis`で折り返しを起こさない構成にした。
+  絵師名側は長い場合に省略記号（…）で切り詰め、より重要な納期は
+  常に末尾に固定表示され省略されないようにしている。
+- **一覧の日付は月日のみ（`fmtShortDate`）**：年込みの完全な日付
+  （`fmtDate`）は詳細モーダルにのみ残し、一覧では`MM/DD`表記にして
+  横幅を圧縮した。
+- サムネイルサイズを72px→56pxに、カードのpaddingも縮小し、
+  カード自体の高さも抑えている。
+
+この結果、画像の有無に関わらずカードの高さがほぼ一定（2行構成）になり、
+一覧で多くの依頼を見渡しやすくなった。今後この一覧カードの見た目を
+変更する場合は、`CommissionApp.tsx`/`DemoApp.tsx`ではなく
+`components/CommissionShared.tsx`の`CommissionListCard`を編集すること。
 
 ---
 
@@ -466,6 +654,17 @@ flexDirection: column
   必ず適用すること。既存の`create table`文にはインデックス定義が無いため、
   新しいテーブル・外部キー列を追加する際は、この教訓を踏まえてインデックスも
   併せて検討すること（PostgreSQLは外部キーに自動でインデックスを張らない）。
+- お知らせ・リリースノートの取得と未読判定は`hooks/useNotifications.ts`に集約している。
+  ヘッダーの未読バッジと`NotificationsModal`はいずれもこのフックの戻り値を参照するだけで、
+  それぞれが独自にsupabaseへクエリすることは無い。お知らせ関連の挙動を変更する場合は
+  このフックを修正すること（`NotificationsModal`側にクエリを書き足さない）。
+- お知らせ・リリースノートはいずれも、公開日（`published_at`／`released_at`）が
+  本人のアカウント作成日（`user_profiles.created_at`）より前の場合、
+  既読レコードが無くても常に既読扱いになる（`useNotifications`内で
+  クライアント側の導出値として判定しており、DBへの書き込みは発生しない）。
+  一覧上には引き続き表示されるが未読の赤丸・バッジは付かない。
+  リリースノートは「最新の1件が既読かどうか」のみを管理する既存設計を踏襲し、
+  最新リリースの`released_at`のみで判定する（過去の個々のバージョンごとには判定しない）。
 - パスワード設定・変更、直近ログインプロバイダー判定はSupabaseの`user.identities`を利用しており、テーブル追加・マイグレーションは不要
 - 直近ログインプロバイダーは `user_profiles.last_login_provider` をDBの正としつつ、
   未認証のログイン画面向けにはHttpOnly Cookie（`ct_last_login_provider`）経由でのみ提供する。
