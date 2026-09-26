@@ -66,6 +66,7 @@ app/
 │   │   └── portal/route.ts    # Stripeカスタマーポータル
 │   ├── push/
 │   │   └── subscribe/route.ts  # プッシュ通知購読登録・解除
+│   ├── pwa-prompt/route.ts     # PWA追加案内の状態取得・Cookie更新
 │   ├── cron/
 │   │   └── deadline-notify/route.ts # 毎朝8時（UTC23時）の納期通知Cron
 │   ├── admin/
@@ -305,12 +306,13 @@ update user_profiles set is_admin = true where id = 'UUID';
 `CommissionApp.tsx`から`next/dynamic`（`{ ssr: false }`）で読み込み、案内バナーのコードを
 メイン画面の初期バンドルから分離している。
 
-- 初回訪問では表示せず、2回目以降の訪問で表示候補にする。訪問回数はセッション中に1回だけ加算する。
+- 初回訪問では表示せず、2回目以降の訪問で表示候補にする。訪問回数は同じタブセッション中に1回だけ加算する。
 - iOSでは3秒後にSafariの共有メニューから「ホーム画面に追加」する手順を表示する。iOSではブラウザーAPIから直接インストールできないため、操作ボタンは表示しない。
 - Androidでは`beforeinstallprompt`イベントを保持し、イベント受信後1.5秒でバナーを表示する。「追加する」からネイティブのインストール確認を開く。
-- 「あとで」を押した場合は14日間再表示せず、3回目の「あとで」以降は再表示しない。状態は`localStorage`に保存する。
+- 「あとで」を押した場合は14日間再表示せず、3回目の「あとで」以降は再表示しない。
 - `display-mode: standalone`またはiOSのstandalone状態を検出した場合は表示しない。`appinstalled`イベント、またはAndroidでインストールを承認した場合も以後表示しない。
-- 表示履歴はブラウザーごとのローカル状態であり、別端末・別ブラウザーとは共有されない。
+- 表示状態（訪問回数・「あとで」の回数と日時・再表示停止フラグ）は`GET /api/pwa-prompt`で取得し、`POST /api/pwa-prompt`の`visit` / `dismiss` / `installed`アクションで更新する。APIは`ct_pwa_prompt` Cookie（有効期間1年、`HttpOnly`・`Secure`・`SameSite=Lax`、`Path=/`）に保存し、アカウントやDBには紐付けない。
+- ブラウザーのCookie単位で保持されるため、同じブラウザーではタブセッションをまたいで訪問回数・表示抑制状態を引き継ぐ。別ブラウザーや別端末とは共有されない。
 
 表示条件や頻度を変更する場合は`hooks/useInstallPrompt.ts`、バナーの文言や見た目を変更する場合は
 `components/InstallPromptBanner.tsx`を編集する。READMEの機能一覧とiOSプッシュ通知の注意事項も
