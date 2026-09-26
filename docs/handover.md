@@ -70,7 +70,8 @@ app/
 │   ├── cron/
 │   │   └── deadline-notify/route.ts # 毎朝8時（UTC23時）の納期通知Cron
 │   ├── admin/
-│   │   └── delete-user/route.ts    # 管理者によるユーザー削除
+│   │   ├── delete-user/route.ts    # 管理者によるユーザー削除
+│   │   └── notify-push/route.ts    # 管理者によるお知らせ・リリースのプッシュ通知
 │   ├── request-delete/route.ts     # ユーザーのアカウント削除申請
 │   └── contact/route.ts            # お問い合わせメール送信
 
@@ -225,6 +226,19 @@ standard・premiumを複数選択でき、ユーザー指定ではユーザー�
 ```text
 supabase/migrations/20260927000000_V1.2.0_announcements_targeting.sql
 ```
+
+### お知らせ・リリースのプッシュ通知
+
+管理画面（`components/AdminNotificationsPage.tsx`）でお知らせまたはバージョン情報を
+新規作成した後、`POST /api/admin/notify-push`を呼び出してWeb Pushを送信する。
+既存データの編集では通知しない。
+
+- 新規お知らせ：フォームで選択した配信対象を通知にも適用する。個別ユーザー指定がある場合はそのユーザー、プラン指定がある場合は現在の`user_profiles.plan`が該当するユーザー、どちらも指定されていない場合は全ユーザーの購読先が対象。通知タイトルは`📢 {お知らせタイトル}`、本文はお知らせ本文の先頭100文字（100文字を超える場合は末尾に`…`を付加）。
+- 新規バージョン情報：全ユーザーの購読先が対象。通知タイトルは「新しいバージョンがリリースされました」、本文は`v{version}: {title}`。
+- APIはBearerトークンをSupabase Authで検証し、`user_profiles.is_admin`を確認してからService Roleで購読者を取得する。クライアントから任意に呼べるAPIなので、認証・管理者確認を外さないこと。
+- 送信には既存のVAPID環境変数（`VAPID_EMAIL`、`NEXT_PUBLIC_VAPID_PUBLIC_KEY`、`VAPID_PRIVATE_KEY`）と`NEXT_PUBLIC_APP_URL`を使用する。通知クリック時の遷移先はアプリURL。
+- 購読先ごとに送信し、無効な購読（HTTP 410）は`push_subscriptions`から削除する。APIは送信成功数・失敗数を返すが、管理画面側では結果を表示せず、通知送信の失敗でお知らせ／リリースの保存を失敗扱いにはしない（ベストエフォート）。
+- 実装先は`app/api/admin/notify-push/route.ts`。通知内容・対象・送信タイミングを変更する場合は、管理画面の新規保存処理とAPIの両方を確認する。
 
 ### `user_notification_status`
 お知らせの既読管理。ユーザーが開いた時に is_read=true に更新。

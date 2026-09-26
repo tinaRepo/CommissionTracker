@@ -201,6 +201,13 @@ export default function AdminNotificationsPage() {
       await supabase.from("announcements").update(payload).eq("id", aEditId);
     } else {
       await supabase.from("announcements").insert(payload);
+      // 新規作成時のみプッシュ通知を送信
+      sendPushNotification({
+        title: `📢 ${payload.title}`,
+        body: payload.content.length > 100 ? payload.content.slice(0, 100) + "…" : payload.content,
+        targetPlans: (payload as any).target_plans ?? null,
+        targetUserIds: (payload as any).target_user_ids ?? null,
+      });
     }
     setASaving(false);
     setShowAForm(false);
@@ -257,12 +264,35 @@ export default function AdminNotificationsPage() {
           validItems.map((item, idx) => ({ release_id: data.id, category: item.category, content: item.content, sort_order: idx }))
         );
       }
+      // 新規リリースのみプッシュ通知を送信（全ユーザー対象）
+      sendPushNotification({
+        title: `🚀 新しいバージョンがリリースされました`,
+        body: `v${rForm.version}: ${rForm.title}`,
+      });
     }
+
 
     setRSaving(false);
     setShowRForm(false);
     setREditId(null);
     fetchReleases();
+  }
+
+  async function sendPushNotification(payload: {
+    title: string; body: string;
+    targetPlans?: string[] | null; targetUserIds?: string[] | null;
+  }) {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token ?? "";
+      await fetch("/api/admin/notify-push", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      // プッシュ通知の送信失敗はお知らせ自体の保存を妨げない
+    }
   }
 
   async function deleteRelease(id: string) {
