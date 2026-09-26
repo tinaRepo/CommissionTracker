@@ -710,7 +710,9 @@ function ActionBtn({ label, onClick, danger }: { label: string; onClick: () => v
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#555", marginBottom: 6 }}>{label}</label>
+      <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#555", marginBottom: 6 }}>
+        {label.endsWith(" *") ? <>{label.slice(0, -2)} <span style={{ color: "#ef4444" }}>*</span></> : label}
+      </label>
       {children}
     </div>
   );

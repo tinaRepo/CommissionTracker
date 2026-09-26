@@ -78,7 +78,9 @@ export const inp_date: React.CSSProperties = {
 export function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#555", marginBottom: 6, letterSpacing: "0.04em" }}>{label}</label>
+      <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#555", marginBottom: 6, letterSpacing: "0.04em" }}>
+        {label.endsWith(" *") ? <>{label.slice(0, -2)} <span style={{ color: "#ef4444" }}>*</span></> : label}
+      </label>
       {children}
     </div>
   );

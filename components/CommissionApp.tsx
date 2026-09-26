@@ -1259,10 +1259,10 @@ export default function CommissionApp() {
               <div style={{ display: "grid", gap: 16, paddingBottom: 8 }}>
                 <Field label="件名 *"><input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="例: アイコン用イラスト" style={inp} /></Field>
                 <Field label="絵師名 *"><input value={form.artist} onChange={e => setForm({ ...form, artist: e.target.value })} placeholder="例: 花咲りん" style={inp} /></Field>
-                <Field label="X ID（任意）"><input value={form.x_id} onChange={e => setForm({ ...form, x_id: e.target.value })} placeholder="例: @artist_name" style={inp} /></Field>
+                <Field label="X ID"><input value={form.x_id} onChange={e => setForm({ ...form, x_id: e.target.value })} placeholder="例: @artist_name" style={inp} /></Field>
                 <DateField label="依頼日" value={form.ordered_at} onChange={v => setForm({ ...form, ordered_at: v })} />
                 <DateField label="納期" value={form.deadline} onChange={v => setForm({ ...form, deadline: v })} />
-                <DateField label="ラフ提出日（任意）" value={form.rough_date} onChange={v => setForm({ ...form, rough_date: v })} />
+                <DateField label="ラフ提出日" value={form.rough_date} onChange={v => setForm({ ...form, rough_date: v })} />
                 <Field label="金額（円）">
                   <input
                     type="text"
@@ -1290,7 +1290,7 @@ export default function CommissionApp() {
                     {STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
                   </select>
                 </Field>
-                <Field label="メモ（任意）">
+                <Field label="メモ">
                   <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
                     placeholder="色味の指定や注意点など" style={{ ...inp, minHeight: 70, resize: "vertical" }} />
                 </Field>
@@ -1303,7 +1303,7 @@ export default function CommissionApp() {
                   const totalAfter = currentTotal + pendingCount;
                   const atLimit = limit !== null && totalAfter >= limit;
                   return (
-                    <Field label="画像（任意・登録後にも追加できます）">
+                    <Field label="画像（登録後にも追加できます）">
                       {/* 仮追加済み画像プレビュー */}
                       {pendingImages.length > 0 && (
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(80px,1fr))", gap: 8, marginBottom: 10 }}>
