@@ -197,17 +197,34 @@ CRON_SECRET=                        # Cron Job認証用シークレット
 | created_at | timestamptz | 作成日時             |
 
 ### `announcements`
-ユーザー向けお知らせ。管理者のみ書き込み可、全ユーザー読み取り可。
+ユーザー向けお知らせ。管理者のみ書き込み可。読み取りは全員配信または配信対象に該当するユーザーに限定する（RLSで制御）。
 
-| カラム       | 型          | 説明                                              |
-| ------------ | ----------- | ------------------------------------------------- |
-| id           | uuid        | PK                                                |
-| title        | text        | タイトル                                          |
-| content      | text        | 本文                                              |
-| type         | text        | お知らせ / メンテナンス / 障害情報 / キャンペーン |
-| published_at | timestamptz | 公開日時                                          |
-| created_at   | timestamptz | 作成日時                                          |
-| updated_at   | timestamptz | 更新日時                                          |
+| カラム          | 型          | 説明                                              |
+| --------------- | ----------- | ------------------------------------------------- |
+| id              | uuid        | PK                                                |
+| title           | text        | タイトル                                          |
+| content         | text        | 本文                                              |
+| type            | text        | お知らせ / メンテナンス / 障害情報 / キャンペーン |
+| published_at    | timestamptz | 公開日時                                          |
+| target_plans    | text[]      | 配信対象プラン。NULLはプラン指定なし              |
+| target_user_ids | uuid[]      | 配信対象ユーザーID。NULLはユーザー指定なし        |
+| created_at      | timestamptz | 作成日時                                          |
+| updated_at      | timestamptz | 更新日時                                          |
+
+管理画面（`components/AdminNotificationsPage.tsx`）のお知らせ登録・編集フォームでは、
+配信対象を「全員」「プラン指定」「ユーザー指定」から選択する。プラン指定ではfree・
+standard・premiumを複数選択でき、ユーザー指定ではユーザーを複数選択できる。
+管理一覧には、対象が限定されている場合に「プラン限定」または「N名限定」バッジを表示する。
+
+配信時の絞り込みはクライアントでなく`announcements_select_targeted` RLSポリシーで行う。
+管理者はすべてのお知らせを確認でき、一般ユーザーは全員対象のお知らせ、契約プランが
+`target_plans`に含まれるお知らせ、または自身のIDが`target_user_ids`に含まれるお知らせを
+読み取れる。配信対象を変更する場合は、次のマイグレーションを検証DBで確認してから
+本番DBへ適用する。
+
+```text
+supabase/migrations/20260927000000_V1.2.0_announcements_targeting.sql
+```
 
 ### `user_notification_status`
 お知らせの既読管理。ユーザーが開いた時に is_read=true に更新。

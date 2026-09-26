@@ -13,6 +13,8 @@ export type Announcement = {
   content: string;
   type: AnnouncementType;
   published_at: string;
+  target_plans?: string[] | null;
+  target_user_ids?: string[] | null;
 };
 
 export type VersionReleaseItem = {
