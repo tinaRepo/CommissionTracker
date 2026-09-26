@@ -80,6 +80,7 @@ components/
 ├── CommissionSearchBar.tsx     # CommissionApp/DemoApp共通の検索バー（ステータス・並び替え・開閉式の詳細検索パネル・合計金額表示）
 ├── PageViewTracker.tsx         # Google Analytics（GA4）のページビュー計測用
 ├── PushNotificationToggle.tsx  # プッシュ通知オン/オフトグル
+├── InstallPromptBanner.tsx     # PWAホーム画面追加の案内バナー（CommissionAppで遅延読み込み）
 ├── NotificationsModal.tsx      # お知らせ・リリースノート統合モーダル（表示専用。データはuseNotificationsフック経由でCommissionApp/DemoAppから受け取る）
 ├── ContactModal.tsx            # お問い合わせモーダル（メインアプリ・デモ・ログイン画面で共通利用）
 └── AdminNotificationsPage.tsx  # 管理者向けお知らせ・バージョン管理画面
@@ -88,8 +89,9 @@ hooks/
 ├── useNotifications.ts         # お知らせ・リリースノートの取得＋未読管理を集約した共有フック
 │                                # （ヘッダーの未読バッジ・NotificationsModal・DemoAppの3箇所が利用。
 │                                #   未ログイン(userId=null)でも内容の閲覧はでき、未読管理のみ無効化される）
-└── useCommissionSearch.ts      # 検索・フィルタ・並び替えのロジックを集約した共有フック
+├── useCommissionSearch.ts      # 検索・フィルタ・並び替えのロジックを集約した共有フック
                                  # （CommissionApp・DemoAppの両方が利用）
+└── useInstallPrompt.ts         # PWA追加案内の端末判定・表示頻度・インストール操作を管理
 
 docs/
 ├── sql/xxx.sql                 # DML、DDL
@@ -293,6 +295,26 @@ update user_profiles set is_admin = true where id = 'UUID';
 - ✅ ユーザーメニューのテキスト折り返し防止
 - ✅ Googleアカウントとの連携・解除（メール登録ユーザー向け、`linkIdentity`/`unlinkIdentity`）
 - ✅ 連携解除時・ログアウト時、パスワード未設定かつGoogle未連携の場合の警告表示
+
+---
+
+## PWAホーム画面追加バナー
+
+`CommissionApp`のメイン画面に`components/InstallPromptBanner.tsx`を配置し、
+`hooks/useInstallPrompt.ts`で表示条件と端末別のインストール案内を管理している。
+`CommissionApp.tsx`から`next/dynamic`（`{ ssr: false }`）で読み込み、案内バナーのコードを
+メイン画面の初期バンドルから分離している。
+
+- 初回訪問では表示せず、2回目以降の訪問で表示候補にする。訪問回数はセッション中に1回だけ加算する。
+- iOSでは3秒後にSafariの共有メニューから「ホーム画面に追加」する手順を表示する。iOSではブラウザーAPIから直接インストールできないため、操作ボタンは表示しない。
+- Androidでは`beforeinstallprompt`イベントを保持し、イベント受信後1.5秒でバナーを表示する。「追加する」からネイティブのインストール確認を開く。
+- 「あとで」を押した場合は14日間再表示せず、3回目の「あとで」以降は再表示しない。状態は`localStorage`に保存する。
+- `display-mode: standalone`またはiOSのstandalone状態を検出した場合は表示しない。`appinstalled`イベント、またはAndroidでインストールを承認した場合も以後表示しない。
+- 表示履歴はブラウザーごとのローカル状態であり、別端末・別ブラウザーとは共有されない。
+
+表示条件や頻度を変更する場合は`hooks/useInstallPrompt.ts`、バナーの文言や見た目を変更する場合は
+`components/InstallPromptBanner.tsx`を編集する。READMEの機能一覧とiOSプッシュ通知の注意事項も
+あわせて整合させること。
 
 ---
 

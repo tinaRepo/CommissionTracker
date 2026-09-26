@@ -26,6 +26,7 @@ import { CommissionSearchBar } from "./CommissionSearchBar";
 import PushNotificationToggle from "./PushNotificationToggle";
 const NotificationsModal = dynamic(() => import("./NotificationsModal"), { ssr: false });
 const ContactModal = dynamic(() => import("./ContactModal"), { ssr: false });
+const InstallPromptBanner = dynamic(() => import("./InstallPromptBanner"), { ssr: false });
 
 // --- 画像アップロード前のプラン制限チェック ---
 type FormValues = {
@@ -1415,6 +1416,9 @@ export default function CommissionApp() {
         onMarkAnnouncementRead={notifications.markAnnouncementRead}
         onMarkReleasesRead={notifications.markReleasesRead}
       />
+
+      {/* ホーム画面追加バナー */}
+      <InstallPromptBanner />
 
       {/* フッター */}
       <footer style={{ borderTop: "1px solid #e5e7eb", padding: "24px 32px", textAlign: "center" }}>
