@@ -20,14 +20,20 @@ export default function AdminPage() {
   const [toast, setToast] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null); // 削除確認対象のuserId
   const [deleting, setDeleting] = useState(false);
+  const [maintenanceEnabled, setMaintenanceEnabled] = useState(false);
+  const [maintenanceMessage, setMaintenanceMessage] = useState("");
+  const [maintenanceLoading, setMaintenanceLoading] = useState(true);
+  const [maintenanceSaving, setMaintenanceSaving] = useState(false);
 
   // メールアドレスをauth.usersから取得する（管理者のみ可能）
   const [emails, setEmails] = useState<Record<string, string>>({});
 
+  // 管理者かどうかをチェックし、管理者であればユーザー一覧とメンテナンス設定を読み込む
   useEffect(() => {
     checkAdminAndLoad();
   }, []);
 
+  // 管理者かどうかをチェックし、管理者であればユーザー一覧とメンテナンス設定を読み込む
   async function checkAdminAndLoad() {
     // まずログインチェック
     const { data: { user } } = await supabase.auth.getUser();
@@ -41,9 +47,53 @@ export default function AdminPage() {
       window.location.href = "/";
       return;
     }
+    await loadMaintenanceSettings();
     await loadUsers();
   }
 
+  // メンテナンス設定を読み込む
+  async function loadMaintenanceSettings() {
+    setMaintenanceLoading(true);
+    const { data, error } = await supabase
+      .from("app_settings")
+      .select("maintenance_enabled, maintenance_message")
+      .eq("setting_key", "maintenance")
+      .maybeSingle();
+    if (error || !data) {
+      setError("メンテナンス設定を読み込めませんでした。DBマイグレーションの適用状況を確認してください。");
+    } else {
+      setMaintenanceEnabled(data.maintenance_enabled);
+      setMaintenanceMessage(data.maintenance_message ?? "");
+    }
+    setMaintenanceLoading(false);
+  }
+
+  // メンテナンス設定を保存する
+  async function saveMaintenanceSettings(enabled: boolean) {
+    setMaintenanceSaving(true);
+    setError(null);
+    const { data, error } = await supabase
+      .from("app_settings")
+      .update({
+        maintenance_enabled: enabled,
+        maintenance_message: maintenanceMessage.trim() || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("setting_key", "maintenance")
+      .select("maintenance_enabled, maintenance_message")
+      .maybeSingle();
+
+    if (error || !data) {
+      setError(error?.message ?? "メンテナンス設定を保存できませんでした");
+    } else {
+      setMaintenanceEnabled(data.maintenance_enabled);
+      setMaintenanceMessage(data.maintenance_message ?? "");
+      showToast(data.maintenance_enabled ? "メンテナンスを開始しました" : "メンテナンスを終了しました");
+    }
+    setMaintenanceSaving(false);
+  }
+
+  // ユーザー一覧を読み込む
   async function loadUsers() {
     setLoading(true);
     try {
@@ -56,6 +106,7 @@ export default function AdminPage() {
     }
   }
 
+  // ユーザーのプランを変更する
   async function handlePlanChange(userId: string, newPlan: Plan) {
     setUpdating(userId);
     try {
@@ -69,11 +120,13 @@ export default function AdminPage() {
     }
   }
 
+  // トースト表示
   function showToast(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(null), 2500);
   }
 
+  // ユーザーを削除する
   async function handleDeleteUser(userId: string) {
     setDeleting(true);
     try {
@@ -88,6 +141,7 @@ export default function AdminPage() {
     }
   }
 
+  // 検索・フィルタリング
   const filtered = users.filter(u => {
     const matchPlan = filterPlan === "all" || u.plan === filterPlan;
     const searchLower = search.toLowerCase();
@@ -97,6 +151,7 @@ export default function AdminPage() {
     return matchPlan && matchSearch;
   });
 
+  // プランごとのユーザー数を集計する
   const planCounts = PLANS.reduce((acc, p) => {
     acc[p] = users.filter(u => u.plan === p).length;
     return acc;
@@ -145,6 +200,54 @@ export default function AdminPage() {
       </header>
 
       <main style={{ padding: "16px", maxWidth: 640, margin: "0 auto" }}>
+
+        {/* メンテナンス設定 */}
+        <section style={{ background: "#fff", border: `1.5px solid ${maintenanceEnabled ? "#fca5a5" : "#e5e7eb"}`, borderRadius: 14, padding: 16, marginBottom: 18, boxShadow: "0 1px 6px #0001" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 8 }}>
+            <div>
+              <h2 style={{ margin: 0, color: "#1a0a2e", fontSize: 15, fontWeight: 800 }}>メンテナンスモード</h2>
+              <div style={{ marginTop: 4, color: maintenanceEnabled ? "#b91c1c" : "#0f766e", fontSize: 12, fontWeight: 700 }}>
+                {maintenanceLoading ? "設定を読み込み中…" : maintenanceEnabled ? "有効: 利用者のアクセスを停止中" : "無効: 通常公開中"}
+              </div>
+            </div>
+            <button
+              type="button"
+              disabled={maintenanceLoading || maintenanceSaving}
+              onClick={() => saveMaintenanceSettings(!maintenanceEnabled)}
+              style={{
+                flexShrink: 0, minWidth: 112, padding: "9px 12px", border: 0, borderRadius: 9,
+                background: maintenanceEnabled ? "#0f766e" : "#b91c1c", color: "#fff",
+                fontSize: 12, fontWeight: 800, cursor: maintenanceLoading || maintenanceSaving ? "wait" : "pointer",
+                opacity: maintenanceLoading || maintenanceSaving ? 0.65 : 1,
+              }}
+            >
+              {maintenanceSaving ? "保存中…" : maintenanceEnabled ? "メンテ終了" : "開始する"}
+            </button>
+          </div>
+          <p style={{ margin: "0 0 10px", color: "#777", fontSize: 12, lineHeight: 1.6 }}>
+            有効にすると管理者以外にはメンテナンス画面を表示します。管理者は引き続き管理画面を操作できます。
+          </p>
+          <textarea
+            value={maintenanceMessage}
+            onChange={e => setMaintenanceMessage(e.target.value)}
+            maxLength={500}
+            placeholder="利用者向けのお知らせ（任意）"
+            rows={3}
+            disabled={maintenanceLoading || maintenanceSaving}
+            style={{ width: "100%", resize: "vertical", padding: "9px 11px", border: "1px solid #d1d5db", borderRadius: 9, fontSize: 14, lineHeight: 1.6, boxSizing: "border-box" }}
+          />
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginTop: 6 }}>
+            <span style={{ color: "#999", fontSize: 11 }}>{maintenanceMessage.length}/500</span>
+            <button
+              type="button"
+              disabled={maintenanceLoading || maintenanceSaving}
+              onClick={() => saveMaintenanceSettings(maintenanceEnabled)}
+              style={{ padding: "7px 12px", border: "1px solid #d1d5db", borderRadius: 8, background: "#fff", color: "#444", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+            >
+              案内文を保存
+            </button>
+          </div>
+        </section>
 
         {/* 検索・フィルタ */}
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
