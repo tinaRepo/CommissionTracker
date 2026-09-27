@@ -77,6 +77,17 @@ export default function LoginPage() {
       if (mode === "login") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          await fetch("/api/auth/last-login-provider", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({ provider: "email" }),
+          }).catch(error => console.error("failed to save login provider:", error));
+        }
         window.location.href = "/";
       } else if (mode === "signup") {
         const trimmedName = displayName.trim();

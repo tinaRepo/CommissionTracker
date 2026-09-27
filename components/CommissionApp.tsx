@@ -9,7 +9,7 @@ import {
   type Commission, type CommissionStatus, type CommissionImage,
   type ImageType, type UserProfile, type Plan,
   fetchCommissionById,
-  changeMyPassword, requestSetPasswordEmail, getLastSignInProvider, toJapaneseAuthError,
+  changeMyPassword, requestSetPasswordEmail, toJapaneseAuthError,
   linkGoogleAccount, unlinkGoogleAccount, hasGoogleIdentity,
   PASSWORD_MIN_LENGTH,
 } from "@/lib/supabase";
@@ -392,21 +392,6 @@ export default function CommissionApp() {
   // 作成日より前に公開されたお知らせは未読カウントの対象から自動的に除外される。
   const notifications = useNotifications(user?.id ?? null, profile?.created_at ?? null, profile?.plan ?? null);
 
-  // --- 最後にログインしたプロバイダをサーバーに送信（バッジ表示用） ---
-  useEffect(() => {
-    if (!user) return;
-    const provider = getLastSignInProvider(user);
-    if (!provider) return;
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) return;
-      fetch("/api/auth/last-login-provider", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ provider }),
-      }).catch(() => { /* バッジ表示用の補助情報なので失敗しても無視 */ });
-    });
-  }, [user]);
-
   // --- プロフィールの更新 ---
   async function handleSaveName() {
     if (!nameInput.trim()) return;
@@ -609,7 +594,7 @@ export default function CommissionApp() {
     return () => { document.body.style.overflow = ""; };
   }, [showForm, detailId]);
   const plan = (profile?.plan ?? "free") as Plan;
-  const lastProvider = getLastSignInProvider(user);
+  const lastProvider = profile?.last_login_provider ?? null;
   const hasPassword = profile?.has_password ?? true;
   const isGoogleLinked = hasGoogleIdentity(user);
   const displayName = profile?.display_name;

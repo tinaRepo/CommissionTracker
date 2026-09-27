@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
     try {
         const { provider } = await request.json();
-        if (!provider || typeof provider !== "string") {
+        if (provider !== "email" && provider !== "google" && provider !== "twitter") {
             return NextResponse.json({ error: "provider is required" }, { status: 400 });
         }
 

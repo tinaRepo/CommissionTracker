@@ -29,6 +29,22 @@ export async function GET(request: NextRequest) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { error: profileError } = await supabase
+          .from("user_profiles")
+          .update({ last_login_provider: "google", last_sign_in_at: new Date().toISOString() })
+          .eq("id", session.user.id);
+        if (profileError) console.error("failed to save Google login provider:", profileError);
+
+        response.cookies.set("ct_last_login_provider", "google", {
+          httpOnly: true,
+          secure: request.nextUrl.protocol === "https:",
+          sameSite: "lax",
+          path: "/",
+          maxAge: 60 * 60 * 24 * 90,
+        });
+      }
       return response;
     }
   }
