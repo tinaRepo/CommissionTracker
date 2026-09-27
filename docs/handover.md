@@ -49,6 +49,8 @@ app/
 ├── privacy/page.tsx            # プライバシーポリシー
 ├── tokusho/page.tsx            # 特定商取引法
 ├── update-password/page.tsx    # パスワード再設定
+├── maintenance/page.tsx        # メンテナンス中の利用者向け画面
+├── forbidden/page.tsx          # 管理者権限がない場合の案内
 ├── mgmt-c7f2a91e/
 │   ├── notifications/page.tsx  # 管理者ページ（お知らせ・バージョン情報編集）
 │   └── page.tsx                # 管理者ページ（URLは推測されにくい形式）
@@ -112,6 +114,7 @@ public/
 └── web-app-manifest-512x512.png
 
 vercel.json                     # Cron Job設定（毎日UTC23時=JST8時）
+middleware.ts                   # メンテナンスモード時の全画面/API制御
 ```
 
 ---
@@ -225,6 +228,32 @@ standard・premiumを複数選択でき、ユーザー指定ではユーザー�
 
 ```text
 supabase/migrations/20260927000000_V1.2.0_announcements_targeting.sql
+```
+
+### `app_settings`
+アプリ全体の設定を保持する。現在はメンテナンスモード設定を1行で管理する。
+
+| カラム              | 型          | 説明                                     |
+| ------------------- | ----------- | ---------------------------------------- |
+| setting_key         | text        | 設定キー（現在は`maintenance`のみ）      |
+| maintenance_enabled | boolean     | メンテナンスモードの有効状態             |
+| maintenance_message | text        | 利用者向け案内文（NULLなら既定文を表示） |
+| updated_at          | timestamptz | 最終更新日時                             |
+
+マイグレーションは`supabase/migrations/20260927000001_V1.2.0_add_maintenance_mode.sql`。
+RLSで全ロールの読み取りを許可し、更新は`is_admin()`がtrueのユーザーだけに許可する。
+
+### メンテナンスモード
+
+管理者ページ（`/mgmt-c7f2a91e`）でメンテナンスの開始・終了と、利用者向け案内文（最大500文字）を設定する。
+開始／終了操作と案内文保存は別操作。設定は`app_settings`の`setting_key = 'maintenance'`行に保存される。
+
+`middleware.ts`はメンテナンスが有効な間、管理者以外の画面遷移を`/maintenance`へrewriteし、APIにはHTTP 503と`Retry-After: 300`を返す。管理者は通常どおり管理画面に入り、メンテナンス解除が可能。ログイン、認証コールバック、メンテナンス画面、ログインプロバイダーAPIは判定対象から除外する。設定DBを読めない場合はサービス全体を止めないよう通常アクセスを許可する。
+
+メンテナンス機能を有効化する前に、対象のDBへ次のマイグレーションを適用すること。未適用時は管理画面に設定読み込みエラーが出る。
+
+```text
+supabase/migrations/20260927000001_V1.2.0_add_maintenance_mode.sql
 ```
 
 ### お知らせ・リリースのプッシュ通知
@@ -443,7 +472,7 @@ Supabase Storageの `createSignedUrls()`（複数パスをまとめて署名で�
 なってから読み込む）に変更した。GAは`window.dataLayer`にイベントをキューイングする
 方式のため、gtag.js本体の読み込みが遅れても計測上の実害はない。
 
-### 9. DBインデックスの追加（`20260922000000_V1.2.3_add_performance_indexes.sql`）
+### 9. DBインデックスの追加（`20260922000000_V1.2.0_add_performance_indexes.sql`）
 
 PostgreSQLは外部キー列に自動でインデックスを作成しないため、以下に
 インデックスを追加するマイグレーションを新設した（既存カラム・スキーマは変更なし）。
@@ -703,7 +732,7 @@ UI構造がほぼ同じであるにも関わらずコードが別々にコピー
 - 開かれるまで使われないモーダル（`NotificationsModal`・`ContactModal`）は`CommissionApp.tsx`で
   `next/dynamic`（`{ ssr: false }`）経由で読み込んでいる。新たに同様の「常時マウントだが
   開くまで使わない」モーダルを追加する場合もこのパターンに倣うこと。
-- `20260922000000_V1.2.3_add_performance_indexes.sql` はインデックス追加のみの
+- `20260922000000_V1.2.0_add_performance_indexes.sql` はインデックス追加のみの
   非破壊的マイグレーション。ファイルを作成しただけではDBに反映されないため、
   `docs/supabase-migration-guide.md`の手順（検証DB→本番DBの順に`supabase db push`）で
   必ず適用すること。既存の`create table`文にはインデックス定義が無いため、
