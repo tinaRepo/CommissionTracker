@@ -26,13 +26,22 @@ export default function UpdatePasswordPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [sessionValid, setSessionValid] = useState(false);
+  const [linkFailed, setLinkFailed] = useState(false);
 
   // ページロード時にセッションの有効性をチェック
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("error") === "reset_link_invalid") {
+      setLinkFailed(true);
+      setMessage("パスワード設定・リセット用リンクを確認できませんでした。リンクの有効期限が切れたか、すでに使用済みの可能性があります。");
+      return;
+    }
+
     async function checkSession() {
       const { data } = await supabase.auth.getSession();
 
       if (!data.session) {
+        setLinkFailed(true);
         setMessage(
           "パスワード再設定リンクの有効期限が切れています。もう一度メールを送信してください。"
         );
@@ -78,28 +87,32 @@ export default function UpdatePasswordPage() {
             {message}
           </div>
         )}
-        <input
-          type="password" placeholder={`新しいパスワード（${PASSWORD_MIN_LENGTH}文字以上）`}
-          value={password} onChange={e => setPassword(e.target.value)}
-          minLength={PASSWORD_MIN_LENGTH}
-          style={{ width: "100%", padding: "11px 14px", border: "1.5px solid #e5e7eb", borderRadius: 12, fontSize: 14, outline: "none", color: "#1a0a2e", background: "#faf8f5", boxSizing: "border-box", fontFamily: "inherit", marginBottom: 14 }}
-        />
-        <button
-          onClick={handleUpdate}
-          disabled={
-            loading ||
-            password.length < PASSWORD_MIN_LENGTH ||
-            !sessionValid
-          }
-          style={{
-            width: "100%", padding: "12px",
-            background: (loading || password.length < PASSWORD_MIN_LENGTH || !sessionValid) ? "#c4b5fd" : "linear-gradient(135deg,#7c3aed,#4f46e5)",
-            color: "#fff", border: "none", borderRadius: 12,
-            fontWeight: 800, fontSize: 15, cursor: "pointer",
-          }}
-        >
-          {loading ? "更新中…" : "パスワードを更新"}
-        </button>
+        {sessionValid && !linkFailed ? (
+          <>
+            <input
+              type="password" placeholder={`新しいパスワード（${PASSWORD_MIN_LENGTH}文字以上）`}
+              value={password} onChange={e => setPassword(e.target.value)}
+              minLength={PASSWORD_MIN_LENGTH}
+              style={{ width: "100%", padding: "11px 14px", border: "1.5px solid #e5e7eb", borderRadius: 12, fontSize: 14, outline: "none", color: "#1a0a2e", background: "#faf8f5", boxSizing: "border-box", fontFamily: "inherit", marginBottom: 14 }}
+            />
+            <button
+              onClick={handleUpdate}
+              disabled={loading || password.length < PASSWORD_MIN_LENGTH}
+              style={{
+                width: "100%", padding: "12px",
+                background: (loading || password.length < PASSWORD_MIN_LENGTH) ? "#c4b5fd" : "linear-gradient(135deg,#7c3aed,#4f46e5)",
+                color: "#fff", border: "none", borderRadius: 12,
+                fontWeight: 800, fontSize: 15, cursor: "pointer",
+              }}
+            >
+              {loading ? "更新中…" : "パスワードを更新"}
+            </button>
+          </>
+        ) : (
+          <a href="/login" style={{ display: "block", textAlign: "center", color: "#7c3aed", fontWeight: 700, fontSize: 13, textDecoration: "none" }}>
+            ログイン画面からメールを再送信する
+          </a>
+        )}
       </div>
     </div>
   );

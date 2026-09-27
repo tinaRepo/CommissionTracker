@@ -53,12 +53,20 @@ export default function LoginPage() {
 
   // ログイン済みの場合はトップページにリダイレクト
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("demo") === "1") setDemoMode(true);
+
+    if (params.get("error") === "reset_link_invalid") {
+      setMessage({
+        type: "error",
+        text: "パスワード設定・リセット用リンクを確認できませんでした。ログイン画面からメールを再送信してください。",
+      });
+      return;
+    }
+
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) window.location.href = "/";
     });
-
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("demo") === "1") setDemoMode(true);
   }, []);
 
   // ログイン画面にアクセスした際に、前回のログインプロバイダを取得して表示する

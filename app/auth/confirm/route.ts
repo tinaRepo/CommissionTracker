@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     const code = searchParams.get("code");
 
     if (!token_hash && !code) {
-        return NextResponse.redirect(`${origin}/login`);
+        return NextResponse.redirect(`${origin}/update-password?error=reset_link_invalid`);
     }
 
     const response = NextResponse.redirect(`${origin}/update-password`);
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     if (code) {
         const { error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) {
-            return NextResponse.redirect(`${origin}/login?error=reset_link_invalid`);
+            return NextResponse.redirect(`${origin}/update-password?error=reset_link_invalid`);
         }
         return response;
     }
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
         type: type as any,
     });
     if (error) {
-        return NextResponse.redirect(`${origin}/login?error=reset_link_invalid`);
+        return NextResponse.redirect(`${origin}/update-password?error=reset_link_invalid`);
     }
     return response;
 }
