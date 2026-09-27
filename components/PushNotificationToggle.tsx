@@ -31,32 +31,33 @@ export default function PushNotificationToggle() {
     }
   }, []);
 
+  // 購読情報をSupabaseに保存する
   async function saveSubscription(sub: PushSubscription) {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) throw new Error("ログイン状態を確認できません。再ログインしてください。");
+    if (!session?.user) throw new Error("ログイン状態を確認できません。再ログインしてください。");
 
-    const response = await fetch("/api/push/subscribe", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ subscription: sub }),
-    });
-    const result = await response.json().catch(() => null);
-    if (!response.ok) throw new Error(result?.error ?? "通知設定を保存できませんでした。");
+    const { error } = await supabase
+      .from("push_subscriptions")
+      .upsert({ user_id: session.user.id, subscription: sub.toJSON() }, { onConflict: "user_id" });
+    if (error) throw new Error(error.message || "通知設定を保存できませんでした。");
   }
 
+  // 購読情報をSupabaseから削除する
   async function removeSubscription() {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) throw new Error("ログイン状態を確認できません。再ログインしてください。");
+    if (!session?.user) throw new Error("ログイン状態を確認できません。再ログインしてください。");
 
-    const response = await fetch("/api/push/subscribe", {
-      method: "DELETE",
-      headers: { "Authorization": `Bearer ${session.access_token}` },
-    });
-    const result = await response.json().catch(() => null);
-    if (!response.ok) throw new Error(result?.error ?? "通知設定を解除できませんでした。");
+    const { error } = await supabase
+      .from("push_subscriptions")
+      .delete()
+      .eq("user_id", session.user.id);
+    if (error) throw new Error(error.message || "通知設定を解除できませんでした。");
+  }
+
+  // Service Workerの登録を取得する（未登録なら登録する）
+  async function getPushRegistration() {
+    return await navigator.serviceWorker.getRegistration("/")
+      ?? await navigator.serviceWorker.register("/sw.js");
   }
 
   // 購読の切り替え処理
@@ -65,7 +66,7 @@ export default function PushNotificationToggle() {
     try {
       if (subscribed) {
         // 解除
-        const reg = await navigator.serviceWorker.register("/sw.js");
+        const reg = await getPushRegistration();
         const sub = await reg.pushManager.getSubscription();
         await removeSubscription();
         if (sub) await sub.unsubscribe();
@@ -78,7 +79,7 @@ export default function PushNotificationToggle() {
           return;
         }
 
-        const reg = await navigator.serviceWorker.register("/sw.js");
+        const reg = await getPushRegistration();
         const sub = await reg.pushManager.getSubscription() ?? await reg.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(
