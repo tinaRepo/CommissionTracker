@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ja">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#1a0a2e">
+    <title>オフライン | Commission Tracker</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            padding: 24px;
+            display: grid;
+            place-items: center;
+            background: linear-gradient(145deg, #1a0a2e 0%, #252044 56%, #16434a 100%);
+            color: #1a0a2e;
+            font-family: "Yu Gothic", "Meiryo", sans-serif;
+        }
+
+        main {
+            width: min(100%, 520px);
+            padding: 40px;
+            border-radius: 18px;
+            background: #fff;
+            box-shadow: 0 24px 70px #0005;
+        }
+
+        .brand {
+            margin-bottom: 12px;
+            color: #0f766e;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .code {
+            margin-bottom: 20px;
+            color: #0f766e;
+            font-size: 56px;
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        h1 {
+            margin: 0 0 10px;
+            font-size: 23px;
+            line-height: 1.4;
+        }
+
+        p {
+            margin: 0 0 24px;
+            color: #626262;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+
+        button {
+            min-height: 46px;
+            padding: 10px 18px;
+            border: 0;
+            border-radius: 9px;
+            background: #1a0a2e;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        @media (max-width: 480px) {
+            main {
+                padding: 28px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <div class="brand">COMMISSION TRACKER / OFFLINE</div>
+        <div class="code" aria-hidden="true">OFFLINE</div>
+        <h1>インターネットに接続できません</h1>
+        <p>接続を確認してから、もう一度お試しください。オフライン中は依頼の読み込みや変更の保存はできません。</p>
+        <button type="button" onclick="location.reload()">再読み込み</button>
+    </main>
+</body>
+
+</html>

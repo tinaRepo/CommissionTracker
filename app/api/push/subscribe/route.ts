@@ -50,10 +50,11 @@ export async function DELETE(request: NextRequest) {
     const { data: { user }, error } = await adminSupabase.auth.getUser(token);
     if (error || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    await adminSupabase
+    const { error: dbError } = await adminSupabase
       .from("push_subscriptions")
       .delete()
       .eq("user_id", user.id);
+    if (dbError) throw dbError;
 
     return NextResponse.json({ success: true });
   } catch (e: any) {

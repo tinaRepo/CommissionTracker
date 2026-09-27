@@ -1,4 +1,5 @@
 import { createBrowserClient } from "@supabase/ssr";
+import type { User } from "@supabase/supabase-js";
 
 // --- Supabaseクライアントの作成 ---
 export function createClient() {
@@ -22,6 +23,9 @@ export interface UserProfile {
   plan: Plan;
   is_admin: boolean;
   display_name?: string;
+  has_password: boolean;
+  last_login_provider?: string;
+  last_sign_in_at?: string;
   created_at: string;
   updated_at: string;
   email?: string;
@@ -58,14 +62,67 @@ export interface CommissionImage {
 
 // ---- プラン制限 ----
 export const PLAN_LIMITS: Record<Plan, { label: string; imageLimit: number | null; color: string; bg: string }> = {
-  free:     { label: "無料",        imageLimit: 10,   color: "#6b7280", bg: "#f3f4f6" },
-  standard: { label: "スタンダード", imageLimit: 50,   color: "#3b82f6", bg: "#dbeafe" },
-  premium:  { label: "プレミアム",   imageLimit: null, color: "#f59e0b", bg: "#fef3c7" },
+  free: { label: "無料", imageLimit: 10, color: "#6b7280", bg: "#f3f4f6" },
+  standard: { label: "スタンダード", imageLimit: 50, color: "#3b82f6", bg: "#dbeafe" },
+  premium: { label: "プレミアム", imageLimit: null, color: "#f59e0b", bg: "#fef3c7" },
 };
+
+// --- 簡易メールアドレス形式チェック ---
+export function isValidEmailFormat(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+export const DISPLAY_NAME_MAX_LENGTH = 30;
+export const PASSWORD_MIN_LENGTH = 6;
+
+// --- Supabaseのエラーメッセージを日本語に変換 ---
+export function toJapaneseAuthError(message: string): string {
+  const normalized = message.toLowerCase().replace(/[_-]+/g, " ");
+  if (
+    normalized.includes("email rate limit exceeded") ||
+    normalized.includes("over email send rate limit") ||
+    normalized.includes("over request rate limit") ||
+    normalized.includes("rate limit exceeded") ||
+    normalized.includes("too many requests") ||
+    normalized.includes("email rate limit") ||
+    normalized.includes("email frequency limit") ||
+    normalized.includes("for security purposes") ||
+    normalized.includes("request this after") ||
+    normalized.includes("429")
+  ) {
+    return "メールの送信回数が上限に達しました。しばらく時間をおいてから、もう一度お試しください。";
+  }
+  if (normalized.includes("invalid login credentials") || normalized.includes("user not found")) {
+    return "メールアドレスまたはパスワードが正しくありません。";
+  }
+  if (normalized.includes("email not confirmed")) {
+    return "メールアドレスの確認が完了していません。確認メールをご確認ください。";
+  }
+  if (normalized.includes("user already registered")) {
+    return "このメールアドレスはすでに登録されています。ログインしてください。";
+  }
+  if (normalized.includes("password should be at least")) {
+    return `パスワードは${PASSWORD_MIN_LENGTH}文字以上で入力してください。`;
+  }
+  if (normalized.includes("unable to validate email") || normalized.includes("email address is invalid")) {
+    return "メールアドレスの形式が正しくありません。";
+  }
+  if (normalized.includes("signup is disabled")) {
+    return "現在、新規登録は受け付けていません。";
+  }
+  if (normalized.includes("token has expired") || normalized.includes("auth session missing")) {
+    return "リンクの有効期限が切れています。もう一度メールを送信してください。";
+  }
+  if (normalized.includes("network")) {
+    return "ネットワークエラーが発生しました。接続を確認してください。";
+  }
+  return message || "エラーが発生しました。";
+}
 
 // ---- プロフィール ----
 export async function fetchMyProfile(): Promise<UserProfile | null> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user;
   if (!user) return null;
   const { data, error } = await supabase
     .from("user_profiles")
@@ -79,16 +136,84 @@ export async function fetchMyProfile(): Promise<UserProfile | null> {
   return data;
 }
 
+// --- 直近ログインで使われた認証プロバイダーを判定（identitiesのlast_sign_in_atを比較） ---
+export function getLastSignInProvider(user: User | null): string | null {
+  if (!user?.identities || user.identities.length === 0) return null;
+  const sorted = [...user.identities].sort((a, b) => {
+    const at = new Date(a.last_sign_in_at ?? a.updated_at ?? 0).getTime();
+    const bt = new Date(b.last_sign_in_at ?? b.updated_at ?? 0).getTime();
+    return bt - at;
+  });
+  return sorted[0]?.provider ?? null;
+}
+
+// --- Googleのidentityを持っているか（連携済みか） ---
+// identitiesはlinkIdentity/unlinkIdentityで正しく同期されるため、DB保存は不要
+export function hasGoogleIdentity(user: User | null): boolean {
+  return !!user?.identities?.some(i => i.provider === "google");
+}
+
+// --- Googleアカウントとの連携（メール登録ユーザー向け） ---
+export async function linkGoogleAccount(): Promise<void> {
+  const { error } = await supabase.auth.linkIdentity({
+    provider: "google",
+    options: { redirectTo: `${location.origin}/` },
+  });
+  if (error) throw error;
+  // 成功後はGoogleの認証画面へ遷移し、完了後にredirectToへ戻ってくる
+}
+
+// --- Google連携の解除 ---
+export async function unlinkGoogleAccount(user: User): Promise<void> {
+  const googleIdentity = user.identities?.find(i => i.provider === "google");
+  if (!googleIdentity) throw new Error("Googleアカウントは連携されていません");
+  const { error } = await supabase.auth.unlinkIdentity(googleIdentity);
+  if (error) throw error;
+}
+
+// --- パスワード変更（既にパスワードが設定済みのユーザー向け） ---
+// identityは既にemailが存在するため、通常のupdateUserで問題ない
+export async function changeMyPassword(newPassword: string, currentPassword: string): Promise<void> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user;
+  if (!user?.email) throw new Error("ユーザー情報を取得できませんでした");
+
+  const { error: reauthError } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: currentPassword,
+  });
+  if (reauthError) throw new Error("現在のパスワードが正しくありません");
+
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) throw error;
+}
+
+// --- パスワード設定リクエスト（Google専用ユーザー向け） ---
+// Supabaseが公式に案内する「OAuthユーザーにパスワードログインを追加する」方法。
+// 通常のupdateUser({password})はemail identityを正規に紐付けないため、
+// 既存のパスワードリセット導線（/auth/confirm → /update-password）を再利用する。
+// このフローで設定すると、以降は標準のunlinkIdentity()でGoogle連携を解除できる。
+export async function requestSetPasswordEmail(): Promise<void> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user;
+  if (!user?.email) throw new Error("ユーザー情報を取得できませんでした");
+
+  const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+    redirectTo: `${location.origin}/auth/confirm`,
+  });
+  if (error) throw error;
+}
+
 // ---- 画像枚数チェック ----
 export async function countMyImages(): Promise<number> {
-  // 自分の全commissionに紐づく画像数を合計
+  const { data: { session } } = await supabase.auth.getSession();
+  const userId = session?.user?.id;
+  if (!userId) return 0;
+
   const { count, error } = await supabase
     .from("commission_images")
-    .select("id", { count: "exact", head: true })
-    .in(
-      "commission_id",
-      (await supabase.from("commissions").select("id")).data?.map(c => c.id) ?? []
-    );
+    .select("id, commissions!inner(user_id)", { count: "exact", head: true })
+    .eq("commissions.user_id", userId);
   if (error) return 0;
   return count ?? 0;
 }
@@ -115,7 +240,8 @@ export async function fetchCommissions(): Promise<Commission[]> {
 export async function createCommission(
   values: Omit<Commission, "id" | "user_id" | "created_at" | "updated_at" | "images">
 ): Promise<Commission> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user;
   if (!user) throw new Error("Not authenticated");
   const { data, error } = await supabase
     .from("commissions")
@@ -163,7 +289,8 @@ export async function uploadImage(
   imageType: ImageType,
   plan: Plan
 ): Promise<CommissionImage> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user;
   if (!user) throw new Error("Not authenticated");
 
   // --- プラン制限チェック ---
@@ -194,12 +321,29 @@ export async function deleteImage(image: CommissionImage): Promise<void> {
   await supabase.from("commission_images").delete().eq("id", image.id);
 }
 
-// --- 画像の署名付きURLを取得 ---
+// --- 画像の署名付きURLを取得（1枚） ---
 export async function getSignedImageUrl(storagePath: string): Promise<string> {
   const { data, error } = await supabase.storage
     .from(BUCKET).createSignedUrl(storagePath, 3600);
   if (error) throw error;
   return data.signedUrl;
+}
+
+// --- 画像の署名付きURLをまとめて取得（N+1回避）---
+// 一覧のサムネイルや詳細モーダルなど、複数枚の画像URLが必要な場面で
+// createSignedUrl()を1枚ずつ呼ぶと画像枚数分のリクエストが発生してしまう(N+1)。
+// createSignedUrls()で1回のリクエストにまとめて取得する。
+export async function getSignedImageUrls(storagePaths: string[]): Promise<Record<string, string>> {
+  const uniquePaths = Array.from(new Set(storagePaths));
+  if (uniquePaths.length === 0) return {};
+  const { data, error } = await supabase.storage
+    .from(BUCKET).createSignedUrls(uniquePaths, 3600);
+  if (error) throw error;
+  const map: Record<string, string> = {};
+  (data ?? []).forEach(d => {
+    if (d.signedUrl && d.path) map[d.path] = d.signedUrl;
+  });
+  return map;
 }
 
 // ---- 管理者用 ----

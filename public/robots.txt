@@ -1,4 +1,9 @@
 User-agent: *
 Allow: /
+Disallow: /login
+Disallow: /update-password
+Disallow: /mgmt-c7f2a91e
+Disallow: /maintenance
+Disallow: /forbidden
 
 Sitemap: https://commission-tracker-nine.vercel.app/sitemap.xml

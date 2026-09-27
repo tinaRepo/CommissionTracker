@@ -1,69 +1,124 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase, isValidEmailFormat, DISPLAY_NAME_MAX_LENGTH, PASSWORD_MIN_LENGTH, toJapaneseAuthError } from "@/lib/supabase";
 import dynamic from "next/dynamic";
 import ContactModal from "@/components/ContactModal";
 const DemoApp = dynamic(() => import("@/components/DemoApp"), { ssr: false });
 
-function toJapanese(msg: string): string {
-  if (!msg) return "エラーが発生しました";
-  const m = msg.toLowerCase();
-  if (m.includes("invalid login credentials")) return "メールアドレスまたはパスワードが正しくありません";
-  if (m.includes("email not confirmed")) return "メールアドレスの確認が完了していません。確認メールをご確認ください";
-  if (m.includes("user already registered")) return "メールアドレスまたはパスワードが正しくありません";
-  if (m.includes("password should be at least")) return "パスワードは6文字以上で入力してください";
-  if (m.includes("unable to validate email")) return "メールアドレスの形式が正しくありません";
-  if (m.includes("email address is invalid")) return "メールアドレスの形式が正しくありません";
-  if (m.includes("signup is disabled")) return "現在新規登録は受け付けていません";
-  if (m.includes("email rate limit exceeded")) return "しばらく時間をおいてから再度お試しください";
-  if (m.includes("over email send rate limit")) return "メール送信の上限に達しました。しばらくお待ちください";
-  if (m.includes("token has expired")) return "リンクの有効期限が切れています。もう一度お試しください";
-  if (m.includes("user not found")) return "メールアドレスまたはパスワードが正しくありません";
-  if (m.includes("network")) return "ネットワークエラーが発生しました。接続を確認してください";
-  return "エラーが発生しました（" + msg + "）";
-}
-
 type Mode = "login" | "signup" | "reset";
 
+// ログインページ
 export default function LoginPage() {
   const [mode, setMode] = useState<Mode>("login");
 
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
   const [demoMode, setDemoMode] = useState(false);
   const [showContact, setShowContact] = useState(false);
+  const [lastProvider, setLastProvider] = useState<string | null>(null);
 
+  // メインボタンの活性/非活性判定（disabledと見た目のstyleで条件がズレないよう一箇所にまとめる）
+  const isEmailValid = isValidEmailFormat(email);
+  const isPasswordValid = mode === "reset" || password.length >= PASSWORD_MIN_LENGTH;
+  const isDisplayNameValid = mode !== "signup" || (displayName.trim().length > 0 && displayName.trim().length <= DISPLAY_NAME_MAX_LENGTH);
+
+  const isSubmitDisabled =
+    loading ||
+    !email ||
+    !isEmailValid ||
+    (mode !== "reset" && !isPasswordValid) ||
+    !isDisplayNameValid;
+
+  // ログイン済みの場合はトップページにリダイレクト
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("demo") === "1") setDemoMode(true);
+
+    if (params.get("error") === "reset_link_invalid") {
+      setMessage({
+        type: "error",
+        text: "パスワード設定・リセット用リンクを確認できませんでした。ログイン画面からメールを再送信してください。",
+      });
+      return;
+    }
+
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) window.location.href = "/";
     });
-
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("demo") === "1") setDemoMode(true);
   }, []);
 
+  // ログイン画面にアクセスした際に、前回のログインプロバイダを取得して表示する
+  useEffect(() => {
+    fetch("/api/auth/last-login-provider")
+      .then(res => res.json())
+      .then(data => setLastProvider(data.provider ?? null))
+      .catch(() => { });
+  }, []);
+
+  // デモモードの場合はDemoAppを表示
   if (demoMode) {
     return <DemoApp onExit={() => setDemoMode(false)} />;
   }
 
+  // メールログイン・サインアップ・パスワードリセットの処理
   async function handleEmail() {
     setLoading(true);
     setMessage(null);
     try {
+      if (!isValidEmailFormat(email)) {
+        setMessage({ type: "error", text: "メールアドレスの形式が正しくありません" });
+        setLoading(false);
+        return;
+      }
       if (mode === "login") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        // セッションが反映されるまで少し待ってからリダイレクト
-        await new Promise(resolve => setTimeout(resolve, 500));
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          try {
+            const response = await fetch("/api/auth/last-login-provider", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${session.access_token}`,
+              },
+              body: JSON.stringify({ provider: "email" }),
+            });
+            if (!response.ok) {
+              console.error("failed to save email login provider:", response.status, await response.text());
+            }
+          } catch (error) {
+            console.error("failed to save email login provider:", error);
+          }
+        }
         window.location.href = "/";
       } else if (mode === "signup") {
+        const trimmedName = displayName.trim();
+        if (!trimmedName) {
+          setMessage({ type: "error", text: "表示名を入力してください" });
+          setLoading(false);
+          return;
+        }
+        if (trimmedName.length > DISPLAY_NAME_MAX_LENGTH) {
+          setMessage({ type: "error", text: `表示名は${DISPLAY_NAME_MAX_LENGTH}文字以内で入力してください` });
+          setLoading(false);
+          return;
+        }
+        if (password.length < PASSWORD_MIN_LENGTH) {
+          setMessage({ type: "error", text: `パスワードは${PASSWORD_MIN_LENGTH}文字以上で入力してください` });
+          setLoading(false);
+          return;
+        }
         const { error } = await supabase.auth.signUp({
           email, password,
-          options: { emailRedirectTo: `${location.origin}/` }
+          options: {
+            emailRedirectTo: `${location.origin}/`,
+            data: { display_name: trimmedName },
+          }
         });
         if (error) throw error;
         setMessage({ type: "success", text: "確認メールを送りました。メールのリンクをクリックしてください。" });
@@ -75,7 +130,7 @@ export default function LoginPage() {
         setMessage({ type: "success", text: "パスワードリセットのメールを送りました。" });
       }
     } catch (e: any) {
-      setMessage({ type: "error", text: toJapanese(e.message ?? "") });
+      setMessage({ type: "error", text: toJapaneseAuthError(e.message ?? "") });
     } finally {
       setLoading(false);
     }
@@ -99,7 +154,7 @@ export default function LoginPage() {
       if (error) {
         setMessage({
           type: "error",
-          text: toJapanese(error.message),
+          text: toJapaneseAuthError(error.message),
         });
         return;
       }
@@ -118,6 +173,7 @@ export default function LoginPage() {
     }
   }
 
+  // UIのレンダリング
   const titles: Record<Mode, string> = {
     login: "ログイン",
     signup: "新規登録",
@@ -159,22 +215,25 @@ export default function LoginPage() {
         {mode !== "reset" && (
           <>
             <div style={{ display: "grid", gap: 10, marginBottom: 20 }}>
-              <OAuthButton
-                onClick={() => handleOAuth("google")}
-                disabled={loading}
-                icon="G"
-                label="Googleで続ける"
-                color="#4285f4"
-              />
-              {/* 一時無効化
-              <OAuthButton
-                onClick={() => handleOAuth("twitter")}
-                disabled={loading}
-                icon="𝕏"
-                label="X (Twitter) でログイン"
-                color="#000"
-              />
-              */}
+              <div style={{ position: "relative" }}>
+                <OAuthButton
+                  onClick={() => handleOAuth("google")}
+                  disabled={loading}
+                  icon="G"
+                  label="Googleで続ける"
+                  color="#4285f4"
+                />
+                {lastProvider === "google" && mode === "login" && (
+                  <span style={{
+                    position: "absolute", top: -8, right: -8,
+                    background: "#10b981", color: "#fff", fontSize: 9, fontWeight: 700,
+                    borderRadius: 999, padding: "2px 8px", boxShadow: "0 2px 6px #0003",
+                    whiteSpace: "nowrap", pointerEvents: "none",
+                  }}>
+                    前回ログイン
+                  </span>
+                )}
+              </div>
             </div>
             <Divider />
           </>
@@ -183,14 +242,22 @@ export default function LoginPage() {
         {/* メール入力 */}
         <form onSubmit={(e) => { e.preventDefault(); handleEmail(); }}
           style={{ display: "grid", gap: 12, marginBottom: 16 }}>
+          {mode === "signup" && (
+            <InputField
+              type="text" placeholder={`表示名（例: 山田太郎・${DISPLAY_NAME_MAX_LENGTH}文字まで）`}
+              value={displayName} onChange={setDisplayName}
+              maxLength={DISPLAY_NAME_MAX_LENGTH}
+            />
+          )}
           <InputField
             type="email" placeholder="メールアドレス"
             value={email} onChange={setEmail}
           />
           {mode !== "reset" && (
             <InputField
-              type="password" placeholder="パスワード（6文字以上）"
+              type="password" placeholder={`パスワード（${PASSWORD_MIN_LENGTH}文字以上）`}
               value={password} onChange={setPassword}
+              minLength={PASSWORD_MIN_LENGTH}
             />
           )}
           <button type="submit" style={{ display: "none" }} />
@@ -199,14 +266,13 @@ export default function LoginPage() {
         {/* メインボタン */}
         <button
           onClick={handleEmail}
-          disabled={loading || !email || (mode !== "reset" && !password)}
+          disabled={isSubmitDisabled}
           style={{
             width: "100%", padding: "12px",
-            background: (loading || !email || (mode !== "reset" && !password))
-              ? "#c4b5fd"
-              : "linear-gradient(135deg,#7c3aed,#4f46e5)",
+            background: isSubmitDisabled ? "#c4b5fd" : "linear-gradient(135deg,#7c3aed,#4f46e5)",
             color: "#fff", border: "none", borderRadius: 12,
-            fontWeight: 800, fontSize: 15, cursor: "pointer",
+            fontWeight: 800, fontSize: 15,
+            cursor: isSubmitDisabled ? "not-allowed" : "pointer",
             transition: "opacity 0.15s",
           }}
         >
@@ -233,7 +299,7 @@ export default function LoginPage() {
           {mode === "login" && (
             <>
               <span>アカウントをお持ちでない方は
-                <TextLink onClick={() => { setMode("signup"); setMessage(null); }}>新規登録</TextLink>
+                <TextLink onClick={() => { setMode("signup"); setMessage(null); setDisplayName(""); }}>新規登録</TextLink>
               </span>
               <TextLink onClick={() => { setMode("reset"); setMessage(null); }}>
                 パスワードを忘れた方はこちら
@@ -296,6 +362,7 @@ export default function LoginPage() {
   );
 }
 
+// UIコンポーネント群
 function OAuthButton({ onClick, disabled, icon, label, color }: {
   onClick: () => void; disabled: boolean;
   icon: string; label: string; color: string;
@@ -317,14 +384,18 @@ function OAuthButton({ onClick, disabled, icon, label, color }: {
   );
 }
 
-function InputField({ type, placeholder, value, onChange }: {
+// メール入力欄
+function InputField({ type, placeholder, value, onChange, maxLength, minLength }: {
   type: string; placeholder: string; value: string; onChange: (v: string) => void;
+  maxLength?: number; minLength?: number;
 }) {
   const autoComplete = type === "email" ? "email" : type === "password" ? "current-password" : "off";
   return (
     <input
       type={type} placeholder={placeholder} value={value}
       autoComplete={autoComplete}
+      maxLength={maxLength}
+      minLength={minLength}
       onChange={e => onChange(e.target.value)}
       style={{
         width: "100%", padding: "10px 12px",
@@ -337,6 +408,7 @@ function InputField({ type, placeholder, value, onChange }: {
   );
 }
 
+// 区切り線
 function Divider() {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
@@ -347,6 +419,7 @@ function Divider() {
   );
 }
 
+// テキストリンク（モード切替用）
 function TextLink({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
   return (
     <button onClick={onClick} style={{

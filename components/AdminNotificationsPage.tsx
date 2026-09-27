@@ -2,9 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import {
+  supabase, adminFetchAllUsers, PLAN_LIMITS,
+  type UserProfile, type Plan,
+} from "@/lib/supabase";
 
 // ─── 型定義 ────────────────────────────────────────────────────
+
+type TargetMode = "all" | "plan" | "user";
 
 type Announcement = {
   id: string;
@@ -14,6 +19,8 @@ type Announcement = {
   published_at: string;
   created_at: string;
   updated_at: string;
+  target_plans: Plan[] | null;
+  target_user_ids: string[] | null;
 };
 
 type VersionRelease = {
@@ -69,7 +76,12 @@ const inp_date: React.CSSProperties = {
   boxSizing: "border-box", fontFamily: "inherit",
 };
 
-const EMPTY_ANNOUNCEMENT = { title: "", content: "", type: "お知らせ" as AnnouncementType, published_at: "" };
+const EMPTY_ANNOUNCEMENT = {
+  title: "", content: "", type: "お知らせ" as AnnouncementType, published_at: "",
+  targetMode: "all" as TargetMode,
+  targetPlans: [] as Plan[],
+  targetUserIds: [] as string[],
+};
 const EMPTY_ITEM = (): VersionReleaseItem => ({ category: "新機能", content: "", sort_order: 0 });
 
 // ─── メインコンポーネント ──────────────────────────────────────
@@ -88,6 +100,8 @@ export default function AdminNotificationsPage() {
   const [showAForm, setShowAForm] = useState(false);
   const [aDeleteConfirm, setADeleteConfirm] = useState<string | null>(null);
   const [aSaving, setASaving] = useState(false);
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+  const [userPickerSearch, setUserPickerSearch] = useState("");
 
   // バージョン
   const [releases, setReleases] = useState<VersionRelease[]>([]);
@@ -100,17 +114,22 @@ export default function AdminNotificationsPage() {
   const [rSaving, setRSaving] = useState(false);
 
   // ── 管理者チェック ─────────────────────────────────────────
+  // NOTE: getUser()はSupabase Authサーバーへの検証往復が毎回発生するため、
+  // ローカルのセッション情報のみで済む getSession() に変更（RLSはJWT署名で
+  // サーバー側検証されるため、is_admin判定のためのuser.id取得にはこれで十分）。
 
   useEffect(() => {
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
       if (!user) { router.replace("/login"); return; }
       const { data } = await supabase
         .from("user_profiles").select("is_admin").eq("id", user.id).maybeSingle();
-      if (!data?.is_admin) { router.replace("/"); return; }
+      if (!data?.is_admin) { router.replace("/forbidden"); return; }
       setChecking(false);
       fetchAnnouncements();
       fetchReleases();
+      adminFetchAllUsers().then(setAllUsers).catch(() => { });
     })();
   }, []);
 
@@ -144,7 +163,13 @@ export default function AdminNotificationsPage() {
 
   function openANew() {
     setAEditId(null);
-    setAForm({ ...EMPTY_ANNOUNCEMENT, published_at: today() });
+    setAForm({
+      ...EMPTY_ANNOUNCEMENT,
+      published_at: today(),
+      targetMode: "all",
+      targetPlans: [],
+      targetUserIds: []
+    });
     setShowAForm(true);
   }
 
@@ -153,6 +178,9 @@ export default function AdminNotificationsPage() {
     setAForm({
       title: a.title, content: a.content, type: a.type,
       published_at: a.published_at.slice(0, 10),
+      targetMode: a.target_user_ids?.length ? "user" : a.target_plans?.length ? "plan" : "all",
+      targetPlans: a.target_plans ?? [],
+      targetUserIds: a.target_user_ids ?? [],
     });
     setShowAForm(true);
   }
@@ -160,11 +188,26 @@ export default function AdminNotificationsPage() {
   async function saveAnnouncement() {
     if (!aForm.title.trim() || !aForm.content.trim()) return;
     setASaving(true);
-    const payload = { ...aForm, published_at: aForm.published_at || today(), updated_at: todayISO() };
+    const payload = {
+      title: aForm.title,
+      content: aForm.content,
+      type: aForm.type,
+      published_at: aForm.published_at || today(),
+      updated_at: todayISO(),
+      target_plans: aForm.targetMode === "plan" && aForm.targetPlans.length > 0 ? aForm.targetPlans : null,
+      target_user_ids: aForm.targetMode === "user" && aForm.targetUserIds.length > 0 ? aForm.targetUserIds : null,
+    };
     if (aEditId) {
       await supabase.from("announcements").update(payload).eq("id", aEditId);
     } else {
       await supabase.from("announcements").insert(payload);
+      // 新規作成時のみプッシュ通知を送信
+      sendPushNotification({
+        title: `📢 ${payload.title}`,
+        body: payload.content.length > 100 ? payload.content.slice(0, 100) + "…" : payload.content,
+        targetPlans: (payload as any).target_plans ?? null,
+        targetUserIds: (payload as any).target_user_ids ?? null,
+      });
     }
     setASaving(false);
     setShowAForm(false);
@@ -221,12 +264,35 @@ export default function AdminNotificationsPage() {
           validItems.map((item, idx) => ({ release_id: data.id, category: item.category, content: item.content, sort_order: idx }))
         );
       }
+      // 新規リリースのみプッシュ通知を送信（全ユーザー対象）
+      sendPushNotification({
+        title: `🚀 新しいバージョンがリリースされました`,
+        body: `v${rForm.version}: ${rForm.title}`,
+      });
     }
+
 
     setRSaving(false);
     setShowRForm(false);
     setREditId(null);
     fetchReleases();
+  }
+
+  async function sendPushNotification(payload: {
+    title: string; body: string;
+    targetPlans?: string[] | null; targetUserIds?: string[] | null;
+  }) {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token ?? "";
+      await fetch("/api/admin/notify-push", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      // プッシュ通知の送信失敗はお知らせ自体の保存を妨げない
+    }
   }
 
   async function deleteRelease(id: string) {
@@ -370,7 +436,14 @@ export default function AdminNotificationsPage() {
                   }}>
                     {/* 上段：バッジ＋タイトル */}
                     <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                      <TypeBadge type={a.type} />
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", flexShrink: 0 }}>
+                        <TypeBadge type={a.type} />
+                        {(a.target_plans?.length || a.target_user_ids?.length) ? (
+                          <span style={{ fontSize: 10, background: "#fef3c7", color: "#92400e", borderRadius: 6, padding: "1px 6px", fontWeight: 700 }}>
+                            🎯 {a.target_plans?.length ? "プラン限定" : `${a.target_user_ids?.length}名限定`}
+                          </span>
+                        ) : null}
+                      </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{
                           fontWeight: 700, fontSize: 14, color: "#1a0a2e", marginBottom: 2,
@@ -515,6 +588,95 @@ export default function AdminNotificationsPage() {
                   </button>
                 ))}
               </div>
+            </Field>
+            <Field label="配信対象">
+              <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                {[
+                  { key: "all", label: "全員" },
+                  { key: "plan", label: "プラン指定" },
+                  { key: "user", label: "ユーザー指定" },
+                ].map(m => (
+                  <button key={m.key}
+                    onClick={() => setAForm({ ...aForm, targetMode: m.key as TargetMode })}
+                    style={{
+                      padding: "6px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600,
+                      border: `1.5px solid ${aForm.targetMode === m.key ? "#7c3aed" : "#e5e7eb"}`,
+                      background: aForm.targetMode === m.key ? "#ede9fe" : "#fff",
+                      color: aForm.targetMode === m.key ? "#6d28d9" : "#888",
+                    }}>
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* プラン指定 */}
+              {aForm.targetMode === "plan" && (
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {(["free", "standard", "premium"] as Plan[]).map(p => {
+                    const checked = aForm.targetPlans.includes(p);
+                    const info = PLAN_LIMITS[p];
+                    return (
+                      <label key={p} style={{
+                        display: "flex", alignItems: "center", gap: 6, cursor: "pointer",
+                        padding: "6px 12px", borderRadius: 8, fontSize: 13, fontWeight: 700,
+                        border: `1.5px solid ${checked ? info.color : "#e5e7eb"}`,
+                        background: checked ? info.bg : "#fff", color: checked ? info.color : "#888",
+                      }}>
+                        <input type="checkbox" checked={checked} style={{ display: "none" }}
+                          onChange={() => setAForm({
+                            ...aForm,
+                            targetPlans: checked
+                              ? aForm.targetPlans.filter(x => x !== p)
+                              : [...aForm.targetPlans, p],
+                          })} />
+                        {info.label}
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* ユーザー指定 */}
+              {aForm.targetMode === "user" && (
+                <div>
+                  <input
+                    value={userPickerSearch}
+                    onChange={e => setUserPickerSearch(e.target.value)}
+                    placeholder="名前 / IDで検索…"
+                    style={{ ...inp, marginBottom: 8 }}
+                  />
+                  <div style={{ maxHeight: 180, overflowY: "auto", border: "1.5px solid #e5e7eb", borderRadius: 10 }}>
+                    {allUsers
+                      .filter(u => {
+                        const q = userPickerSearch.toLowerCase();
+                        return !q || u.id.toLowerCase().includes(q) || (u.display_name ?? "").toLowerCase().includes(q);
+                      })
+                      .map(u => {
+                        const checked = aForm.targetUserIds.includes(u.id);
+                        return (
+                          <label key={u.id} style={{
+                            display: "flex", alignItems: "center", gap: 8, padding: "8px 12px",
+                            cursor: "pointer", borderBottom: "1px solid #f3f4f6", fontSize: 13,
+                            background: checked ? "#faf5ff" : "#fff",
+                          }}>
+                            <input type="checkbox" checked={checked}
+                              onChange={() => setAForm({
+                                ...aForm,
+                                targetUserIds: checked
+                                  ? aForm.targetUserIds.filter(id => id !== u.id)
+                                  : [...aForm.targetUserIds, u.id],
+                              })} />
+                            <span style={{ fontWeight: 600 }}>{u.display_name ?? "（未設定）"}</span>
+                            <span style={{ color: "#bbb", fontSize: 11 }}>{u.id.slice(0, 8)}…</span>
+                          </label>
+                        );
+                      })}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#888", marginTop: 6 }}>
+                    {aForm.targetUserIds.length}名を選択中
+                  </div>
+                </div>
+              )}
             </Field>
             <Field label="公開日">
               <div style={{ display: "flex", width: "100%" }}>
@@ -706,7 +868,9 @@ function ActionBtn({ label, onClick, danger }: { label: string; onClick: () => v
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#555", marginBottom: 6 }}>{label}</label>
+      <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#555", marginBottom: 6 }}>
+        {label.endsWith(" *") ? <>{label.slice(0, -2)} <span style={{ color: "#ef4444" }}>*</span></> : label}
+      </label>
       {children}
     </div>
   );

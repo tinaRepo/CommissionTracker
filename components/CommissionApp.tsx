@@ -3,33 +3,30 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   supabase, requestDeleteAccount, fetchCommissions, createCommission, updateCommission,
-  deleteCommission, uploadImage, deleteImage, getSignedImageUrl,
+  deleteCommission, uploadImage, deleteImage, getSignedImageUrls,
   fetchMyProfile, canUploadImage,
   PLAN_LIMITS,
   type Commission, type CommissionStatus, type CommissionImage,
   type ImageType, type UserProfile, type Plan,
   fetchCommissionById,
+  changeMyPassword, requestSetPasswordEmail, toJapaneseAuthError,
+  linkGoogleAccount, unlinkGoogleAccount, hasGoogleIdentity,
+  PASSWORD_MIN_LENGTH,
 } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+import { useNotifications } from "@/hooks/useNotifications";
+import { useCommissionSearch } from "@/hooks/useCommissionSearch";
+import {
+  STATUSES, IMAGE_TYPES, fmtDate, fmtPrice,
+  inp, inp_date, Field, DateField, StatusBadge, CommissionListCard,
+} from "./CommissionShared";
+import { CommissionSearchBar } from "./CommissionSearchBar";
 import PushNotificationToggle from "./PushNotificationToggle";
-import NotificationsModal from "./NotificationsModal";
-import ContactModal from "./ContactModal";
-
-// ---- 定数とユーティリティ ----
-const STATUSES: { key: CommissionStatus; label: string; color: string; bg: string }[] = [
-  { key: "pending", label: "依頼済み", color: "#f59e0b", bg: "#fef3c7" },
-  { key: "rough", label: "ラフ確認中", color: "#8b5cf6", bg: "#ede9fe" },
-  { key: "progress", label: "制作中", color: "#3b82f6", bg: "#dbeafe" },
-  { key: "done", label: "完成", color: "#10b981", bg: "#d1fae5" },
-  { key: "cancelled", label: "キャンセル", color: "#6b7280", bg: "#f3f4f6" },
-];
-
-// --- 画像タイプのラベル ---
-const IMAGE_TYPES: { key: ImageType; label: string }[] = [
-  { key: "rough", label: "ラフ" }, { key: "wip", label: "作業中" },
-  { key: "finished", label: "完成" }, { key: "other", label: "その他" },
-];
+const NotificationsModal = dynamic(() => import("./NotificationsModal"), { ssr: false });
+const ContactModal = dynamic(() => import("./ContactModal"), { ssr: false });
+const InstallPromptBanner = dynamic(() => import("./InstallPromptBanner"), { ssr: false });
 
 // --- 画像アップロード前のプラン制限チェック ---
 type FormValues = {
@@ -50,88 +47,6 @@ const EMPTY_FORM: FormValues = {
   title: "", artist: "", x_id: "", ordered_at: "", deadline: "",
   price: "", currency: "JPY", status: "pending", rough_date: "", notes: "",
 };
-
-// --- 画像アップロード前にプランの上限をチェック ---
-function fmtDate(d?: string) {
-  if (!d) return "—";
-  const [y, m, day] = d.split("-");
-  return `${y}/${m}/${day}`;
-}
-
-// --- 金額をフォーマット ---
-function fmtPrice(price?: number, currency?: string) {
-  if (!price) return "—";
-  return `${price.toLocaleString()} 円`;
-}
-
-// --- 締切までの日数を計算 ---
-function daysUntil(d?: string) {
-  if (!d) return null;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const [y, m, day] = d.split("-").map(Number);
-  const deadline = new Date(y, m - 1, day);
-  return Math.ceil((deadline.getTime() - today.getTime()) / 86400000);
-}
-
-// --- テキストボックスのスタイル ---
-const inp: React.CSSProperties = {
-  width: "100%", padding: "8px 10px", border: "1.5px solid #e5e7eb",
-  borderRadius: 10, fontSize: 16, outline: "none", color: "#1a0a2e",
-  background: "#faf8f5", boxSizing: "border-box",
-};
-
-// --- 日付の入力フィールドスタイル ---
-const inp_date: React.CSSProperties = {
-  minWidth: 0, padding: "9px 8px", border: "1.5px solid #e5e7eb",
-  borderRadius: 10, fontSize: 16, outline: "none", color: "#1a0a2e",
-  background: "#faf8f5", boxSizing: "border-box",
-};
-
-// --- 日付入力フィールド ---
-function DateField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
-  return (
-    <Field label={label}>
-      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-        <input type="date" value={value} onChange={e => onChange(e.target.value)}
-          style={{ ...inp_date, flex: 1 }} />
-        {value && (
-          <button type="button" onClick={() => onChange("")}
-            style={{
-              flexShrink: 0, background: "#f3f4f6", border: "1.5px solid #e5e7eb", borderRadius: 8,
-              width: 32, height: 36, cursor: "pointer", fontSize: 14, color: "#888", display: "flex",
-              alignItems: "center", justifyContent: "center"
-            }}>
-            ×
-          </button>
-        )}
-      </div>
-    </Field>
-  );
-}
-
-// --- 画像アップロード前にプランの上限をチェック ---
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#555", marginBottom: 6, letterSpacing: "0.04em" }}>{label}</label>
-      {children}
-    </div>
-  );
-}
-
-// --- ステータスバッジ ---
-function StatusBadge({ status }: { status: CommissionStatus }) {
-  const s = STATUSES.find(x => x.key === status) ?? STATUSES[0];
-  return (
-    <span style={{
-      background: s.bg, color: s.color, border: `1px solid ${s.color}40`,
-      borderRadius: 999, padding: "2px 10px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap"
-    }}>
-      {s.label}
-    </span>
-  );
-}
 
 // --- プランバッジ ---
 function PlanBadge({ plan }: { plan: Plan }) {
@@ -168,19 +83,6 @@ function ImageUsageBar({ plan, imageCount }: { plan: Plan; imageCount: number })
         <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 99, transition: "width 0.4s" }} />
       </div>
     </div>
-  );
-}
-
-// ---- カード一覧サムネイル（signed URL を遅延取得） ----
-function CardThumbnail({ storagePath }: { storagePath: string }) {
-  const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => {
-    getSignedImageUrl(storagePath).then(setUrl).catch(() => { });
-  }, [storagePath]);
-  if (!url) return <div style={{ width: 72, height: 72, borderRadius: 10, background: "#e5e7eb", flexShrink: 0 }} />;
-  return (
-    <img src={url} alt="thumbnail"
-      style={{ width: 72, height: 72, borderRadius: 10, objectFit: "cover", flexShrink: 0, border: "1.5px solid #e5e7eb" }} />
   );
 }
 
@@ -229,11 +131,17 @@ function ImageSection({ commission, plan, onUpdated }: {
 
   useEffect(() => {
     const images = commission.images ?? [];
-    if (!images.length) return;
-    Promise.all(images.map(async img => {
-      const url = await getSignedImageUrl(img.storage_path).catch(() => "");
-      return [img.id, url] as [string, string];
-    })).then(entries => setSignedUrls(Object.fromEntries(entries)));
+    if (!images.length) { setSignedUrls({}); return; }
+    getSignedImageUrls(images.map(img => img.storage_path))
+      .then(pathToUrl => {
+        const byId: Record<string, string> = {};
+        images.forEach(img => {
+          const url = pathToUrl[img.storage_path];
+          if (url) byId[img.id] = url;
+        });
+        setSignedUrls(byId);
+      })
+      .catch(() => setSignedUrls({}));
   }, [commission.images]);
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -391,8 +299,9 @@ export default function CommissionApp() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [imageCount, setImageCount] = useState(0);
   const [commissions, setCommissions] = useState<Commission[]>([]);
+  const search = useCommissionSearch(commissions);
+  const [thumbnailUrls, setThumbnailUrls] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
-  const [filterStatus, setFilterStatus] = useState<"all" | CommissionStatus>("all");
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<FormValues>(EMPTY_FORM);
@@ -408,11 +317,19 @@ export default function CommissionApp() {
   const [showDeleteRequest, setShowDeleteRequest] = useState(false);
   const [deleteRequesting, setDeleteRequesting] = useState(false);
   const [deleteRequestDone, setDeleteRequestDone] = useState(false);
-  const [sortKey, setSortKey] = useState<"ordered_at" | "deadline" | "price" | "status">("ordered_at");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
-  const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showContact, setShowContact] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [pwCurrent, setPwCurrent] = useState("");
+  const [pwNew, setPwNew] = useState("");
+  const [pwConfirm, setPwConfirm] = useState("");
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwError, setPwError] = useState<string | null>(null);
+  const [pwDone, setPwDone] = useState(false);
+  const [showUnlinkWarning, setShowUnlinkWarning] = useState(false);
+  const [unlinking, setUnlinking] = useState(false);
+  const [linking, setLinking] = useState(false);
+  const [showLogoutWarning, setShowLogoutWarning] = useState(false);
 
   useEffect(() => {
     // 初回: セッション確認してuserをセット、なければloginへ
@@ -443,34 +360,43 @@ export default function CommissionApp() {
       // 合計画像枚数カウント
       const total = data.reduce((sum, c) => sum + (c.images?.length ?? 0), 0);
       setImageCount(total);
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+
+      setLoading(false);
+
+      // ---- 一覧サムネイルの署名付きURLをまとめて取得 ----
+      // ここで「各依頼の先頭画像」のパスだけを集めて1回のリクエストで取得する。
+      const firstImagePaths = data
+        .map(c => c.images?.[0]?.storage_path)
+        .filter((p): p is string => !!p);
+      if (firstImagePaths.length === 0) { setThumbnailUrls({}); return; }
+      try {
+        const pathToUrl = await getSignedImageUrls(firstImagePaths);
+        const byCommissionId: Record<string, string> = {};
+        data.forEach(c => {
+          const path = c.images?.[0]?.storage_path;
+          if (path && pathToUrl[path]) byCommissionId[c.id] = pathToUrl[path];
+        });
+        setThumbnailUrls(byCommissionId);
+      } catch {
+        setThumbnailUrls({});
+      }
+    } catch (e) {
+      console.error(e);
+      setLoading(false);
+    }
   }
 
   useEffect(() => { if (user) load(); }, [user]);
 
-  // お知らせ・バージョンの未読件数を取得
-  async function fetchUnreadCount(userId: string) {
-    const [{ data: announcements }, { data: readStatuses }, { data: latestRelease }, { data: settings }] =
-      await Promise.all([
-        supabase.from("announcements").select("id"),
-        supabase.from("user_notification_status").select("announcement_id").eq("user_id", userId).eq("is_read", true),
-        supabase.from("version_releases").select("id").order("released_at", { ascending: false }).limit(1).maybeSingle(),
-        supabase.from("user_settings").select("last_seen_release_id").eq("user_id", userId).maybeSingle(),
-      ]);
-
-    const readIds = new Set((readStatuses ?? []).map((s: any) => s.announcement_id));
-    const unreadAnnouncements = (announcements ?? []).filter((a: any) => !readIds.has(a.id)).length;
-    const unreadRelease = latestRelease && (!settings || settings.last_seen_release_id !== (latestRelease as any).id) ? 1 : 0;
-    setUnreadCount(unreadAnnouncements + unreadRelease);
-  }
-
-  useEffect(() => { if (user) fetchUnreadCount(user.id); }, [user]);
+  // お知らせ・バージョンの未読管理、
+  // 作成日より前に公開されたお知らせは未読カウントの対象から自動的に除外される。
+  const notifications = useNotifications(user?.id ?? null, profile?.created_at ?? null, profile?.plan ?? null);
 
   // --- プロフィールの更新 ---
   async function handleSaveName() {
     if (!nameInput.trim()) return;
-    const { data: { user: u } } = await supabase.auth.getUser();
+    const { data: { session } } = await supabase.auth.getSession();
+    const u = session?.user;
     if (!u) return;
     await supabase.from("user_profiles").update({ display_name: nameInput.trim() }).eq("id", u.id);
     await load();
@@ -491,29 +417,95 @@ export default function CommissionApp() {
     }
   }
 
+  // --- パスワード編集モーダル ---
+  function openPasswordModal() {
+    setPwCurrent(""); setPwNew(""); setPwConfirm("");
+    setPwError(null); setPwDone(false);
+    setShowPasswordModal(true); setShowUserMenu(false);
+  }
+
+  // --- パスワード保存 ---
+  async function handleSavePassword() {
+    setPwError(null);
+    setPwSaving(true);
+    try {
+      if (hasPassword) {
+        // 既にパスワードがある場合：その場で変更
+        if (pwNew.length < PASSWORD_MIN_LENGTH) { setPwError(`パスワードは${PASSWORD_MIN_LENGTH}文字以上で入力してください`); setPwSaving(false); return; }
+        if (pwNew !== pwConfirm) { setPwError("新しいパスワードが一致しません"); setPwSaving(false); return; }
+        if (!pwCurrent) { setPwError("現在のパスワードを入力してください"); setPwSaving(false); return; }
+        await changeMyPassword(pwNew, pwCurrent);
+      } else {
+        // 未設定の場合：設定用メールを送信するフローへ
+        await requestSetPasswordEmail();
+      }
+      setPwDone(true);
+    } catch (e: any) {
+      setPwError(toJapaneseAuthError(e.message ?? "処理に失敗しました"));
+    } finally {
+      setPwSaving(false);
+    }
+  }
+
+  // --- Google連携 ---
+  async function handleLinkGoogle() {
+    setLinking(true);
+    try {
+      await linkGoogleAccount();
+      // このあとGoogleの認証画面へ遷移するため、以降の処理は基本実行されない
+    } catch (e: any) {
+      alert(e.message ?? "連携に失敗しました");
+      setLinking(false);
+    }
+  }
+
+  // --- Google連携解除（パスワード未設定時は警告モーダルで確認） ---
+  function requestUnlinkGoogle() {
+    setShowUserMenu(false);
+    setShowUnlinkWarning(true);
+  }
+
+  // --- Google連携解除処理 ---
+  async function handleUnlinkGoogle() {
+    setUnlinking(true);
+    try {
+      await unlinkGoogleAccount(user!);
+      setShowUnlinkWarning(false);
+      await supabase.auth.refreshSession(); // identitiesの反映のためセッション再取得
+      const { data: { user: refreshed } } = await supabase.auth.getUser();
+      setUser(refreshed);
+    } catch (e: any) {
+      const isIdentityCountError = e.message?.toLowerCase().includes("at least 1 identity");
+      alert(
+        isIdentityCountError
+          ? "解除できませんでした。一度ログアウトし、メールアドレスとパスワードで再ログインしてから再度お試しください。"
+          : (e.message ?? "解除に失敗しました")
+      );
+    } finally {
+      setUnlinking(false);
+    }
+  }
+
+  // --- ログアウト（パスワード未設定 かつ Google未連携の場合は警告） ---
+  function requestLogout() {
+    setShowUserMenu(false);
+    if (!hasPassword && !isGoogleLinked) {
+      setShowLogoutWarning(true);
+    } else {
+      handleLogout();
+    }
+  }
+
   // ログアウト処理
   async function handleLogout() {
     await supabase.auth.signOut();
     window.location.href = "/login";
   }
 
-  // フィルタリング＋ソート
-  const filtered = useMemo(() => {
-    const list = filterStatus === "all" ? commissions : commissions.filter(c => c.status === filterStatus);
-    return [...list].sort((a, b) => {
-      let av: any, bv: any;
-      if (sortKey === "ordered_at") { av = a.ordered_at ?? ""; bv = b.ordered_at ?? ""; }
-      else if (sortKey === "deadline") { av = a.deadline ?? ""; bv = b.deadline ?? ""; }
-      else if (sortKey === "price") { av = a.price ?? 0; bv = b.price ?? 0; }
-      else if (sortKey === "status") {
-        const order = ["pending", "rough", "progress", "done", "cancelled"];
-        av = order.indexOf(a.status); bv = order.indexOf(b.status);
-      }
-      if (av < bv) return sortDir === "asc" ? -1 : 1;
-      if (av > bv) return sortDir === "asc" ? 1 : -1;
-      return 0;
-    });
-  }, [commissions, filterStatus, sortKey, sortDir]);
+  // フィルタ・検索結果一覧（filtered/totalPrice/activeFilterCount等はすべて
+  // useCommissionSearchフックから提供される。詳細ロジックは
+  // hooks/useCommissionSearch.ts を参照）
+  const filtered = search.filtered;
 
   // ステータスごとの統計
   const stats = useMemo(() => ({
@@ -602,6 +594,9 @@ export default function CommissionApp() {
     return () => { document.body.style.overflow = ""; };
   }, [showForm, detailId]);
   const plan = (profile?.plan ?? "free") as Plan;
+  const lastProvider = profile?.last_login_provider ?? null;
+  const hasPassword = profile?.has_password ?? true;
+  const isGoogleLinked = hasGoogleIdentity(user);
   const displayName = profile?.display_name;
   const userLabel = displayName ?? user?.user_metadata?.full_name ?? (user?.email?.split("@")[0]) ?? "ユーザー";
   const userAvatar = user?.user_metadata?.avatar_url as string | undefined;
@@ -672,7 +667,7 @@ export default function CommissionApp() {
             >
               🔔
             </button>
-            {unreadCount > 0 && (
+            {notifications.unreadCount > 0 && (
               <span style={{
                 position: "absolute", top: -4, right: -4,
                 minWidth: 18, height: 18, borderRadius: 999,
@@ -681,7 +676,7 @@ export default function CommissionApp() {
                 textAlign: "center", padding: "0 4px",
                 pointerEvents: "none",
               }}>
-                {unreadCount > 99 ? "99+" : unreadCount}
+                {notifications.unreadCount > 99 ? "99+" : notifications.unreadCount}
               </span>
             )}
           </div>
@@ -702,16 +697,27 @@ export default function CommissionApp() {
                 border: "1px solid #ffffff30", borderRadius: 99, padding: "6px 12px 6px 6px",
                 cursor: "pointer", color: "#fff", fontSize: 13, fontWeight: 600
               }}>
-              {userAvatar ? (
-                <img src={userAvatar} alt="avatar" style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover" }} />
-              ) : (
-                <div style={{
-                  width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,#7c3aed,#4f46e5)",
-                  display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800
-                }}>
-                  {userLabel.charAt(0).toUpperCase()}
-                </div>
-              )}
+              <span style={{ position: "relative", display: "inline-flex" }}>
+                {userAvatar ? (
+                  <img src={userAvatar} alt="avatar" style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover" }} />
+                ) : (
+                  <div style={{
+                    width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,#7c3aed,#4f46e5)",
+                    display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800
+                  }}>
+                    {userLabel.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                {lastProvider === "google" && (
+                  <span title="前回はGoogleでログイン" style={{
+                    position: "absolute", bottom: -2, right: -2,
+                    width: 14, height: 14, borderRadius: "50%",
+                    background: "#fff", border: "1px solid #e5e7eb",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 8, fontWeight: 900, color: "#4285f4",
+                  }}>G</span>
+                )}
+              </span>
               <span style={{ maxWidth: 100, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{userLabel}</span>
               <span style={{ fontSize: 10, opacity: 0.7 }}>▼</span>
             </button>
@@ -741,6 +747,33 @@ export default function CommissionApp() {
                   }}>
                   ✏️ 名前を変更
                 </button>
+                <button onClick={openPasswordModal}
+                  style={{
+                    width: "100%", padding: "11px 16px", background: "none", border: "none",
+                    borderBottom: "1px solid #f3f4f6", cursor: "pointer", fontSize: 13,
+                    color: "#1a0a2e", fontWeight: 600, textAlign: "left", whiteSpace: "nowrap"
+                  }}>
+                  🔑 {hasPassword ? "パスワードを変更" : "パスワードを設定"}
+                </button>
+                {isGoogleLinked ? (
+                  <button onClick={requestUnlinkGoogle}
+                    style={{
+                      width: "100%", padding: "11px 16px", background: "none", border: "none",
+                      borderBottom: "1px solid #f3f4f6", cursor: "pointer", fontSize: 13,
+                      color: "#1a0a2e", fontWeight: 600, textAlign: "left", whiteSpace: "nowrap"
+                    }}>
+                    🔗 Google連携を解除
+                  </button>
+                ) : (
+                  <button onClick={handleLinkGoogle} disabled={linking}
+                    style={{
+                      width: "100%", padding: "11px 16px", background: "none", border: "none",
+                      borderBottom: "1px solid #f3f4f6", cursor: linking ? "not-allowed" : "pointer", fontSize: 13,
+                      color: "#1a0a2e", fontWeight: 600, textAlign: "left", whiteSpace: "nowrap"
+                    }}>
+                    🔗 {linking ? "連携中…" : "Googleと連携する"}
+                  </button>
+                )}
                 {profile?.is_admin && (
                   <button onClick={() => window.location.href = "/mgmt-c7f2a91e"}
                     style={{
@@ -761,7 +794,7 @@ export default function CommissionApp() {
                     🗑 アカウント削除を申請
                   </button>
                 )}
-                <button onClick={handleLogout}
+                <button onClick={requestLogout}
                   style={{
                     width: "100%", padding: "11px 16px", background: "none", border: "none",
                     cursor: "pointer", fontSize: 13, color: "#ef4444", fontWeight: 700, textAlign: "left", whiteSpace: "nowrap"
@@ -774,87 +807,29 @@ export default function CommissionApp() {
         </div>
       </header>
 
-      {/* フィルタ＋ソート */}
-      <div style={{ padding: "16px 32px 0", display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-        {[{ key: "all", label: "すべて" } as const, ...STATUSES].map(s => (
-          <button key={s.key} onClick={() => setFilterStatus(s.key as any)}
-            style={{
-              background: filterStatus === s.key ? ("color" in s ? s.color : "#1a0a2e") : "#fff",
-              color: filterStatus === s.key ? "#fff" : "#555",
-              border: `1.5px solid ${filterStatus === s.key ? ("color" in s ? s.color : "#1a0a2e") : "#e5e7eb"}`,
-              borderRadius: 999, padding: "5px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer"
-            }}>
-            {s.label}
-          </button>
-        ))}
-        {/* 並び替え */}
-        <div style={{ display: "flex", gap: 6, alignItems: "center", marginLeft: "auto" }}>
-          <select
-            value={sortKey}
-            onChange={e => setSortKey(e.target.value as any)}
-            style={{ padding: "5px 10px", border: "1.5px solid #e5e7eb", borderRadius: 10, fontSize: 12, outline: "none", background: "#fff", color: "#555", cursor: "pointer" }}>
-            <option value="ordered_at">依頼日順</option>
-            <option value="deadline">納期順</option>
-            <option value="price">金額順</option>
-            <option value="status">ステータス順</option>
-          </select>
-          <button
-            onClick={() => setSortDir(d => d === "asc" ? "desc" : "asc")}
-            style={{ padding: "5px 10px", border: "1.5px solid #e5e7eb", borderRadius: 10, fontSize: 12, background: "#fff", color: "#555", cursor: "pointer", fontWeight: 700 }}>
-            {sortDir === "asc" ? "↑ 昇順" : "↓ 降順"}
-          </button>
-        </div>
-      </div>
+      {/* フィルタ＋ソート＋詳細検索パネル（CommissionApp/DemoApp共通コンポーネント） */}
+      <CommissionSearchBar search={search} />
 
       {/* リスト */}
       <main style={{ padding: "20px 32px 60px", maxWidth: 900 }}>
         {filtered.length === 0 && (
           <div style={{ textAlign: "center", color: "#aaa", marginTop: 60, fontSize: 15 }}>依頼がありません</div>
         )}
-        <div style={{ display: "grid", gap: 14 }}>
-          {filtered.map(c => {
-            const days = daysUntil(c.deadline);
-            const urgent = days !== null && days <= 7 && c.status !== "done" && c.status !== "cancelled";
-            return (
-              <div key={c.id} onClick={() => setDetailId(c.id)}
-                style={{
-                  background: "#fff", borderRadius: 16, padding: "18px 22px",
-                  boxShadow: urgent ? "0 0 0 2px #ef444460,0 2px 12px #0001" : "0 1px 6px #0001,0 2px 12px #0001",
-                  border: urgent ? "1.5px solid #fca5a5" : "1.5px solid transparent",
-                  cursor: "pointer", display: "flex", gap: 16, alignItems: "center",
-                  transition: "transform 0.1s"
-                }}
-                onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)"; }}>
-                {/* サムネイル（最初の画像） */}
-                {(c.images?.length ?? 0) > 0 && (
-                  <CardThumbnail storagePath={c.images![0].storage_path} />
-                )}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
-                    <span style={{ fontWeight: 800, fontSize: 16, color: "#1a0a2e" }}>{c.title}</span>
-                    <StatusBadge status={c.status} />
-                    {urgent && <span style={{ fontSize: 11, color: "#ef4444", fontWeight: 700 }}>⚠ あと{days}日</span>}
-                    {(c.images?.length ?? 0) > 0 && <span style={{ fontSize: 11, color: "#7c3aed" }}>📷 {c.images!.length}枚</span>}
-                  </div>
-                  <div style={{ display: "flex", gap: 16, flexWrap: "wrap", fontSize: 13, color: "#555" }}>
-                    <span>🖌 {c.artist}{c.x_id && <span style={{ color: "#7c3aed", marginLeft: 4 }}>{c.x_id}</span>}</span>
-                    <span>📅 {fmtDate(c.ordered_at)}</span>
-                    <span>⏰ 納期: {fmtDate(c.deadline)}</span>
-                    {c.rough_date && <span>✏️ ラフ: {fmtDate(c.rough_date)}</span>}
-                  </div>
-                </div>
-                <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div style={{ fontWeight: 800, fontSize: 18, color: "#1a0a2e" }}>{fmtPrice(c.price, c.currency)}</div>
-                  {days !== null && c.status !== "done" && c.status !== "cancelled" && (
-                    <div style={{ fontSize: 11, color: days < 0 ? "#ef4444" : days <= 7 ? "#f59e0b" : "#aaa", marginTop: 2 }}>
-                      {days < 0 ? `${Math.abs(days)}日超過` : days === 0 ? "今日が納期" : `残${days}日`}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+        <div style={{ display: "grid", gap: 10 }}>
+          {filtered.map(c => (
+            <CommissionListCard
+              key={c.id}
+              title={c.title}
+              artist={c.artist}
+              xId={c.x_id}
+              status={c.status}
+              deadline={c.deadline}
+              price={c.price}
+              imageCount={c.images?.length ?? 0}
+              thumbnailUrl={thumbnailUrls[c.id]}
+              onClick={() => setDetailId(c.id)}
+            />
+          ))}
         </div>
       </main>
 
@@ -1018,6 +993,198 @@ export default function CommissionApp() {
         </div>
       )}
 
+      {/* 連携解除の警告モーダル */}
+      {showUnlinkWarning && (
+        <div style={{ position: "fixed", inset: 0, background: "#0007", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+          onClick={() => !unlinking && setShowUnlinkWarning(false)}>
+          <div style={{ background: "#fff", borderRadius: 20, padding: "32px", maxWidth: 380, width: "100%", boxShadow: "0 8px 48px #0004" }}
+            onClick={e => e.stopPropagation()}>
+            {!hasPassword ? (
+              <>
+                {/* パスワード未設定＝Google識別子が1件のみ → 解除は不可能なので案内する */}
+                <div style={{ fontSize: 40, marginBottom: 12, textAlign: "center" }}>⚠️</div>
+                <div style={{ fontWeight: 800, fontSize: 17, color: "#1a0a2e", marginBottom: 12, textAlign: "center" }}>
+                  現在Googleアカウントが唯一のログイン手段です
+                </div>
+                <div style={{
+                  fontSize: 13, color: "#666", lineHeight: 1.8, marginBottom: 22,
+                }}>
+                  他のログイン手段が無いため、このままではGoogle連携を解除できません。
+                  解除するには、先に<strong>パスワードを設定</strong>していただくか、
+                  利用をやめる場合は<strong>アカウント削除を申請</strong>してください。
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <button onClick={() => { setShowUnlinkWarning(false); openPasswordModal(); }}
+                    style={{
+                      background: "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "#fff",
+                      border: "none", borderRadius: 10, padding: "12px", fontWeight: 800, cursor: "pointer"
+                    }}>
+                    🔑 パスワードを設定する
+                  </button>
+                  <button onClick={() => { setShowUnlinkWarning(false); setShowDeleteRequest(true); }}
+                    style={{
+                      background: "#fff", color: "#ef4444", border: "1.5px solid #fca5a5",
+                      borderRadius: 10, padding: "12px", fontWeight: 700, cursor: "pointer"
+                    }}>
+                    🗑 アカウント削除を申請する
+                  </button>
+                  <button onClick={() => setShowUnlinkWarning(false)}
+                    style={{ background: "#f3f4f6", border: "none", borderRadius: 10, padding: "12px", fontWeight: 600, cursor: "pointer" }}>
+                    キャンセル
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* パスワード設定済み → 通常の解除確認 */}
+                <div style={{ fontSize: 40, marginBottom: 12, textAlign: "center" }}>⚠️</div>
+                <div style={{ fontWeight: 800, fontSize: 17, color: "#1a0a2e", marginBottom: 12, textAlign: "center" }}>
+                  Google連携を解除しますか？
+                </div>
+                <div style={{ fontSize: 13, color: "#666", lineHeight: 1.7, marginBottom: 20, textAlign: "center" }}>
+                  解除後もメールアドレスとパスワードでログインできます。
+                </div>
+                <div style={{
+                  fontSize: 12, color: "#92400e", lineHeight: 1.7, marginBottom: 20,
+                  background: "#fef3c7", border: "1px solid #fbbf24", borderRadius: 10, padding: "12px 14px"
+                }}>
+                  ⚠ 直近でパスワードを設定した場合、稀に解除がうまく反映されないことがあります。
+                  その場合は一度<strong>ログアウトし、メールアドレスとパスワードで再ログイン</strong>してから、
+                  もう一度お試しください。
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button onClick={() => setShowUnlinkWarning(false)} disabled={unlinking}
+                    style={{ flex: 1, background: "#f3f4f6", border: "none", borderRadius: 10, padding: "12px", fontWeight: 600, cursor: "pointer" }}>
+                    キャンセル
+                  </button>
+                  <button onClick={handleUnlinkGoogle} disabled={unlinking}
+                    style={{
+                      flex: 1, background: unlinking ? "#fca5a5" : "#ef4444", color: "#fff",
+                      border: "none", borderRadius: 10, padding: "12px", fontWeight: 800,
+                      cursor: unlinking ? "not-allowed" : "pointer"
+                    }}>
+                    {unlinking ? "解除中…" : "解除する"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* パスワード設定/変更モーダル */}
+      {showPasswordModal && (
+        <div style={{ position: "fixed", inset: 0, background: "#0006", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}
+          onClick={() => !pwSaving && setShowPasswordModal(false)}>
+          <div style={{ background: "#fff", borderRadius: 20, padding: "32px", maxWidth: 380, width: "90%", boxShadow: "0 8px 48px #0004" }}
+            onClick={e => e.stopPropagation()}>
+            {pwDone ? (
+              <>
+                <div style={{ fontSize: 40, marginBottom: 12, textAlign: "center" }}>{hasPassword ? "🔑" : "📨"}</div>
+                <div style={{ fontWeight: 800, fontSize: 17, color: "#1a0a2e", marginBottom: 10, textAlign: "center" }}>
+                  {hasPassword ? "パスワードを変更しました" : "設定用メールを送信しました"}
+                </div>
+                {!hasPassword && (
+                  <div style={{ fontSize: 13, color: "#666", lineHeight: 1.7, marginBottom: 20, textAlign: "center" }}>
+                    メール内のリンクから新しいパスワードを設定してください。<br />
+                    設定が完了すると、次回からメールアドレスとパスワードでもログインできます。
+                  </div>
+                )}
+                <button onClick={() => setShowPasswordModal(false)}
+                  style={{
+                    width: "100%", background: "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "#fff",
+                    border: "none", borderRadius: 10, padding: "12px", fontWeight: 800, cursor: "pointer"
+                  }}>
+                  閉じる
+                </button>
+              </>
+            ) : hasPassword ? (
+              <>
+                <div style={{ fontWeight: 800, fontSize: 18, color: "#1a0a2e", marginBottom: 8 }}>パスワードを変更</div>
+                {pwError && (
+                  <div style={{
+                    marginBottom: 14, padding: "10px 14px", borderRadius: 10, fontSize: 13,
+                    background: "#fee2e2", color: "#b91c1c", border: "1px solid #fca5a5"
+                  }}>
+                    ⚠ {pwError}
+                  </div>
+                )}
+                <div style={{ display: "grid", gap: 12, marginBottom: 18 }}>
+                  <input type="password" placeholder="現在のパスワード" value={pwCurrent}
+                    onChange={e => setPwCurrent(e.target.value)}
+                    autoComplete="current-password"
+                    style={{
+                      width: "100%", padding: "10px 13px", border: "1.5px solid #e5e7eb", borderRadius: 12,
+                      fontSize: 16, outline: "none", background: "#faf8f5", boxSizing: "border-box"
+                    }} />
+                  <input type="password" placeholder={`新しいパスワード（${PASSWORD_MIN_LENGTH}文字以上）`} value={pwNew}
+                    onChange={e => setPwNew(e.target.value)}
+                    minLength={PASSWORD_MIN_LENGTH}
+                    style={{
+                      width: "100%", padding: "10px 13px", border: "1.5px solid #e5e7eb", borderRadius: 12,
+                      fontSize: 16, outline: "none", background: "#faf8f5", boxSizing: "border-box"
+                    }} />
+                  <input type="password" placeholder="新しいパスワード（確認）" value={pwConfirm}
+                    onChange={e => setPwConfirm(e.target.value)}
+                    style={{
+                      width: "100%", padding: "10px 13px", border: "1.5px solid #e5e7eb", borderRadius: 12,
+                      fontSize: 16, outline: "none", background: "#faf8f5", boxSizing: "border-box"
+                    }} />
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button onClick={() => setShowPasswordModal(false)} disabled={pwSaving}
+                    style={{ flex: 1, background: "#f3f4f6", border: "none", borderRadius: 10, padding: "11px", fontWeight: 600, cursor: "pointer" }}>
+                    キャンセル
+                  </button>
+                  <button
+                    onClick={handleSavePassword}
+                    disabled={pwSaving || pwNew.length < PASSWORD_MIN_LENGTH || pwNew !== pwConfirm || !pwCurrent}
+                    style={{
+                      flex: 2,
+                      background: (pwSaving || pwNew.length < PASSWORD_MIN_LENGTH || pwNew !== pwConfirm || !pwCurrent) ? "#c4b5fd" : "linear-gradient(135deg,#7c3aed,#4f46e5)",
+                      color: "#fff", border: "none", borderRadius: 10, padding: "11px", fontWeight: 800,
+                      cursor: (pwSaving || pwNew.length < PASSWORD_MIN_LENGTH || pwNew !== pwConfirm || !pwCurrent) ? "not-allowed" : "pointer"
+                    }}>
+                    {pwSaving ? "処理中…" : "変更する"}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontWeight: 800, fontSize: 18, color: "#1a0a2e", marginBottom: 8 }}>パスワードを設定</div>
+                <p style={{ fontSize: 12, color: "#888", lineHeight: 1.7, marginBottom: 16 }}>
+                  現在Googleアカウントでログインしています。設定用のメールを送信しますので、
+                  メール内のリンクから新しいパスワードを設定してください。
+                  設定すると、次回からメールアドレスとパスワードでもログインできるようになります。
+                </p>
+                {pwError && (
+                  <div style={{
+                    marginBottom: 14, padding: "10px 14px", borderRadius: 10, fontSize: 13,
+                    background: "#fee2e2", color: "#b91c1c", border: "1px solid #fca5a5"
+                  }}>
+                    ⚠ {pwError}
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button onClick={() => setShowPasswordModal(false)} disabled={pwSaving}
+                    style={{ flex: 1, background: "#f3f4f6", border: "none", borderRadius: 10, padding: "11px", fontWeight: 600, cursor: "pointer" }}>
+                    キャンセル
+                  </button>
+                  <button onClick={handleSavePassword} disabled={pwSaving}
+                    style={{
+                      flex: 2, background: pwSaving ? "#c4b5fd" : "linear-gradient(135deg,#7c3aed,#4f46e5)",
+                      color: "#fff", border: "none", borderRadius: 10, padding: "11px", fontWeight: 800,
+                      cursor: pwSaving ? "not-allowed" : "pointer"
+                    }}>
+                    {pwSaving ? "送信中…" : "設定用メールを送信する"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* 削除確認 */}
       {deleteConfirm && (
         <div style={{ position: "fixed", inset: 0, background: "#0006", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1028,6 +1195,38 @@ export default function CommissionApp() {
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => setDeleteConfirm(null)} style={{ flex: 1, background: "#f3f4f6", border: "none", borderRadius: 10, padding: "10px", fontWeight: 600, cursor: "pointer" }}>キャンセル</button>
               <button onClick={() => handleDelete(deleteConfirm)} style={{ flex: 1, background: "#ef4444", color: "#fff", border: "none", borderRadius: 10, padding: "10px", fontWeight: 700, cursor: "pointer" }}>削除する</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ログアウトの警告モーダル */}
+      {showLogoutWarning && (
+        <div style={{ position: "fixed", inset: 0, background: "#0007", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+          onClick={() => setShowLogoutWarning(false)}>
+          <div style={{ background: "#fff", borderRadius: 20, padding: "32px", maxWidth: 380, width: "100%", boxShadow: "0 8px 48px #0004" }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 40, marginBottom: 12, textAlign: "center" }}>⚠️</div>
+            <div style={{ fontWeight: 800, fontSize: 17, color: "#1a0a2e", marginBottom: 12, textAlign: "center" }}>
+              ログアウトしますか？
+            </div>
+            <div style={{
+              fontSize: 13, color: "#b91c1c", lineHeight: 1.8, marginBottom: 20,
+              background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: 12, padding: "14px 16px"
+            }}>
+              <strong>このアカウントはパスワード未設定・Google連携もされていません。</strong><br />
+              ログアウトすると、再度ログインする手段がなくなる可能性があります。<br />
+              先に「パスワードを設定」または「Googleと連携する」ことを強く推奨します。
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setShowLogoutWarning(false)}
+                style={{ flex: 1, background: "#f3f4f6", border: "none", borderRadius: 10, padding: "12px", fontWeight: 600, cursor: "pointer" }}>
+                キャンセル
+              </button>
+              <button onClick={handleLogout}
+                style={{ flex: 1, background: "#ef4444", color: "#fff", border: "none", borderRadius: 10, padding: "12px", fontWeight: 800, cursor: "pointer" }}>
+                それでもログアウト
+              </button>
             </div>
           </div>
         </div>
@@ -1053,10 +1252,10 @@ export default function CommissionApp() {
               <div style={{ display: "grid", gap: 16, paddingBottom: 8 }}>
                 <Field label="件名 *"><input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="例: アイコン用イラスト" style={inp} /></Field>
                 <Field label="絵師名 *"><input value={form.artist} onChange={e => setForm({ ...form, artist: e.target.value })} placeholder="例: 花咲りん" style={inp} /></Field>
-                <Field label="X ID（任意）"><input value={form.x_id} onChange={e => setForm({ ...form, x_id: e.target.value })} placeholder="例: @artist_name" style={inp} /></Field>
+                <Field label="X ID"><input value={form.x_id} onChange={e => setForm({ ...form, x_id: e.target.value })} placeholder="例: @artist_name" style={inp} /></Field>
                 <DateField label="依頼日" value={form.ordered_at} onChange={v => setForm({ ...form, ordered_at: v })} />
                 <DateField label="納期" value={form.deadline} onChange={v => setForm({ ...form, deadline: v })} />
-                <DateField label="ラフ提出日（任意）" value={form.rough_date} onChange={v => setForm({ ...form, rough_date: v })} />
+                <DateField label="ラフ提出日" value={form.rough_date} onChange={v => setForm({ ...form, rough_date: v })} />
                 <Field label="金額（円）">
                   <input
                     type="text"
@@ -1084,7 +1283,7 @@ export default function CommissionApp() {
                     {STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
                   </select>
                 </Field>
-                <Field label="メモ（任意）">
+                <Field label="メモ">
                   <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
                     placeholder="色味の指定や注意点など" style={{ ...inp, minHeight: 70, resize: "vertical" }} />
                 </Field>
@@ -1097,7 +1296,7 @@ export default function CommissionApp() {
                   const totalAfter = currentTotal + pendingCount;
                   const atLimit = limit !== null && totalAfter >= limit;
                   return (
-                    <Field label="画像（任意・登録後にも追加できます）">
+                    <Field label="画像（登録後にも追加できます）">
                       {/* 仮追加済み画像プレビュー */}
                       {pendingImages.length > 0 && (
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(80px,1fr))", gap: 8, marginBottom: 10 }}>
@@ -1201,8 +1400,17 @@ export default function CommissionApp() {
       <NotificationsModal
         open={showNotifications}
         onClose={() => setShowNotifications(false)}
-        onRead={() => fetchUnreadCount(user!.id)}
+        announcements={notifications.announcements}
+        releases={notifications.releases}
+        unreadAnnouncementIds={notifications.unreadAnnouncementIds}
+        hasUnreadRelease={notifications.hasUnreadRelease}
+        loading={notifications.loading}
+        onMarkAnnouncementRead={notifications.markAnnouncementRead}
+        onMarkReleasesRead={notifications.markReleasesRead}
       />
+
+      {/* ホーム画面追加バナー */}
+      <InstallPromptBanner />
 
       {/* フッター */}
       <footer style={{ borderTop: "1px solid #e5e7eb", padding: "24px 32px", textAlign: "center" }}>

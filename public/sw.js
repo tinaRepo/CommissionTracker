@@ -1,4 +1,24 @@
 // Web Push通知のService Worker
+const OFFLINE_CACHE = 'commission-tracker-offline-v1';
+
+self.addEventListener('install', function (event) {
+  event.waitUntil(
+    caches.open(OFFLINE_CACHE).then(function (cache) {
+      return cache.add('/offline.html');
+    })
+  );
+});
+
+self.addEventListener('fetch', function (event) {
+  if (event.request.mode !== 'navigate') return;
+
+  event.respondWith(
+    fetch(event.request).catch(async function () {
+      return await caches.match('/offline.html') || Response.error();
+    })
+  );
+});
+
 self.addEventListener('push', function (event) {
   if (!event.data) return;
 

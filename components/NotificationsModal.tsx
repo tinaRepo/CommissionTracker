@@ -1,34 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
-
-// ─── 型定義 ────────────────────────────────────────────────────
-
-type VersionRelease = {
-  id: string;
-  version: string;
-  title: string;
-  released_at: string;
-  items: VersionReleaseItem[];
-};
-
-type VersionReleaseItem = {
-  id: string;
-  category: "新機能" | "改善" | "修正";
-  content: string;
-  sort_order: number;
-};
-
-type Announcement = {
-  id: string;
-  title: string;
-  content: string;
-  type: "お知らせ" | "メンテナンス" | "障害情報" | "キャンペーン";
-  published_at: string;
-};
-
-type Tab = "announcements" | "releases";
+import type { Announcement, VersionRelease } from "@/hooks/useNotifications";
 
 // ─── 定数 ──────────────────────────────────────────────────────
 
@@ -45,44 +18,53 @@ const CATEGORY_CONFIG = {
   修正: { bg: "#fef3c7", color: "#b45309", border: "#fcd34d" },
 } as const;
 
+type Tab = "announcements" | "releases";
+
 // ─── Props ─────────────────────────────────────────────────────
 
 type Props = {
   open: boolean;
   onClose: () => void;
-  /** 閉じた後に親側の未読カウントを再取得するコールバック */
-  onRead?: () => void;
+  announcements: Announcement[];
+  releases: VersionRelease[];
+  unreadAnnouncementIds: Set<string>;
+  hasUnreadRelease: boolean;
+  loading: boolean;
+  onMarkAnnouncementRead: (id: string) => Promise<void> | void;
+  onMarkReleasesRead: () => Promise<void> | void;
 };
 
 // ─── メインコンポーネント ──────────────────────────────────────
 
-export default function NotificationsModal({ open, onClose, onRead }: Props) {
+export default function NotificationsModal({
+  open,
+  onClose,
+  announcements,
+  releases,
+  unreadAnnouncementIds,
+  hasUnreadRelease,
+  loading,
+  onMarkAnnouncementRead,
+  onMarkReleasesRead,
+}: Props) {
   const [activeTab, setActiveTab] = useState<Tab>("announcements");
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [releases, setReleases] = useState<VersionRelease[]>([]);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
-  const [unreadAnnouncementIds, setUnreadAnnouncementIds] = useState<Set<string>>(new Set());
-  const [hasUnreadRelease, setHasUnreadRelease] = useState(false);
-  const [loading, setLoading] = useState(false);
-  // ✅ 最適化: getUser() の結果を state で保持し、以降の操作で再取得しない
-  const [userId, setUserId] = useState<string | null>(null);
 
-  // モーダルが開いたときにデータ取得
+  // モーダルを開くたびにタブ・選択状態だけリセットする（データ自体は親から渡されるため再取得不要）
   useEffect(() => {
     if (open) {
       setActiveTab("announcements");
       setSelectedAnnouncement(null);
-      fetchAll();
     }
   }, [open]);
 
   // Escキーで閉じる
   useEffect(() => {
     if (!open) return;
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") handleClose(); };
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [open]);
+  }, [open, onClose]);
 
   // スクロールロック
   useEffect(() => {
@@ -90,91 +72,22 @@ export default function NotificationsModal({ open, onClose, onRead }: Props) {
     return () => { document.body.style.overflow = ""; };
   }, [open]);
 
-  function handleClose() {
-    onClose();
-    onRead?.();
-  }
-
-  // ✅ 最適化: getUser() はここで1回だけ呼び、uid を state に保存
-  async function fetchAll() {
-    setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    const uid = user?.id ?? null;
-    setUserId(uid);
-    await Promise.all([fetchAnnouncements(uid), fetchReleases(uid)]);
-    setLoading(false);
-  }
-
-  async function fetchAnnouncements(uid: string | null) {
-    const { data } = await supabase
-      .from("announcements")
-      .select("*")
-      .order("published_at", { ascending: false });
-    if (!data) return;
-    setAnnouncements(data);
-    if (!uid) return;
-
-    const { data: statusData } = await supabase
-      .from("user_notification_status")
-      .select("announcement_id, is_read")
-      .eq("user_id", uid);
-    const readIds = new Set((statusData ?? []).filter(s => s.is_read).map(s => s.announcement_id));
-    setUnreadAnnouncementIds(new Set(data.map(a => a.id).filter(id => !readIds.has(id))));
-  }
-
-  async function fetchReleases(uid: string | null) {
-    const { data } = await supabase
-      .from("version_releases")
-      .select("*, version_release_items(*)")
-      .order("released_at", { ascending: false });
-    if (!data) return;
-
-    const formatted: VersionRelease[] = data.map(r => ({
-      ...r,
-      items: (r.version_release_items ?? []).sort(
-        (a: VersionReleaseItem, b: VersionReleaseItem) => a.sort_order - b.sort_order
-      ),
-    }));
-    setReleases(formatted);
-    if (!uid || formatted.length === 0) return;
-
-    const { data: settings } = await supabase
-      .from("user_settings")
-      .select("last_seen_release_id")
-      .eq("user_id", uid)
-      .maybeSingle();
-    setHasUnreadRelease(!settings || settings.last_seen_release_id !== formatted[0].id);
-  }
-
-  // ✅ 最適化: userId state を直接使用。getUser() の再呼び出しなし
-  async function markAnnouncementRead(id: string) {
-    if (!userId) return;
-    await supabase.from("user_notification_status").upsert(
-      { user_id: userId, announcement_id: id, is_read: true },
-      { onConflict: "user_id,announcement_id" }
-    );
-    setUnreadAnnouncementIds(prev => { const n = new Set(prev); n.delete(id); return n; });
-  }
-
-  // ✅ 最適化: userId state を直接使用。getUser() の再呼び出しなし
-  async function markReleasesRead() {
-    if (!userId || releases.length === 0) return;
-    await supabase.from("user_settings").upsert(
-      { user_id: userId, last_seen_release_id: releases[0].id },
-      { onConflict: "user_id" }
-    );
-    setHasUnreadRelease(false);
-  }
-
   async function handleTabChange(tab: Tab) {
     setActiveTab(tab);
     setSelectedAnnouncement(null);
-    if (tab === "releases" && hasUnreadRelease) await markReleasesRead();
+    if (tab === "releases" && hasUnreadRelease) await onMarkReleasesRead();
   }
 
   async function handleAnnouncementClick(a: Announcement) {
     setSelectedAnnouncement(a);
-    if (unreadAnnouncementIds.has(a.id)) await markAnnouncementRead(a.id);
+    if (unreadAnnouncementIds.has(a.id)) {
+      try {
+        await onMarkAnnouncementRead(a.id);
+      } catch (error) {
+        console.error("mark announcement read error:", error);
+        alert("お知らせを既読にできませんでした。通信状態を確認して、もう一度お試しください。");
+      }
+    }
   }
 
   function formatDate(s: string) {
@@ -235,7 +148,7 @@ export default function NotificationsModal({ open, onClose, onRead }: Props) {
         .notif-close:hover  { background: #e5e7eb !important; }
       `}</style>
 
-      <div style={S.overlay} onClick={handleClose}>
+      <div style={S.overlay} onClick={onClose}>
         <div style={S.modal} onClick={e => e.stopPropagation()}>
 
           {/* ── ヘッダー ── */}
@@ -253,7 +166,7 @@ export default function NotificationsModal({ open, onClose, onRead }: Props) {
                 </span>
               )}
             </div>
-            <button className="notif-close" style={S.closeBtn} onClick={handleClose} title="閉じる">
+            <button className="notif-close" style={S.closeBtn} onClick={onClose} title="閉じる">
               ✕
             </button>
           </div>
@@ -291,14 +204,14 @@ export default function NotificationsModal({ open, onClose, onRead }: Props) {
           {/* ── ボディ ── */}
           <div style={S.body}>
 
-            {loading && (
+            {loading && announcements.length === 0 && releases.length === 0 && (
               <div style={{ textAlign: "center", padding: "40px 0", color: "#7c3aed", fontWeight: 700 }}>
                 読み込み中…
               </div>
             )}
 
             {/* お知らせ一覧 */}
-            {!loading && activeTab === "announcements" && !selectedAnnouncement && (
+            {activeTab === "announcements" && !selectedAnnouncement && !(loading && announcements.length === 0) && (
               announcements.length === 0
                 ? <EmptyState label="お知らせはありません" />
                 : <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -315,7 +228,7 @@ export default function NotificationsModal({ open, onClose, onRead }: Props) {
             )}
 
             {/* お知らせ詳細 */}
-            {!loading && activeTab === "announcements" && selectedAnnouncement && (
+            {activeTab === "announcements" && selectedAnnouncement && (
               <AnnouncementDetail
                 announcement={selectedAnnouncement}
                 formatDate={formatDate}
@@ -324,7 +237,7 @@ export default function NotificationsModal({ open, onClose, onRead }: Props) {
             )}
 
             {/* リリースノート */}
-            {!loading && activeTab === "releases" && (
+            {activeTab === "releases" && !(loading && releases.length === 0) && (
               releases.length === 0
                 ? <EmptyState label="リリースノートはありません" />
                 : <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>

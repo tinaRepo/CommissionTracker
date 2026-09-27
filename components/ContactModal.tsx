@@ -195,7 +195,7 @@ export default function ContactModal({ open, onClose }: Props) {
                   </Field>
 
                   {!isLoggedIn && (
-                    <Field label="メールアドレス（任意）">
+                    <Field label="メールアドレス">
                       <input
                         type="email" value={email} onChange={e => setEmail(e.target.value)}
                         placeholder="例: example@email.com"
@@ -274,7 +274,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
         display: "block", fontSize: 12, fontWeight: 700,
         color: "#555", marginBottom: 6, letterSpacing: "0.04em"
       }}>
-        {label}
+        {label.endsWith(" *") ? <>{label.slice(0, -2)} <span style={{ color: "#ef4444" }}>*</span></> : label}
       </label>
       {children}
     </div>

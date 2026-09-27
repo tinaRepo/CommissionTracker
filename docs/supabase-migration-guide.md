@@ -8,6 +8,8 @@
 
 本ガイドは Supabase CLI v2.104.0 を前提としています。
 
+Supabaseの管理はSupabase CLIのコマンドで行います。検証DBと本番DBのProject Refを指定して、マイグレーションの作成・確認・適用を実行します。
+
 ---
 
 # マイグレーションとは
@@ -50,38 +52,33 @@ Git管理できるため、誰がいつ何を変更したか分かります。
 
 ---
 
-# ローカルDBと本番DBの違い
+# 検証DBと本番DBの違い
 
-Supabaseには大きく分けて2種類のDBがあります。
+Supabase Cloudは、検証用と本番用の2つのプロジェクトに分けて運用します。
 
-## ローカルDB
+---
 
-Docker上で起動する開発用DBです。
+## 検証DB（Supabase Cloud）
+
+検証用のSupabaseプロジェクトがホストしているクラウドDBです。本番データとは分離し、リリース前の動作確認に使用します。
 
 ```text
-開発者PC
+Supabase Cloud
 ↓
-Docker
-↓
-Local Supabase
+Staging Database
 ```
 
-ローカルDBへの適用は主に以下を使用します。
-以下は、テーブルをリセットして作り直します。
+検証DBへの適用は、必ず検証用Project Refを指定して実行します。
 
 ```bash
-npx supabase db reset
-```
-以下は、未適用だけ適用させます。
-```bash
-npx supabase migration up
+npx supabase db push --project-ref <staging-project-ref>
 ```
 
 ---
 
 ## 本番DB（Supabase Cloud）
 
-SupabaseがホストしているクラウドDBです。
+本番用のSupabaseプロジェクトがホストしているクラウドDBです。
 
 ```text
 Supabase Cloud
@@ -89,11 +86,13 @@ Supabase Cloud
 Production Database
 ```
 
-本番DBへの適用は以下を使用します。
+本番DBへの適用は、必ず本番用Project Refを指定して実行します。
 
 ```bash
-npx supabase db push
+npx supabase db push --project-ref <production-project-ref>
 ```
+
+検証DBと本番DBは別プロジェクトのため、Project Refを取り違えないでください。
 
 ---
 
@@ -138,33 +137,7 @@ supabase/
 
 ---
 
-## 3. ローカル環境起動
-
-Docker Desktopを起動した状態で実行
-
-```bash
-npx supabase start
-```
-
-起動後
-
-```text
-API URL
-DB URL
-Studio URL
-```
-
-が表示されます。
-
-Studioは通常以下でアクセス可能です。
-
-```text
-http://localhost:54323
-```
-
----
-
-## 4. ログイン
+## 3. ログイン
 
 初回のみ実行
 
@@ -174,13 +147,11 @@ npx supabase login
 
 ブラウザが開くので認証してください。
 
-※ 毎回ログインする必要はありません。
 
----
 
-## 5. プロジェクト接続
+## 4. Supabaseプロジェクトの確認
 
-Supabase Dashboardから Project Ref を確認します。
+Supabase Dashboardから、検証用と本番用のProject Refをそれぞれ確認します。
 
 ```text
 Project Settings
@@ -190,20 +161,30 @@ General
 Reference ID
 ```
 
-接続
-
-```bash
-npx supabase link --project-ref <project-ref>
-```
-
 例
 
 ```bash
-npx supabase link --project-ref abcdefghijklmnop
+npx supabase link --project-ref <staging-project-ref>
 ```
 
----
+このコマンドを実行すると、Supabase CLIが検証用プロジェクトにリンクされます。本番用へ切り替える場合は、本番用Project Refを指定して再実行します。
 
+```bash
+npx supabase link --project-ref <production-project-ref>
+```
+
+ただし、リンク状態だけに依存せず、Cloudへの操作では常に対象のProject Refをコマンドに指定してください。
+
+アプリの環境変数も、デプロイ先に応じて対応するSupabaseプロジェクトの値を設定します。
+
+| デプロイ先 | Supabaseプロジェクト | 設定する値 |
+| --- | --- | --- |
+| 検証環境 | 検証用プロジェクト | 検証用のURL・anon key・service role key |
+| 本番環境 | 本番用プロジェクト | 本番用のURL・anon key・service role key |
+
+検証用と本番用で、認証設定、Storage、Edge Functions、WebhookなどのSupabase側設定も別々に管理します。
+
+---
 # マイグレーション作成
 
 新しいDB変更を行う場合
@@ -227,64 +208,56 @@ ADD COLUMN due_date DATE;
 ```
 
 ---
-
-# ローカルDBへ適用
-
-## 推奨
-
-以下は、テーブルをリセットして作り直します。
-```bash
-npx supabase db reset
-```
-
-以下は、未適用だけ適用させます。
-```bash
-npx supabase migration up
-```
-
-実行内容
-
-1. ローカルDB削除
-2. ローカルDB再作成
-3. migration全実行
-4. seed.sql実行
-
-開発中は基本的にこのコマンドを利用します。
-
----
-
-# 本番DBへ適用
+# 検証DBへ適用
 
 ## 事前確認
 
 ```bash
-npx supabase db push --dry-run
+npx supabase db push --project-ref <staging-project-ref> --dry-run
 ```
 
 適用される内容を確認できます。
 
 ---
-
-## 本番反映
+## 検証反映
 
 ```bash
-npx supabase db push
+npx supabase db push --project-ref <staging-project-ref>
 ```
 
 未適用のマイグレーションのみ実行されます。
 
 ---
+# 本番DBへ適用
 
+検証DBで動作確認が完了し、Pull Requestがマージされた後に本番DBへ適用します。
+
+## 事前確認
+
+```bash
+npx supabase db push --project-ref <production-project-ref> --dry-run
+```
+
+本番に適用される内容を確認し、対象Project Refが本番用であることを確認してください。
+
+## 本番反映
+
+```bash
+npx supabase db push --project-ref <production-project-ref>
+```
+
+未適用のマイグレーションのみ実行されます。
+
+---
 # 状態確認
 
 ```bash
-npx supabase migration list
+npx supabase migration list --project-ref <staging-project-ref>
 ```
 
 適用済み・未適用を確認できます。
 
 ---
-
 # 既存環境の考え方
 
 本プロジェクトでは、過去に手動実行したSQLが存在します。
@@ -292,7 +265,6 @@ npx supabase migration list
 そのため、既存SQLファイルを「適用済み」としてSupabaseへ登録しています。
 
 ---
-
 # 適用済みとして登録する
 
 例
@@ -304,7 +276,7 @@ npx supabase migration list
 が既に本番へ適用済みの場合
 
 ```bash
-npx supabase migration repair --status applied 20260601000000
+npx supabase migration repair --status applied 20260601000000 --project-ref <production-project-ref>
 ```
 
 これにより
@@ -317,27 +289,24 @@ SQLを再実行しない
 
 状態になります。
 
----
 
 # 適用済みを取り消す
 
 ```bash
-npx supabase migration repair --status reverted 20260601000000
+npx supabase migration repair --status reverted 20260601000000 --project-ref <production-project-ref>
 ```
 
----
 
 # 既存DBからマイグレーション生成
 
-既存のSupabase Cloudの状態を取得する場合
+既存のSupabase Cloudの状態を取得する場合は、対象環境のProject Refを指定します。
 
 ```bash
-npx supabase db pull
+npx supabase db pull --project-ref <staging-project-ref>
 ```
 
 実行するとマイグレーションファイルが生成されます。
 
----
 
 # マイグレーションファイル命名規則
 
@@ -355,7 +324,6 @@ YYYYMMDDHHMMSS_説明.sql
 20260630000000_add_due_date.sql
 ```
 
----
 
 # 注意事項
 
@@ -375,7 +343,6 @@ NG例
 
 既に本番へ適用済みのため履歴が壊れます。
 
----
 
 ## 修正が必要な場合
 
@@ -389,7 +356,6 @@ NG例
 20260630000000_fix_due_date.sql
 ```
 
----
 
 ## Dashboardで直接変更しない
 
@@ -411,7 +377,6 @@ SQL Editor
 * 履歴が残らない
 * db push時に差分不整合が発生する
 
----
 
 # login / logout について
 
@@ -432,7 +397,6 @@ npx supabase login
 
 を実施する必要はありません。
 
----
 
 # よく使うコマンド一覧
 
@@ -440,18 +404,6 @@ npx supabase login
 
 ```bash
 npx supabase --version
-```
-
-## ローカル起動
-
-```bash
-npx supabase start
-```
-
-## ローカル停止
-
-```bash
-npx supabase stop
 ```
 
 ## ログイン
@@ -463,7 +415,13 @@ npx supabase login
 ## プロジェクト接続
 
 ```bash
-npx supabase link --project-ref <project-ref>
+npx supabase link --project-ref <staging-project-ref>
+```
+
+本番用へ切り替える場合は、以下を実行します。
+
+```bash
+npx supabase link --project-ref <production-project-ref>
 ```
 
 ## マイグレーション作成
@@ -472,49 +430,60 @@ npx supabase link --project-ref <project-ref>
 npx supabase migration new <name>
 ```
 
-## ローカル反映
+## 検証DBの適用状況確認
 
 ```bash
-npx supabase db reset
+npx supabase migration list --project-ref <staging-project-ref>
 ```
 
-## 適用状況確認
+## 検証反映確認
 
 ```bash
-npx supabase migration list
+npx supabase db push --project-ref <staging-project-ref> --dry-run
+```
+
+## 検証反映
+
+```bash
+npx supabase db push --project-ref <staging-project-ref>
 ```
 
 ## 本番反映確認
 
 ```bash
-npx supabase db push --dry-run
+npx supabase db push --project-ref <production-project-ref> --dry-run
 ```
 
 ## 本番反映
 
 ```bash
-npx supabase db push
+npx supabase db push --project-ref <production-project-ref>
 ```
 
 ## 現在のDB取得
 
 ```bash
-npx supabase db pull
+npx supabase db pull --project-ref <staging-project-ref>
+```
+
+本番DBの状態を取得する場合は、対象を本番用に変更します。
+
+```bash
+npx supabase db pull --project-ref <production-project-ref>
 ```
 
 ## 適用済み登録
 
 ```bash
-npx supabase migration repair --status applied <timestamp>
+npx supabase migration repair --status applied <timestamp> --project-ref <production-project-ref>
 ```
 
 ## 適用済み解除
 
 ```bash
-npx supabase migration repair --status reverted <timestamp>
+npx supabase migration repair --status reverted <timestamp> --project-ref <production-project-ref>
 ```
 
----
 
 # 推奨開発フロー
 
@@ -528,19 +497,19 @@ npx supabase migration new add_xxx
 
 3. SQL記述
 
-4. ローカル反映
+4. 検証DBへの反映内容確認
 
 ```bash
-npx supabase db reset
+npx supabase db push --project-ref <staging-project-ref> --dry-run
 ```
 
-5. 動作確認
-
-6. 本番反映内容確認
+5. 検証DBへ反映
 
 ```bash
-npx supabase db push --dry-run
+npx supabase db push --project-ref <staging-project-ref>
 ```
+
+6. 検証環境で動作確認
 
 7. Gitコミット
 
@@ -548,10 +517,16 @@ npx supabase db push --dry-run
 
 9. マージ
 
-10. 本番反映
+10. 本番反映内容確認
 
 ```bash
-npx supabase db push
+npx supabase db push --project-ref <production-project-ref> --dry-run
+```
+
+11. 本番反映
+
+```bash
+npx supabase db push --project-ref <production-project-ref>
 ```
 
 以上が本プロジェクトの標準的なDB変更フローです。

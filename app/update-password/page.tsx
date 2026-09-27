@@ -1,35 +1,39 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase, PASSWORD_MIN_LENGTH, toJapaneseAuthError } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
-function toJapanese(msg: string): string {
-  const m = msg.toLowerCase();
-
-  if (m.includes("auth session missing")) {
-    return "パスワード再設定リンクの有効期限が切れています。もう一度メールを送信してください。";
-  }
-
-  if (m.includes("password should be at least")) {
-    return "パスワードは6文字以上で入力してください。";
-  }
-
-  return msg;
-}
-
+// パスワード再設定ページ
 export default function UpdatePasswordPage() {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [sessionValid, setSessionValid] = useState(false);
+  const [linkFailed, setLinkFailed] = useState(false);
 
+  // ページロード時にセッションの有効性をチェック
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("error") === "reset_link_invalid") {
+      setLinkFailed(true);
+      const reason = params.get("reason");
+      if (reason === "code_exchange_failed") {
+        setMessage("メールリンクの検証に失敗しました。リンクを発行したブラウザーで開くか、ログイン画面から新しいメールを送信してください。");
+      } else if (reason === "missing_params") {
+        setMessage("メールリンクに検証情報が含まれていません。メール設定を確認するか、新しいメールを送信してください。");
+      } else {
+        setMessage("パスワード設定・リセット用リンクを確認できませんでした。リンクの有効期限が切れたか、すでに使用済みの可能性があります。");
+      }
+      return;
+    }
+
     async function checkSession() {
       const { data } = await supabase.auth.getSession();
 
       if (!data.session) {
+        setLinkFailed(true);
         setMessage(
           "パスワード再設定リンクの有効期限が切れています。もう一度メールを送信してください。"
         );
@@ -41,12 +45,18 @@ export default function UpdatePasswordPage() {
     checkSession();
   }, []);
 
+  // パスワード更新処理
   async function handleUpdate() {
     setLoading(true);
     const { error } = await supabase.auth.updateUser({ password });
     if (error) {
-      setMessage(toJapanese(error.message));
+      setMessage(toJapaneseAuthError(error.message));
     } else {
+      // has_passwordフラグを更新（バッジ・メニュー表示の切り替え用）
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from("user_profiles").update({ has_password: true }).eq("id", user.id);
+      }
       router.push("/");
     }
     setLoading(false);
@@ -69,27 +79,32 @@ export default function UpdatePasswordPage() {
             {message}
           </div>
         )}
-        <input
-          type="password" placeholder="新しいパスワード（6文字以上）"
-          value={password} onChange={e => setPassword(e.target.value)}
-          style={{ width: "100%", padding: "11px 14px", border: "1.5px solid #e5e7eb", borderRadius: 12, fontSize: 14, outline: "none", color: "#1a0a2e", background: "#faf8f5", boxSizing: "border-box", fontFamily: "inherit", marginBottom: 14 }}
-        />
-        <button
-          onClick={handleUpdate}
-          disabled={
-            loading ||
-            password.length < 6 ||
-            !sessionValid
-          }
-          style={{
-            width: "100%", padding: "12px",
-            background: (loading || password.length < 6 || !sessionValid) ? "#c4b5fd" : "linear-gradient(135deg,#7c3aed,#4f46e5)",
-            color: "#fff", border: "none", borderRadius: 12,
-            fontWeight: 800, fontSize: 15, cursor: "pointer",
-          }}
-        >
-          {loading ? "更新中…" : "パスワードを更新"}
-        </button>
+        {sessionValid && !linkFailed ? (
+          <>
+            <input
+              type="password" placeholder={`新しいパスワード（${PASSWORD_MIN_LENGTH}文字以上）`}
+              value={password} onChange={e => setPassword(e.target.value)}
+              minLength={PASSWORD_MIN_LENGTH}
+              style={{ width: "100%", padding: "11px 14px", border: "1.5px solid #e5e7eb", borderRadius: 12, fontSize: 14, outline: "none", color: "#1a0a2e", background: "#faf8f5", boxSizing: "border-box", fontFamily: "inherit", marginBottom: 14 }}
+            />
+            <button
+              onClick={handleUpdate}
+              disabled={loading || password.length < PASSWORD_MIN_LENGTH}
+              style={{
+                width: "100%", padding: "12px",
+                background: (loading || password.length < PASSWORD_MIN_LENGTH) ? "#c4b5fd" : "linear-gradient(135deg,#7c3aed,#4f46e5)",
+                color: "#fff", border: "none", borderRadius: 12,
+                fontWeight: 800, fontSize: 15, cursor: "pointer",
+              }}
+            >
+              {loading ? "更新中…" : "パスワードを更新"}
+            </button>
+          </>
+        ) : (
+          <a href="/login" style={{ display: "block", textAlign: "center", color: "#7c3aed", fontWeight: 700, fontSize: 13, textDecoration: "none" }}>
+            ログイン画面からメールを再送信する
+          </a>
+        )}
       </div>
     </div>
   );
