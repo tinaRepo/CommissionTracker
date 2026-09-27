@@ -14,27 +14,22 @@ export default function PushNotificationToggle() {
   useEffect(() => {
     if ("serviceWorker" in navigator && "PushManager" in window) {
       setSupported(true);
-      checkSubscription();
+      setLoading(true);
+      navigator.serviceWorker.register("/sw.js")
+        .then(async registration => {
+          const sub = await registration.pushManager.getSubscription();
+          if (sub) await saveSubscription(sub);
+          setSubscribed(!!sub);
+          setErrorMessage(null);
+        })
+        .catch(e => {
+          console.error("service worker registration error:", e);
+          setSubscribed(false);
+          setErrorMessage(e instanceof Error ? e.message : "通知機能を初期化できませんでした。");
+        })
+        .finally(() => setLoading(false));
     }
   }, []);
-
-  // 既存の購読状態を確認する関数
-  async function checkSubscription() {
-    try {
-      const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.getSubscription();
-      if (sub) {
-        await saveSubscription(sub);
-        setSubscribed(true);
-      } else {
-        setSubscribed(false);
-      }
-    } catch (e) {
-      console.error("check subscription error:", e);
-      setSubscribed(false);
-      setErrorMessage(e instanceof Error ? e.message : "通知設定を確認できませんでした。");
-    }
-  }
 
   async function saveSubscription(sub: PushSubscription) {
     const { data: { session } } = await supabase.auth.getSession();
@@ -70,7 +65,7 @@ export default function PushNotificationToggle() {
     try {
       if (subscribed) {
         // 解除
-        const reg = await navigator.serviceWorker.ready;
+        const reg = await navigator.serviceWorker.register("/sw.js");
         const sub = await reg.pushManager.getSubscription();
         await removeSubscription();
         if (sub) await sub.unsubscribe();
@@ -83,7 +78,7 @@ export default function PushNotificationToggle() {
           return;
         }
 
-        const reg = await navigator.serviceWorker.ready;
+        const reg = await navigator.serviceWorker.register("/sw.js");
         const sub = await reg.pushManager.getSubscription() ?? await reg.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(
