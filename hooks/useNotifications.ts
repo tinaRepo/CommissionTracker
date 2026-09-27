@@ -98,12 +98,15 @@ export function useNotifications(
   const [releases, setReleases] = useState<VersionRelease[]>([]);
   const [readAnnouncementIds, setReadAnnouncementIds] = useState<Set<string>>(new Set());
   const [lastSeenReleaseId, setLastSeenReleaseId] = useState<string | null>(null);
+  const [statusUserId, setStatusUserId] = useState<string | null | undefined>(undefined);
+  const fetchSequence = useRef(0);
 
   // markAnnouncementRead / markReleasesRead から常に最新のuserIdを参照できるようにする
   const userIdRef = useRef(userId);
   userIdRef.current = userId;
 
   const fetchAll = useCallback(async () => {
+    const sequence = ++fetchSequence.current;
     setLoading(true);
     try {
       // announcementsはRLSで配信対象に制限される。管理者の全件取得分は
@@ -111,10 +114,10 @@ export function useNotifications(
       // 既読ステータス（user_notification_status・user_settings）は
       // userIdが無いと個人を特定できないため、ログイン時のみ取得する。
       const [
-        { data: announcementData },
-        { data: statusData },
-        { data: releaseData },
-        { data: settingsData },
+        { data: announcementData, error: announcementError },
+        { data: statusData, error: statusError },
+        { data: releaseData, error: releaseError },
+        { data: settingsData, error: settingsError },
       ] = await Promise.all([
         supabase
           .from("announcements")
@@ -126,7 +129,7 @@ export function useNotifications(
             .select("announcement_id")
             .eq("user_id", userId)
             .eq("is_read", true)
-          : Promise.resolve({ data: [] as { announcement_id: string }[] }),
+          : Promise.resolve({ data: [] as { announcement_id: string }[], error: null }),
         supabase
           .from("version_releases")
           .select("*, version_release_items(*)")
@@ -137,11 +140,16 @@ export function useNotifications(
             .select("last_seen_release_id")
             .eq("user_id", userId)
             .maybeSingle()
-          : Promise.resolve({ data: null as { last_seen_release_id: string | null } | null }),
+          : Promise.resolve({ data: null as { last_seen_release_id: string | null } | null, error: null }),
       ]);
+
+      if (sequence !== fetchSequence.current) return;
+      const fetchError = announcementError ?? statusError ?? releaseError ?? settingsError;
+      if (fetchError) throw fetchError;
 
       setAnnouncements(announcementData ?? []);
       setReadAnnouncementIds(new Set((statusData ?? []).map((s: any) => s.announcement_id)));
+      setStatusUserId(userId);
 
       const formattedReleases: VersionRelease[] = (releaseData ?? []).map((r: any) => ({
         ...r,
@@ -151,8 +159,12 @@ export function useNotifications(
       }));
       setReleases(formattedReleases);
       setLastSeenReleaseId(settingsData?.last_seen_release_id ?? null);
+    } catch (error) {
+      if (sequence === fetchSequence.current) {
+        console.error("notifications fetch error:", error);
+      }
     } finally {
-      setLoading(false);
+      if (sequence === fetchSequence.current) setLoading(false);
     }
   }, [userId]);
 
@@ -186,7 +198,7 @@ export function useNotifications(
   // 「誰の既読状態か」を特定できないため、未読カウント・未読マークは
   // 常に「なし」（既読扱い）にする。お知らせ・リリースノートの内容自体は
   // 引き続き閲覧できる（読み取り専用ブラウジング）。
-  const unreadAnnouncementIds = userId
+  const unreadAnnouncementIds = userId && statusUserId === userId
     ? new Set(
       visibleAnnouncements
         .filter(a => !readAnnouncementIds.has(a.id))
@@ -201,6 +213,7 @@ export function useNotifications(
   const latestRelease = releases[0] ?? null;
   const hasUnreadRelease =
     !!userId &&
+    statusUserId === userId &&
     !!latestRelease &&
     !isBeforeAccountCreation(latestRelease.released_at) &&
     lastSeenReleaseId !== latestRelease.id;
