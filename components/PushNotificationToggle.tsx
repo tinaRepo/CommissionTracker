@@ -8,6 +8,7 @@ export default function PushNotificationToggle() {
   const [supported, setSupported] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // コンポーネントマウント時にService WorkerとPush APIのサポートを確認し、既存の購読状態をチェック
   useEffect(() => {
@@ -31,6 +32,7 @@ export default function PushNotificationToggle() {
     } catch (e) {
       console.error("check subscription error:", e);
       setSubscribed(false);
+      setErrorMessage(e instanceof Error ? e.message : "通知設定を確認できませんでした。");
     }
   }
 
@@ -92,9 +94,10 @@ export default function PushNotificationToggle() {
         await saveSubscription(sub);
         setSubscribed(true);
       }
+      setErrorMessage(null);
     } catch (e: any) {
       console.error("toggle error:", e);
-      alert(e.message || "エラーが発生しました");
+      setErrorMessage(e.message || "エラーが発生しました");
     } finally {
       setLoading(false);
     }
@@ -103,15 +106,22 @@ export default function PushNotificationToggle() {
   if (!supported) return null;
 
   return (
-    <button onClick={handleToggle} disabled={loading}
-      style={{
-        width: "100%", padding: "11px 16px", background: "none", border: "none",
-        borderBottom: "1px solid #f3f4f6", cursor: loading ? "not-allowed" : "pointer",
-        fontSize: 13, color: subscribed ? "#10b981" : "#1a0a2e",
-        fontWeight: 600, textAlign: "left",
-      }}>
-      {loading ? "処理中…" : subscribed ? "🔔 通知オン（タップでオフ）" : "🔕 通知オフ（タップでオン）"}
-    </button>
+    <div>
+      <button onClick={handleToggle} disabled={loading}
+        style={{
+          width: "100%", padding: "11px 16px", background: "none", border: "none",
+          borderBottom: errorMessage ? "none" : "1px solid #f3f4f6", cursor: loading ? "not-allowed" : "pointer",
+          fontSize: 13, color: subscribed ? "#10b981" : "#1a0a2e",
+          fontWeight: 600, textAlign: "left",
+        }}>
+        {loading ? "処理中…" : subscribed ? "🔔 通知オン（タップでオフ）" : "🔕 通知オフ（タップでオン）"}
+      </button>
+      {errorMessage && (
+        <div role="alert" style={{ padding: "0 16px 10px", color: "#b91c1c", fontSize: 11, lineHeight: 1.5 }}>
+          {errorMessage}
+        </div>
+      )}
+    </div>
   );
 }
 

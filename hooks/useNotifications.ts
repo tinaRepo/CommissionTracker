@@ -58,7 +58,8 @@ export type UseNotificationsResult = {
  * という2つの問題があった。CommissionApp側でこのフックを1回だけ呼び出し、
  * 取得結果と既読化の関数をNotificationsModalへpropsとして渡すことで、
  * データの取得元を1つに統一している（NotificationsModal自体は
- * supabaseを直接呼ばない、純粋な表示コンポーネントになる）。
+ * supabaseを直接呼ばない、純粋な表示コンポーネントになる）。管理者はRLSにより
+ * 全件取得できるため、このhookでログインユーザーの配信対象に絞り込む。
  *
  * ■ アカウント作成日より前の告知の扱い（お知らせ・リリースノート共通）
  * announcements.published_at / version_releases.released_at が、
@@ -76,9 +77,8 @@ export type UseNotificationsResult = {
  *   常に既読（未読バッジなし）として扱う。
  *
  * ■ 未ログイン（デモモード）での扱い
- * `userId`が`null`の場合（ログインしていない・デモモードなど）でも、
- * announcements・version_releasesの本体（内容）はRLS上どのロールからでも
- * 閲覧できる設計になっているため、そのまま取得して表示する。
+ * `userId`が`null`の場合（ログインしていない・デモモードなど）、
+ * RLSが許可する全員対象のお知らせ・version_releasesを取得して表示する。
  * ただし既読状態（user_notification_status・user_settings）は個人に
  * 紐づく情報のため取得せず、未読カウント・未読マークは常に「なし」
  * （既読扱い）として扱う。`markAnnouncementRead` / `markReleasesRead`も
@@ -90,7 +90,8 @@ export type UseNotificationsResult = {
  */
 export function useNotifications(
   userId: string | null,
-  accountCreatedAt: string | null
+  accountCreatedAt: string | null,
+  userPlan: string | null = null
 ): UseNotificationsResult {
   const [loading, setLoading] = useState(false);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -105,7 +106,8 @@ export function useNotifications(
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      // announcements本体・リリースノート本体はログイン有無に関わらず取得できる。
+      // announcementsはRLSで配信対象に制限される。管理者の全件取得分は
+      // 下でログインユーザーの対象条件に再度絞り込む。
       // 既読ステータス（user_notification_status・user_settings）は
       // userIdが無いと個人を特定できないため、ログイン時のみ取得する。
       const [
@@ -116,7 +118,7 @@ export function useNotifications(
       ] = await Promise.all([
         supabase
           .from("announcements")
-          .select("id, title, content, type, published_at")
+          .select("id, title, content, type, published_at, target_plans, target_user_ids")
           .order("published_at", { ascending: false }),
         userId
           ? supabase
@@ -163,13 +165,24 @@ export function useNotifications(
   const isBeforeAccountCreation = (publishedAt: string) =>
     !!accountCreatedAt && new Date(publishedAt).getTime() < new Date(accountCreatedAt).getTime();
 
+  // 管理者はRLSで全お知らせを読めるため、ユーザー向け一覧では配信対象も適用する。
+  const visibleAnnouncements = announcements.filter(announcement => {
+    if (announcement.target_user_ids?.length) {
+      return !!userId && announcement.target_user_ids.includes(userId);
+    }
+    if (announcement.target_plans?.length) {
+      return !!userPlan && announcement.target_plans.includes(userPlan);
+    }
+    return true;
+  });
+
   // NOTE: 未ログイン（userId===null、デモモード等）の場合は、そもそも
   // 「誰の既読状態か」を特定できないため、未読カウント・未読マークは
   // 常に「なし」（既読扱い）にする。お知らせ・リリースノートの内容自体は
   // 引き続き閲覧できる（読み取り専用ブラウジング）。
   const unreadAnnouncementIds = userId
     ? new Set(
-      announcements
+      visibleAnnouncements
         .filter(a => !readAnnouncementIds.has(a.id))
         .filter(a => !isBeforeAccountCreation(a.published_at))
         .map(a => a.id)
@@ -191,10 +204,11 @@ export function useNotifications(
   const markAnnouncementRead = useCallback(async (id: string) => {
     const uid = userIdRef.current;
     if (!uid) return;
-    await supabase.from("user_notification_status").upsert(
+    const { error } = await supabase.from("user_notification_status").upsert(
       { user_id: uid, announcement_id: id, is_read: true },
       { onConflict: "user_id,announcement_id" }
     );
+    if (error) throw error;
     setReadAnnouncementIds(prev => {
       const next = new Set(prev);
       next.add(id);
@@ -215,7 +229,7 @@ export function useNotifications(
 
   return {
     loading,
-    announcements,
+    announcements: visibleAnnouncements,
     releases,
     unreadAnnouncementIds,
     hasUnreadRelease,

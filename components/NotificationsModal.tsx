@@ -80,7 +80,14 @@ export default function NotificationsModal({
 
   async function handleAnnouncementClick(a: Announcement) {
     setSelectedAnnouncement(a);
-    if (unreadAnnouncementIds.has(a.id)) await onMarkAnnouncementRead(a.id);
+    if (unreadAnnouncementIds.has(a.id)) {
+      try {
+        await onMarkAnnouncementRead(a.id);
+      } catch (error) {
+        console.error("mark announcement read error:", error);
+        alert("お知らせを既読にできませんでした。通信状態を確認して、もう一度お試しください。");
+      }
+    }
   }
 
   function formatDate(s: string) {

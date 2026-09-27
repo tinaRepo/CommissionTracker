@@ -390,7 +390,7 @@ export default function CommissionApp() {
 
   // お知らせ・バージョンの未読管理、
   // 作成日より前に公開されたお知らせは未読カウントの対象から自動的に除外される。
-  const notifications = useNotifications(user?.id ?? null, profile?.created_at ?? null);
+  const notifications = useNotifications(user?.id ?? null, profile?.created_at ?? null, profile?.plan ?? null);
 
   // --- 最後にログインしたプロバイダをサーバーに送信（バッジ表示用） ---
   useEffect(() => {
@@ -1125,6 +1125,13 @@ export default function CommissionApp() {
                   </div>
                 )}
                 <div style={{ display: "grid", gap: 12, marginBottom: 18 }}>
+                  <input type="password" placeholder="現在のパスワード" value={pwCurrent}
+                    onChange={e => setPwCurrent(e.target.value)}
+                    autoComplete="current-password"
+                    style={{
+                      width: "100%", padding: "10px 13px", border: "1.5px solid #e5e7eb", borderRadius: 12,
+                      fontSize: 16, outline: "none", background: "#faf8f5", boxSizing: "border-box"
+                    }} />
                   <input type="password" placeholder={`新しいパスワード（${PASSWORD_MIN_LENGTH}文字以上）`} value={pwNew}
                     onChange={e => setPwNew(e.target.value)}
                     minLength={PASSWORD_MIN_LENGTH}
