@@ -125,7 +125,7 @@ export default function AdminNotificationsPage() {
       if (!user) { router.replace("/login"); return; }
       const { data } = await supabase
         .from("user_profiles").select("is_admin").eq("id", user.id).maybeSingle();
-      if (!data?.is_admin) { router.replace("/"); return; }
+      if (!data?.is_admin) { router.replace("/forbidden"); return; }
       setChecking(false);
       fetchAnnouncements();
       fetchReleases();
