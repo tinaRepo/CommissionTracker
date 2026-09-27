@@ -22,29 +22,56 @@ export default function PushNotificationToggle() {
     try {
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.getSubscription();
-      setSubscribed(!!sub);
+      if (sub) {
+        await saveSubscription(sub);
+        setSubscribed(true);
+      } else {
+        setSubscribed(false);
+      }
     } catch (e) {
       console.error("check subscription error:", e);
+      setSubscribed(false);
     }
+  }
+
+  async function saveSubscription(sub: PushSubscription) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) throw new Error("ログイン状態を確認できません。再ログインしてください。");
+
+    const response = await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ subscription: sub }),
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(result?.error ?? "通知設定を保存できませんでした。");
+  }
+
+  async function removeSubscription() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) throw new Error("ログイン状態を確認できません。再ログインしてください。");
+
+    const response = await fetch("/api/push/subscribe", {
+      method: "DELETE",
+      headers: { "Authorization": `Bearer ${session.access_token}` },
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(result?.error ?? "通知設定を解除できませんでした。");
   }
 
   // 購読の切り替え処理
   async function handleToggle() {
     setLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token ?? "";
-
       if (subscribed) {
         // 解除
         const reg = await navigator.serviceWorker.ready;
         const sub = await reg.pushManager.getSubscription();
+        await removeSubscription();
         if (sub) await sub.unsubscribe();
-
-        await fetch("/api/push/subscribe", {
-          method: "DELETE",
-          headers: { "Authorization": `Bearer ${token}` },
-        });
         setSubscribed(false);
       } else {
         // 購読
@@ -55,26 +82,19 @@ export default function PushNotificationToggle() {
         }
 
         const reg = await navigator.serviceWorker.ready;
-        const sub = await reg.pushManager.subscribe({
+        const sub = await reg.pushManager.getSubscription() ?? await reg.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(
             process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!
           ),
         });
 
-        await fetch("/api/push/subscribe", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`,
-          },
-          body: JSON.stringify({ subscription: sub }),
-        });
+        await saveSubscription(sub);
         setSubscribed(true);
       }
     } catch (e: any) {
       console.error("toggle error:", e);
-      alert("エラーが発生しました");
+      alert(e.message || "エラーが発生しました");
     } finally {
       setLoading(false);
     }
