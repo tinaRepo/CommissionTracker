@@ -1,28 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase, isValidEmailFormat, DISPLAY_NAME_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@/lib/supabase";
+import { supabase, isValidEmailFormat, DISPLAY_NAME_MAX_LENGTH, PASSWORD_MIN_LENGTH, toJapaneseAuthError } from "@/lib/supabase";
 import dynamic from "next/dynamic";
 import ContactModal from "@/components/ContactModal";
 const DemoApp = dynamic(() => import("@/components/DemoApp"), { ssr: false });
-
-function toJapanese(msg: string): string {
-  if (!msg) return "エラーが発生しました";
-  const m = msg.toLowerCase();
-  if (m.includes("invalid login credentials")) return "メールアドレスまたはパスワードが正しくありません";
-  if (m.includes("email not confirmed")) return "メールアドレスの確認が完了していません。確認メールをご確認ください";
-  if (m.includes("user already registered")) return "メールアドレスまたはパスワードが正しくありません";
-  if (m.includes("password should be at least")) return "パスワードは6文字以上で入力してください";
-  if (m.includes("unable to validate email")) return "メールアドレスの形式が正しくありません";
-  if (m.includes("email address is invalid")) return "メールアドレスの形式が正しくありません";
-  if (m.includes("signup is disabled")) return "現在新規登録は受け付けていません";
-  if (m.includes("email rate limit exceeded")) return "しばらく時間をおいてから再度お試しください";
-  if (m.includes("over email send rate limit")) return "メール送信の上限に達しました。しばらくお待ちください";
-  if (m.includes("token has expired")) return "リンクの有効期限が切れています。もう一度お試しください";
-  if (m.includes("user not found")) return "メールアドレスまたはパスワードが正しくありません";
-  if (m.includes("network")) return "ネットワークエラーが発生しました。接続を確認してください";
-  return "エラーが発生しました（" + msg + "）";
-}
 
 type Mode = "login" | "signup" | "reset";
 
@@ -130,7 +112,7 @@ export default function LoginPage() {
         setMessage({ type: "success", text: "パスワードリセットのメールを送りました。" });
       }
     } catch (e: any) {
-      setMessage({ type: "error", text: toJapanese(e.message ?? "") });
+      setMessage({ type: "error", text: toJapaneseAuthError(e.message ?? "") });
     } finally {
       setLoading(false);
     }
@@ -154,7 +136,7 @@ export default function LoginPage() {
       if (error) {
         setMessage({
           type: "error",
-          text: toJapanese(error.message),
+          text: toJapaneseAuthError(error.message),
         });
         return;
       }

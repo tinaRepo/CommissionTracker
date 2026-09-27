@@ -1,23 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase, PASSWORD_MIN_LENGTH } from "@/lib/supabase";
+import { supabase, PASSWORD_MIN_LENGTH, toJapaneseAuthError } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
-
-// エラーメッセージを日本語に変換
-function toJapanese(msg: string): string {
-  const m = msg.toLowerCase();
-
-  if (m.includes("auth session missing")) {
-    return "パスワード再設定リンクの有効期限が切れています。もう一度メールを送信してください。";
-  }
-
-  if (m.includes("password should be at least")) {
-    return `パスワードは${PASSWORD_MIN_LENGTH}文字以上で入力してください。`;
-  }
-
-  return msg;
-}
 
 // パスワード再設定ページ
 export default function UpdatePasswordPage() {
@@ -33,7 +18,14 @@ export default function UpdatePasswordPage() {
     const params = new URLSearchParams(window.location.search);
     if (params.get("error") === "reset_link_invalid") {
       setLinkFailed(true);
-      setMessage("パスワード設定・リセット用リンクを確認できませんでした。リンクの有効期限が切れたか、すでに使用済みの可能性があります。");
+      const reason = params.get("reason");
+      if (reason === "code_exchange_failed") {
+        setMessage("メールリンクの検証に失敗しました。リンクを発行したブラウザーで開くか、ログイン画面から新しいメールを送信してください。");
+      } else if (reason === "missing_params") {
+        setMessage("メールリンクに検証情報が含まれていません。メール設定を確認するか、新しいメールを送信してください。");
+      } else {
+        setMessage("パスワード設定・リセット用リンクを確認できませんでした。リンクの有効期限が切れたか、すでに使用済みの可能性があります。");
+      }
       return;
     }
 
@@ -58,7 +50,7 @@ export default function UpdatePasswordPage() {
     setLoading(true);
     const { error } = await supabase.auth.updateUser({ password });
     if (error) {
-      setMessage(toJapanese(error.message));
+      setMessage(toJapaneseAuthError(error.message));
     } else {
       // has_passwordフラグを更新（バッジ・メニュー表示の切り替え用）
       const { data: { user } } = await supabase.auth.getUser();

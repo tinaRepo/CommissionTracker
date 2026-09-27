@@ -60,6 +60,25 @@ https://<project-ref>.supabase.co/auth/v1/callback
 > 分かりにくい不具合につながります。`resetPasswordForEmail`や`signInWithOAuth`で
 > 使う`redirectTo`/`redirectTo`のパスは、必ずこのRedirect URLsに事前登録すること。
 
+### パスワード設定・リセットメールのテンプレート
+
+Google専用ユーザーの初回パスワード設定と通常のリセットでは、Supabase Dashboard →
+**Authentication → Email Templates → Reset Password** のリンクが、アプリの
+`/auth/confirm` に検証情報を渡す必要があります。複数タブや別ブラウザーでの
+PKCE verifier共有に依存しないよう、`token_hash`を直接渡す形式を推奨します。
+
+```html
+<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery">
+	パスワードを設定・リセットする
+</a>
+```
+
+`Site URL`は利用者がメールを開く環境のアプリURLに設定し、そのURLの
+`/auth/confirm`を上記Redirect URLsにも登録してください。アプリ側では
+`token_hash`+`type`形式とPKCEの`code`形式の両方を処理しますが、PKCE形式は
+リンクを発行したブラウザーの検証Cookieが必要です。リンク検証に失敗した場合は
+`/update-password`にエラー理由を表示し、サーバーログにもSupabaseの検証エラーを記録します。
+
 ### 2-4.【本アプリのアカウント連携機能に必須】Manual Linking の有効化
 
 メール登録済みユーザーがログイン後にGoogleアカウントを連携する機能（`linkIdentity`）を使うために必要です。

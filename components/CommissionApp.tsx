@@ -9,7 +9,7 @@ import {
   type Commission, type CommissionStatus, type CommissionImage,
   type ImageType, type UserProfile, type Plan,
   fetchCommissionById,
-  changeMyPassword, requestSetPasswordEmail, getLastSignInProvider,
+  changeMyPassword, requestSetPasswordEmail, getLastSignInProvider, toJapaneseAuthError,
   linkGoogleAccount, unlinkGoogleAccount, hasGoogleIdentity,
   PASSWORD_MIN_LENGTH,
 } from "@/lib/supabase";
@@ -456,7 +456,7 @@ export default function CommissionApp() {
       }
       setPwDone(true);
     } catch (e: any) {
-      setPwError(e.message ?? "処理に失敗しました");
+      setPwError(toJapaneseAuthError(e.message ?? "処理に失敗しました"));
     } finally {
       setPwSaving(false);
     }

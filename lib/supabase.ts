@@ -75,6 +75,50 @@ export function isValidEmailFormat(email: string): boolean {
 export const DISPLAY_NAME_MAX_LENGTH = 30;
 export const PASSWORD_MIN_LENGTH = 6;
 
+// --- Supabaseのエラーメッセージを日本語に変換 ---
+export function toJapaneseAuthError(message: string): string {
+  const normalized = message.toLowerCase().replace(/[_-]+/g, " ");
+  if (
+    normalized.includes("email rate limit exceeded") ||
+    normalized.includes("over email send rate limit") ||
+    normalized.includes("over request rate limit") ||
+    normalized.includes("rate limit exceeded") ||
+    normalized.includes("too many requests") ||
+    normalized.includes("email rate limit") ||
+    normalized.includes("email frequency limit") ||
+    normalized.includes("for security purposes") ||
+    normalized.includes("request this after") ||
+    normalized.includes("429")
+  ) {
+    return "メールの送信回数が上限に達しました。しばらく時間をおいてから、もう一度お試しください。";
+  }
+  if (normalized.includes("invalid login credentials") || normalized.includes("user not found")) {
+    return "メールアドレスまたはパスワードが正しくありません。";
+  }
+  if (normalized.includes("email not confirmed")) {
+    return "メールアドレスの確認が完了していません。確認メールをご確認ください。";
+  }
+  if (normalized.includes("user already registered")) {
+    return "このメールアドレスはすでに登録されています。ログインしてください。";
+  }
+  if (normalized.includes("password should be at least")) {
+    return `パスワードは${PASSWORD_MIN_LENGTH}文字以上で入力してください。`;
+  }
+  if (normalized.includes("unable to validate email") || normalized.includes("email address is invalid")) {
+    return "メールアドレスの形式が正しくありません。";
+  }
+  if (normalized.includes("signup is disabled")) {
+    return "現在、新規登録は受け付けていません。";
+  }
+  if (normalized.includes("token has expired") || normalized.includes("auth session missing")) {
+    return "リンクの有効期限が切れています。もう一度メールを送信してください。";
+  }
+  if (normalized.includes("network")) {
+    return "ネットワークエラーが発生しました。接続を確認してください。";
+  }
+  return message || "エラーが発生しました。";
+}
+
 // ---- プロフィール ----
 export async function fetchMyProfile(): Promise<UserProfile | null> {
   const { data: { session } } = await supabase.auth.getSession();

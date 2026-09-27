@@ -8,9 +8,15 @@ export async function GET(request: NextRequest) {
     const token_hash = searchParams.get("token_hash");
     const type = searchParams.get("type");
     const code = searchParams.get("code");
+    const providerError = searchParams.get("error");
 
     if (!token_hash && !code) {
-        return NextResponse.redirect(`${origin}/update-password?error=reset_link_invalid`);
+        console.error("password recovery callback missing code/token_hash", {
+            error: providerError,
+            errorCode: searchParams.get("error_code"),
+            errorDescription: searchParams.get("error_description"),
+        });
+        return NextResponse.redirect(`${origin}/update-password?error=reset_link_invalid&reason=missing_params`);
     }
 
     const response = NextResponse.redirect(`${origin}/update-password`);
@@ -36,18 +42,21 @@ export async function GET(request: NextRequest) {
     if (code) {
         const { error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) {
-            return NextResponse.redirect(`${origin}/update-password?error=reset_link_invalid`);
+            console.error("password recovery code exchange failed:", error.code, error.message);
+            return NextResponse.redirect(`${origin}/update-password?error=reset_link_invalid&reason=code_exchange_failed`);
         }
         return response;
     }
 
-    // 従来型（token_hash + type）フロー
+    // token_hashテンプレートではtypeが省略される場合がある。このRouteはrecovery専用。
+    const otpType = type || "recovery";
     const { error } = await supabase.auth.verifyOtp({
         token_hash: token_hash!,
-        type: type as any,
+        type: otpType as any,
     });
     if (error) {
-        return NextResponse.redirect(`${origin}/update-password?error=reset_link_invalid`);
+        console.error("password recovery token verification failed:", error.code, error.message);
+        return NextResponse.redirect(`${origin}/update-password?error=reset_link_invalid&reason=token_verification_failed`);
     }
     return response;
 }
