@@ -46,7 +46,7 @@ export default async function MaintenancePage() {
                     メンテナンスのお知らせ
                 </div>
                 <h1 style={{ fontSize: "clamp(25px, 6vw, 34px)", lineHeight: 1.4, margin: "0 0 16px", fontWeight: 800, color: "#172b2b" }}>
-                    ただいま準備中です
+                    ただいまメンテナンス中です
                 </h1>
                 <p style={{ color: "#4c5e5a", fontSize: 15, lineHeight: 1.9, margin: "0 0 28px", whiteSpace: "pre-wrap" }}>
                     {message || "サービス品質向上のため、ただいまメンテナンスを行っています。終了までしばらくお待ちください。"}
@@ -56,7 +56,7 @@ export default async function MaintenancePage() {
                     <p style={{ color: "#77847f", fontSize: 12, lineHeight: 1.7, margin: 0 }}>
                         復旧後にページを再読み込みしてください。
                     </p>
-                    <a href="/maintenance" style={{
+                    <a href="/" style={{
                         display: "inline-flex", alignItems: "center", justifyContent: "center", minHeight: 42,
                         padding: "9px 16px", borderRadius: 8, background: "#214b44", color: "#fff",
                         fontSize: 13, fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap",
