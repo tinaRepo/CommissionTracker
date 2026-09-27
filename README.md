@@ -16,6 +16,7 @@
 6. [機能一覧](#6-機能一覧)
 7. [プラン制限](#7-プラン制限)
 8. [パフォーマンスに関する実装方針](#8-パフォーマンスに関する実装方針)
+9. [SEO・広告運用](#9-seo広告運用)
 
 ---
 
@@ -322,3 +323,7 @@ where id = 'ここに UUID を貼る';
   （実装例: `components/CommissionShared.tsx`の`CommissionListCard`）。
 
 ---
+
+## 9. SEO・広告運用
+
+Google Search Console・Google AdSenseの初期設定と定期確認は、[docs/seo-and-ads.md](docs/seo-and-ads.md) を参照してください。

@@ -3,11 +3,26 @@ import { PageViewTracker } from '../components/PageViewTracker';
 import type { Metadata } from "next";
 import "./globals.css";
 
-export const metadata = {
-  title: "Commission Tracker | 絵の依頼管理ツール",
+export const metadata: Metadata = {
+  metadataBase: new URL("https://commission-tracker-nine.vercel.app"),
+  title: {
+    default: "Commission Tracker | 絵の依頼管理ツール",
+    template: "%s | Commission Tracker",
+  },
   description: "イラスト・絵の依頼を一元管理できる無料Webアプリ。依頼状況・納期・金額・ラフ画像をまとめて管理。絵師への依頼をもう迷子にしない。",
-  keywords: "イラスト依頼, 絵の依頼, 依頼管理, 管理ツール, 納期管理",
+  applicationName: "Commission Tracker",
+  keywords: ["イラスト依頼", "絵の依頼", "依頼管理", "イラスト依頼管理", "納期管理"],
   manifest: "/manifest.json",
+  openGraph: {
+    type: "website",
+    locale: "ja_JP",
+    siteName: "Commission Tracker",
+    title: "Commission Tracker | 絵の依頼管理ツール",
+    description: "依頼状況・納期・金額・画像をまとめて管理できる無料Webアプリ。",
+    images: [{ url: "/web-app-manifest-512x512.png", width: 512, height: 512, alt: "Commission Tracker" }],
+  },
+  twitter: { card: "summary", title: "Commission Tracker | 絵の依頼管理ツール" },
+  other: { "mobile-web-app-capable": "yes" },
   appleWebApp: {
     capable: true,
     title: "Commission Tracker",
@@ -29,19 +44,17 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ja">
-      <body>
-        {/* AdSense */}
-        <Script
+      <head>
+        <script
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4461599437148086"
-          strategy="lazyOnload"
           crossOrigin="anonymous"
         />
-
+      </head>
+      <body>
         {children}
         <PageViewTracker />
 
-        {/* GA本体 */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-VL43MH743Z"
           strategy="lazyOnload"

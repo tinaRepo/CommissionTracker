@@ -1,26 +1,52 @@
 # Commission Tracker 引き継ぎ資料
 
 ## サービス概要
-絵の依頼を一元管理するWebアプリ。依頼する側・受ける側（絵師）両方をターゲットにしたSaaSサービス。
-
-- **本番URL**: https://commission-tracker-nine.vercel.app
-- **リポジトリ**: https://github.com/tinaRepo/CommissionTracker
-- **ブランチ運用**: `main`（本番）/ `dev`（開発）
-
-## 環境別URL設定（Supabase / Google OAuth）
-
-| 環境          | Supabase Redirect URLs                                    | Supabase Site URL                           |
+├── layout.tsx                  # 全体layout、共通metadata、AdSense/GAタグ
+├── globals.css                 # 全体スタイル
+├── page.tsx                    # メインアプリ（CommissionApp、検索エンジン対象外）
+├── sitemap.ts                  # 検索対象の公開ページ一覧（/sitemap.xml）
+├── not-found.tsx               # 404画面
+├── error.tsx                   # ページ単位の予期しないエラー画面
+├── global-error.tsx            # ルートlayoutを含む致命的エラー画面
+├── login/
+│   ├── layout.tsx              # noindex metadata
+│   └── page.tsx                # ログイン・新規登録・パスワードリセット・Googleログイン
+├── lp/
+│   ├── layout.tsx              # LP固有SEO metadata
+│   └── page.tsx                # ランディングページ
+├── pricing/
+│   ├── layout.tsx              # 料金ページ固有SEO metadata
+│   └── page.tsx                # プラン表示・Stripeチェックアウト
+├── guide/
+│   ├── layout.tsx              # ガイド固有SEO metadata
+│   └── page.tsx                # 使い方ガイド
+├── terms/
+│   ├── layout.tsx              # 利用規約のSEO metadata
+│   └── page.tsx                # 利用規約
+├── privacy/
+│   ├── layout.tsx              # プライバシーポリシーのSEO metadata
+│   └── page.tsx                # プライバシーポリシー
+├── tokusho/
+│   ├── layout.tsx              # 特商法ページのSEO metadata
+│   └── page.tsx                # 特定商取引法
+├── update-password/
+│   ├── layout.tsx              # noindex metadata
+│   └── page.tsx                # パスワード設定・再設定
+├── maintenance/
+│   ├── layout.tsx              # noindex metadata
+│   └── page.tsx                # メンテナンス中の利用者向け画面
+├── forbidden/
+│   ├── layout.tsx              # noindex metadata
+│   └── page.tsx                # 管理者権限がない場合の案内
 | ------------- | --------------------------------------------------------- | ------------------------------------------- |
-| ローカル/検証 | https://commission-tracker-local.vercel.app/auth/callback | https://commission-tracker-local.vercel.app |
-
+│   ├── layout.tsx              # noindex metadata
+│   ├── notifications/page.tsx  # 管理者ページ（お知らせ・バージョン情報編集）
+│   └── page.tsx                # 管理者ページ（ユーザー・プラン・メンテナンス管理）
 Google Cloud Console → 承認済みのリダイレクトURI：
-```
-https://endyhlszymdlxyrzdnwn.supabase.co/auth/v1/callback
-```
-詳細手順は `docs/google-login-setup.md` を参照。
+│   ├── callback/route.ts       # OAuthコールバック
+│   └── confirm/route.ts        # パスワード設定・リセットリンクの検証
 
----
-
+│   ├── auth/last-login-provider/route.ts # 直近ログイン方式のDB保存・HttpOnly Cookie発行/取得
 ## 技術スタック
 
 | 項目           | 内容                                         |
@@ -85,6 +111,7 @@ components/
 ├── PageViewTracker.tsx         # Google Analytics（GA4）のページビュー計測用
 ├── PushNotificationToggle.tsx  # プッシュ通知オン/オフトグル
 ├── InstallPromptBanner.tsx     # PWAホーム画面追加の案内バナー（CommissionAppで遅延読み込み）
+├── SystemMessage.tsx           # 404・権限不足・エラー画面の共通表示
 ├── NotificationsModal.tsx      # お知らせ・リリースノート統合モーダル（表示専用。データはuseNotificationsフック経由でCommissionApp/DemoAppから受け取る）
 ├── ContactModal.tsx            # お問い合わせモーダル（メインアプリ・デモ・ログイン画面で共通利用）
 └── AdminNotificationsPage.tsx  # 管理者向けお知らせ・バージョン管理画面
@@ -98,20 +125,31 @@ hooks/
 └── useInstallPrompt.ts         # PWA追加案内の端末判定・表示頻度・インストール操作を管理
 
 docs/
-├── sql/xxx.sql                 # DML、DDL
-└── handover.md                 # 引き継ぎ資料
+├── google-login-setup.md       # Google OAuth・メールリンク設定
+├── handover.md                 # 引き継ぎ資料
+├── seo-and-ads.md              # SEO・Search Console・AdSense運用メモ
+├── supabase-migration-guide.md # Supabaseマイグレーション手順
+└── update-notes.md             # バージョン・コミットメッセージ運用メモ
 
 lib/
+├── seo.ts                      # 公開ページmetadata・noindex設定
 └── supabase.ts                 # Supabaseクライアント・各種API関数
 
 public/
-├── sw.js                       # Service Worker（プッシュ通知受信）
+├── ads.txt                     # Google AdSense認定販売者情報
+├── apple-touch-icon.png        # iOSホーム画面用アイコン
+├── favicon.ico                 # ブラウザー用favicon
+├── icon0.svg                   # Web Push通知アイコン
 ├── manifest.json               # PWAマニフェスト
-├── favicon.ico
-├── apple-icon.png
-├── icon0.svg
-├── web-app-manifest-192x192.png
-└── web-app-manifest-512x512.png
+├── offline.html                # オフライン用フォールバック画面
+├── robots.txt                  # クロール対象・サイトマップ指定
+├── sw.js                       # Service Worker（プッシュ通知・オフライン画面）
+├── web-app-manifest-192x192.png # PWAアイコン
+└── web-app-manifest-512x512.png # PWAアイコン
+
+supabase/migrations/
+├── 20260927000000_V1.2.0_announcements_targeting.sql # お知らせ配信対象
+└── 20260927000001_V1.2.0_add_maintenance_mode.sql    # メンテナンス設定
 
 vercel.json                     # Cron Job設定（毎日UTC23時=JST8時）
 middleware.ts                   # メンテナンスモード時の全画面/API制御
