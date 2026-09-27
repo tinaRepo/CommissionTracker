@@ -161,19 +161,25 @@ export function useNotifications(
     fetchAll();
   }, [fetchAll]);
 
-  // アカウント作成日より前に公開されたお知らせは既読扱いにする
-  const isBeforeAccountCreation = (publishedAt: string) =>
-    !!accountCreatedAt && new Date(publishedAt).getTime() < new Date(accountCreatedAt).getTime();
+  // 公開日と作成日の時刻部分は比較せず、日付が異なる場合だけ前後を判定する。
+  // お知らせのpublished_atは日付入力から当日00:00で保存されるため、時刻比較すると
+  // 同日に登録したユーザーがその日の新着お知らせまで既読扱いになってしまう。
+  const isBeforeAccountCreation = (publishedAt: string) => {
+    if (!accountCreatedAt) return false;
+    const publishedDate = new Date(publishedAt).toISOString().slice(0, 10);
+    const createdDate = new Date(accountCreatedAt).toISOString().slice(0, 10);
+    return publishedDate < createdDate;
+  };
 
   // 管理者はRLSで全お知らせを読めるため、ユーザー向け一覧では配信対象も適用する。
   const visibleAnnouncements = announcements.filter(announcement => {
-    if (announcement.target_user_ids?.length) {
-      return !!userId && announcement.target_user_ids.includes(userId);
-    }
-    if (announcement.target_plans?.length) {
-      return !!userPlan && announcement.target_plans.includes(userPlan);
-    }
-    return true;
+    const hasUserTarget = !!announcement.target_user_ids?.length;
+    const hasPlanTarget = !!announcement.target_plans?.length;
+    if (!hasUserTarget && !hasPlanTarget) return true;
+
+    const matchesUser = hasUserTarget && !!userId && announcement.target_user_ids!.includes(userId);
+    const matchesPlan = hasPlanTarget && !!userPlan && announcement.target_plans!.includes(userPlan);
+    return matchesUser || matchesPlan;
   });
 
   // NOTE: 未ログイン（userId===null、デモモード等）の場合は、そもそも
