@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ provider });
 }
 
-// POST: ログイン成功後にCommissionAppが呼ぶ。DBへ保存 + HttpOnly Cookieを発行
+// POST: ログイン成功後にログイン画面から呼ぶ。DBへ保存 + HttpOnly Cookieを発行
 export async function POST(request: NextRequest) {
     try {
         const { provider } = await request.json();
@@ -32,16 +32,22 @@ export async function POST(request: NextRequest) {
         if (error || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
         // DBを正として保存（ログイン後の画面用・最終ログイン日時も同時に記録）
-        await adminSupabase
+        const { data: profile, error: profileError } = await adminSupabase
             .from("user_profiles")
             .update({ last_login_provider: provider, last_sign_in_at: new Date().toISOString() })
-            .eq("id", user.id);
+            .eq("id", user.id)
+            .select("id, last_login_provider")
+            .maybeSingle();
+        if (profileError) throw profileError;
+        if (!profile) {
+            return NextResponse.json({ error: "User profile not found" }, { status: 404 });
+        }
 
         // ログイン画面（未認証）用にHttpOnly Cookieを発行（JSからは読み書き不可）
         const response = NextResponse.json({ success: true });
         response.cookies.set(COOKIE_NAME, provider, {
             httpOnly: true,
-            secure: true,
+            secure: request.nextUrl.protocol === "https:",
             sameSite: "lax",
             path: "/",
             maxAge: 60 * 60 * 24 * 90,

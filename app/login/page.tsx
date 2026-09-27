@@ -79,14 +79,21 @@ export default function LoginPage() {
         if (error) throw error;
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.access_token) {
-          await fetch("/api/auth/last-login-provider", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({ provider: "email" }),
-          }).catch(error => console.error("failed to save login provider:", error));
+          try {
+            const response = await fetch("/api/auth/last-login-provider", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${session.access_token}`,
+              },
+              body: JSON.stringify({ provider: "email" }),
+            });
+            if (!response.ok) {
+              console.error("failed to save email login provider:", response.status, await response.text());
+            }
+          } catch (error) {
+            console.error("failed to save email login provider:", error);
+          }
         }
         window.location.href = "/";
       } else if (mode === "signup") {
