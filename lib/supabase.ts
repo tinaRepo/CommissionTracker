@@ -14,8 +14,10 @@ export const supabase = createClient();
 
 // ---- 型定義 ----
 export type Plan = "free" | "standard" | "premium";
-export type CommissionStatus = "pending" | "rough" | "progress" | "done" | "cancelled";
-export type ImageType = "rough" | "wip" | "finished" | "other";
+// pending: 依頼済み / checking: 確認中（旧ラフ確認中） / progress: 制作中 / done: 完成 / cancelled: キャンセル
+export type TaskStatus = "pending" | "checking" | "progress" | "done" | "cancelled";
+// preview: 確認用（旧ラフ） / wip: 制作中 / finished: 完成 / other: その他
+export type ImageType = "preview" | "wip" | "finished" | "other";
 
 // --- ユーザ情報 ---
 export interface UserProfile {
@@ -31,29 +33,29 @@ export interface UserProfile {
   email?: string;
 }
 
-// --- 依頼情報 ---
-export interface Commission {
+// --- タスク（旧: 依頼）情報 ---
+export interface Task {
   id: string;
   user_id: string;
   title: string;
-  artist: string;
-  x_id?: string;
+  assignee_name: string; // 依頼先名（旧: 絵師名）
+  contact?: string; // SNS/連絡先（旧: X ID）
   ordered_at?: string;
   deadline?: string;
   price?: number;
   currency: string;
-  status: CommissionStatus;
-  rough_date?: string;
+  status: TaskStatus;
+  submission_date?: string; // 提出日（旧: ラフ提出日）
   notes?: string;
   created_at: string;
   updated_at: string;
-  images?: CommissionImage[];
+  images?: TaskImage[];
 }
 
 // --- 画像情報 ---
-export interface CommissionImage {
+export interface TaskImage {
   id: string;
-  commission_id: string;
+  task_id: string;
   storage_path: string;
   file_name: string;
   image_type: ImageType;
@@ -211,9 +213,9 @@ export async function countMyImages(): Promise<number> {
   if (!userId) return 0;
 
   const { count, error } = await supabase
-    .from("commission_images")
-    .select("id, commissions!inner(user_id)", { count: "exact", head: true })
-    .eq("commissions.user_id", userId);
+    .from("task_images")
+    .select("id, tasks!inner(user_id)", { count: "exact", head: true })
+    .eq("tasks.user_id", userId);
   if (error) return 0;
   return count ?? 0;
 }
@@ -226,69 +228,69 @@ export async function canUploadImage(plan: Plan): Promise<{ ok: boolean; current
   return { ok: current < limit, current, limit };
 }
 
-// ---- 依頼情報の取得 ----
-export async function fetchCommissions(): Promise<Commission[]> {
+// ---- タスク情報の取得 ----
+export async function fetchTasks(): Promise<Task[]> {
   const { data, error } = await supabase
-    .from("commissions")
-    .select("*, images:commission_images(*)")
+    .from("tasks")
+    .select("*, images:task_images(*)")
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data ?? [];
 }
 
-// ---- 依頼情報の作成 ----
-export async function createCommission(
-  values: Omit<Commission, "id" | "user_id" | "created_at" | "updated_at" | "images">
-): Promise<Commission> {
+// ---- タスク情報の作成 ----
+export async function createTask(
+  values: Omit<Task, "id" | "user_id" | "created_at" | "updated_at" | "images">
+): Promise<Task> {
   const { data: { session } } = await supabase.auth.getSession();
   const user = session?.user;
   if (!user) throw new Error("Not authenticated");
   const { data, error } = await supabase
-    .from("commissions")
+    .from("tasks")
     .insert({ ...values, user_id: user.id })
     .select().single();
   if (error) throw error;
   return data;
 }
 
-// --- IDで特定の依頼情報を取得 ---
-export async function fetchCommissionById(id: string): Promise<Commission | null> {
+// --- IDで特定のタスク情報を取得 ---
+export async function fetchTaskById(id: string): Promise<Task | null> {
   const { data, error } = await supabase
-    .from("commissions")
-    .select("*, images:commission_images(*)")
+    .from("tasks")
+    .select("*, images:task_images(*)")
     .eq("id", id)
     .single();
   if (error) throw error;
   return data;
 }
 
-// --- IDで特定の依頼情報を更新 ---
-export async function updateCommission(
+// --- IDで特定のタスク情報を更新 ---
+export async function updateTask(
   id: string,
-  values: Partial<Omit<Commission, "id" | "user_id" | "created_at" | "updated_at" | "images">>
-): Promise<Commission> {
+  values: Partial<Omit<Task, "id" | "user_id" | "created_at" | "updated_at" | "images">>
+): Promise<Task> {
   const { data, error } = await supabase
-    .from("commissions").update(values).eq("id", id).select().single();
+    .from("tasks").update(values).eq("id", id).select().single();
   if (error) throw error;
   return data;
 }
 
-// --- IDで特定の依頼情報を削除 ---
-export async function deleteCommission(id: string): Promise<void> {
-  const { error } = await supabase.from("commissions").delete().eq("id", id);
+// --- IDで特定のタスク情報を削除 ---
+export async function deleteTask(id: string): Promise<void> {
+  const { error } = await supabase.from("tasks").delete().eq("id", id);
   if (error) throw error;
 }
 
 // ---- Storage操作 ----
-const BUCKET = "commission-images";
+const BUCKET = "task-images";
 
 // --- 画像アップロード ---
 export async function uploadImage(
-  commissionId: string,
+  taskId: string,
   file: File,
   imageType: ImageType,
   plan: Plan
-): Promise<CommissionImage> {
+): Promise<TaskImage> {
   const { data: { session } } = await supabase.auth.getSession();
   const user = session?.user;
   if (!user) throw new Error("Not authenticated");
@@ -301,24 +303,24 @@ export async function uploadImage(
 
   // --- ファイル名から拡張子を取得して保存パスを生成 ---
   const ext = file.name.split(".").pop();
-  const path = `${user.id}/${commissionId}/${imageType}_${Date.now()}.${ext}`;
+  const path = `${user.id}/${taskId}/${imageType}_${Date.now()}.${ext}`;
   const { error: uploadError } = await supabase.storage
     .from(BUCKET).upload(path, file, { upsert: false });
   if (uploadError) throw uploadError;
 
   // --- 画像情報をDBに保存 ---
   const { data, error } = await supabase
-    .from("commission_images")
-    .insert({ commission_id: commissionId, storage_path: path, file_name: file.name, image_type: imageType })
+    .from("task_images")
+    .insert({ task_id: taskId, storage_path: path, file_name: file.name, image_type: imageType })
     .select().single();
   if (error) throw error;
   return data;
 }
 
 // --- 画像削除 ---
-export async function deleteImage(image: CommissionImage): Promise<void> {
+export async function deleteImage(image: TaskImage): Promise<void> {
   await supabase.storage.from(BUCKET).remove([image.storage_path]);
-  await supabase.from("commission_images").delete().eq("id", image.id);
+  await supabase.from("task_images").delete().eq("id", image.id);
 }
 
 // --- 画像の署名付きURLを取得（1枚） ---

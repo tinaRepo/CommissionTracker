@@ -1,14 +1,15 @@
 "use client";
+// ページメタデータ
 export default function TokushoPage() {
   return (
-    <div style={{ minHeight:"100vh", background:"#faf8f5", fontFamily:"'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif" }}>
-      <header style={{ background:"linear-gradient(135deg,#1a0a2e 0%,#2d1a4a 60%,#1a2a4a 100%)", padding:"20px 24px", display:"flex", alignItems:"center", gap:12, boxShadow:"0 4px 32px #0004" }}>
-        <button onClick={() => window.history.back()} style={{ background:"#ffffff18", border:"1px solid #ffffff30", color:"#c4b5fd", borderRadius:8, padding:"6px 12px", fontSize:12, cursor:"pointer", fontWeight:600 }}>← 戻る</button>
-        <span style={{ color:"#fff", fontSize:18, fontWeight:800 }}>特定商取引法に基づく表記</span>
+    <div style={{ minHeight: "100vh", background: "var(--surface)" }}>
+      <header className="doc-header">
+        <button onClick={() => window.history.back()} className="doc-back-btn">← 戻る</button>
+        <span className="title">特定商取引法に基づく表記</span>
       </header>
-      <main style={{ maxWidth:720, margin:"0 auto", padding:"32px 24px 80px" }}>
+      <main className="container-narrow" style={{ padding: "32px 24px 80px" }}>
 
-        <table style={{ width:"100%", borderCollapse:"collapse", fontSize:14 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
           <tbody>
             {[
               ["販売業者", "請求があった場合は遅滞なく開示します"],
@@ -16,7 +17,7 @@ export default function TokushoPage() {
               ["所在地", "請求があった場合は遅滞なく開示します"],
               ["電話番号", "お問い合わせいただいた場合に遅滞なく開示いたします"],
               ["メールアドレス・お問い合わせ", "amukat0823@gmail.com"],
-              ["サービス名", "Commission Tracker"],
+              ["サービス名", "ツクリスト"],
               ["サービスURL", "https://commission-tracker-nine.vercel.app"],
               ["販売価格",
                 "■ 無料プラン：0円\n■ スタンダードプラン：月額300円（税込）\n■ プレミアムプラン：月額800円（税込）\n※料金はすべて日本円・税込表示"],
@@ -32,9 +33,9 @@ export default function TokushoPage() {
               ["動作環境", "最新バージョンのChrome・Safari・Firefox・Edge（インターネット接続が必要）"],
               ["個人情報の取り扱い", "プライバシーポリシー（https://commission-tracker-nine.vercel.app/privacy）に従い適切に管理します。"],
             ].map(([label, value]) => (
-              <tr key={label} style={{ borderBottom:"1px solid #e5e7eb" }}>
-                <td style={{ padding:"14px 12px", fontWeight:700, color:"#555", width:200, verticalAlign:"top", background:"#f8f7ff", fontSize:13, whiteSpace:"nowrap" }}>{label}</td>
-                <td style={{ padding:"14px 12px", color:"#222", lineHeight:1.8, whiteSpace:"pre-wrap", wordBreak:"break-all" }}>{value}</td>
+              <tr key={label} style={{ borderBottom: "1px solid var(--border-soft)" }}>
+                <td style={{ padding: "14px 12px", fontWeight: 700, color: "var(--muted)", width: 200, verticalAlign: "top", background: "var(--bg)", fontSize: 13, whiteSpace: "nowrap" }}>{label}</td>
+                <td style={{ padding: "14px 12px", color: "var(--fg-2)", lineHeight: 1.8, whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{value}</td>
               </tr>
             ))}
           </tbody>

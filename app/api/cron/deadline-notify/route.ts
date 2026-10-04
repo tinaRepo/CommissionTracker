@@ -10,7 +10,7 @@ webpush.setVapidDetails(
   process.env.VAPID_PRIVATE_KEY!
 );
 
-// 納期が近い依頼のユーザーにWeb Push通知を送るCron JobのAPIルート
+// 納期が近いタスクのユーザーにWeb Push通知を送るCron JobのAPIルート
 export async function GET(request: NextRequest) {
   // Cron Jobの認証チェック
   const { searchParams } = new URL(request.url);
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
 
-    // 今日から7日後までの納期がある依頼を取得
+    // 今日から7日後までの納期があるタスクを取得
     const now = new Date();
     const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
     jst.setHours(0, 0, 0, 0);
@@ -37,23 +37,23 @@ export async function GET(request: NextRequest) {
     const todayStr = jst.toISOString().split("T")[0];
     const in7daysStr = in7days.toISOString().split("T")[0];
 
-    // 納期が今日〜7日後で完成・キャンセル以外の依頼を取得
-    const { data: commissions } = await adminSupabase
-      .from("commissions")
+    // 納期が今日〜7日後で完成・キャンセル以外のタスクを取得
+    const { data: tasks } = await adminSupabase
+      .from("tasks")
       .select("user_id, title, deadline")
       .gte("deadline", todayStr)
       .lte("deadline", in7daysStr)
       .not("status", "in", '("done","cancelled")');
 
-    if (!commissions || commissions.length === 0) {
+    if (!tasks || tasks.length === 0) {
       return NextResponse.json({ message: "No upcoming deadlines" });
     }
 
-    // ユーザーごとに依頼をグループ化
+    // ユーザーごとにタスクをグループ化
     const byUser: Record<string, { title: string; deadline: string }[]> = {};
-    for (const c of commissions) {
-      if (!byUser[c.user_id]) byUser[c.user_id] = [];
-      byUser[c.user_id].push({ title: c.title, deadline: c.deadline });
+    for (const t of tasks) {
+      if (!byUser[t.user_id]) byUser[t.user_id] = [];
+      byUser[t.user_id].push({ title: t.title, deadline: t.deadline });
     }
 
     // 各ユーザーのpush_subscriptionを取得して通知送信
@@ -76,12 +76,12 @@ export async function GET(request: NextRequest) {
       const deadlineDate = new Date(dy, dm - 1, dd);
       const todayLocal = new Date(jst.getFullYear(), jst.getMonth(), jst.getDate());
       const daysLeft = Math.ceil(
-          (deadlineDate.getTime() - todayLocal.getTime()) / 86400000
+        (deadlineDate.getTime() - todayLocal.getTime()) / 86400000
       );
 
       const body = count === 1
         ? `「${first.title}」の納期まであと${daysLeft}日`
-        : `納期が近い依頼が${count}件あります`;
+        : `納期が近いタスクが${count}件あります`;
 
       try {
         await webpush.sendNotification(

@@ -18,24 +18,20 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 管理者以外のユーザーはメンテナンス中ページにリダイレクトする
   const adminSupabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
 
-  // メンテナンス設定を取得する
   const { data: settings, error: settingsError } = await adminSupabase
     .from("app_settings")
     .select("maintenance_enabled, maintenance_message")
     .eq("setting_key", "maintenance")
     .maybeSingle();
 
-  // メンテナンスが有効でない場合は通常通り処理を続行する
   if (settingsError || !settings?.maintenance_enabled) return NextResponse.next();
 
-  // メンテナンスが有効な場合は、管理者かどうかを判定する
   const authClient = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -72,7 +68,6 @@ export async function middleware(request: NextRequest) {
   return NextResponse.rewrite(maintenanceUrl);
 }
 
-// ミドルウェアの適用範囲を指定する
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico|offline.html).*)"],
 };

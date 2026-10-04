@@ -34,11 +34,11 @@ export async function POST(request: NextRequest) {
 
     const displayName = profile?.display_name ?? "（未設定）";
     const adminEmail = process.env.ADMIN_EMAIL!;
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://commission-tracker-nine.vercel.app";
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
 
     // 管理者にメール送信
     const { error: mailErr } = await resend.emails.send({
-      from: "Commission Tracker <onboarding@resend.dev>",
+      from: "ツクリスト <onboarding@resend.dev>",
       to: adminEmail,
       subject: `【削除申請】${displayName} さんからアカウント削除の申請が届きました`,
       html: `
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
             </a>
           </div>
           <p style="margin-top: 24px; font-size: 12px; color: #aaa;">
-            このメールはCommission Trackerから自動送信されました。
+            このメールはツクリストから自動送信されました。
           </p>
         </div>
       `,

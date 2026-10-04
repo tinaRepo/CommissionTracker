@@ -1,114 +1,112 @@
 "use client";
+// 使い方ガイド
 export default function GuidePage() {
   return (
-    <div style={{ minHeight:"100vh", background:"#faf8f5", fontFamily:"'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif" }}>
-      <header style={{ background:"linear-gradient(135deg,#1a0a2e 0%,#2d1a4a 60%,#1a2a4a 100%)", padding:"20px 24px", display:"flex", alignItems:"center", gap:12, boxShadow:"0 4px 32px #0004" }}>
-        <button onClick={() => window.history.back()} style={{ background:"#ffffff18", border:"1px solid #ffffff30", color:"#c4b5fd", borderRadius:8, padding:"6px 12px", fontSize:12, cursor:"pointer", fontWeight:600 }}>← 戻る</button>
-        <span style={{ color:"#fff", fontSize:18, fontWeight:800 }}>使い方ガイド</span>
+    <div style={{ minHeight: "100vh", background: "var(--surface)" }}>
+      <header className="doc-header">
+        <button onClick={() => window.history.back()} className="doc-back-btn">← 戻る</button>
+        <span className="title">使い方ガイド</span>
       </header>
-      <main style={{ maxWidth:720, margin:"0 auto", padding:"32px 24px 80px" }}>
+      <main className="container-narrow" style={{ padding: "32px 24px 80px" }}>
 
-        <div style={{ textAlign:"center", marginBottom:40 }}>
-          <div style={{ fontSize:48, marginBottom:12 }}>🎨</div>
-          <div style={{ fontSize:20, fontWeight:800, color:"#1a0a2e", marginBottom:8 }}>Commission Tracker</div>
-          <div style={{ fontSize:14, color:"#888" }}>絵の依頼を一元管理するツールです</div>
+        <div style={{ textAlign: "center", marginBottom: 40 }}>
+          <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>ツクリスト</div>
+          <div className="text-muted" style={{ fontSize: 14 }}>依頼・タスクの納期を一元管理するツールです</div>
         </div>
 
-        <Section title="🚀 はじめかた">
+        <Section title="はじめかた">
           <Step num={1} title="アカウントを作成する">
             メールアドレスとパスワードを入力して新規登録します。確認メールが届いたらリンクをクリックしてください。
           </Step>
           <Step num={2} title="表示名を設定する">
-            右上のユーザーメニュー →「✏️ 名前を変更」から表示名を設定できます。
+            右上のユーザーメニュー →「名前を変更」から表示名を設定できます。
           </Step>
-          <Step num={3} title="最初の依頼を登録する">
-            「＋ 新規登録」ボタンから依頼情報を入力します。件名と絵師名は必須です。
+          <Step num={3} title="最初のタスクを登録する">
+            「＋ 新規登録」ボタンからタスク情報を入力します。件名と依頼先名は必須です。
           </Step>
         </Section>
 
-        <Section title="📋 依頼の管理">
-          <Step num={1} title="依頼を登録する">
-            件名・絵師名・X ID・依頼日・納期・ラフ提出日・金額・ステータス・メモを入力できます。日付は後から削除できます。
+        <Section title="タスクの管理">
+          <Step num={1} title="タスクを登録する">
+            件名・依頼先名・SNS/連絡先・依頼日・納期・提出日・金額・ステータス・メモを入力できます。日付は後から削除できます。
           </Step>
           <Step num={2} title="ステータスを更新する">
-            依頼をタップ→「編集」からステータスを変更できます。<br />
-            <span style={{ display:"inline-flex", gap:6, flexWrap:"wrap", marginTop:6 }}>
+            タスクをタップ→「編集」からステータスを変更できます。
+            <div className="row" style={{ gap: 6, flexWrap: "wrap", marginTop: 8 }}>
               {[
-                { label:"依頼済み", color:"#f59e0b", bg:"#fef3c7" },
-                { label:"ラフ確認中", color:"#8b5cf6", bg:"#ede9fe" },
-                { label:"制作中", color:"#3b82f6", bg:"#dbeafe" },
-                { label:"完成", color:"#10b981", bg:"#d1fae5" },
-                { label:"キャンセル", color:"#6b7280", bg:"#f3f4f6" },
-              ].map(s => (
-                <span key={s.label} style={{ background:s.bg, color:s.color, borderRadius:999, padding:"2px 10px", fontSize:11, fontWeight:700 }}>{s.label}</span>
-              ))}
-            </span>
+                { label: "依頼済み", cls: "badge-pending" },
+                { label: "確認中", cls: "badge-checking" },
+                { label: "制作中", cls: "badge-progress" },
+                { label: "完成", cls: "badge-done" },
+                { label: "キャンセル", cls: "badge-cancelled" },
+              ].map(s => <span key={s.label} className={`badge ${s.cls}`}>{s.label}</span>)}
+            </div>
           </Step>
           <Step num={3} title="画像を添付する">
-            依頼の詳細画面から画像を追加できます。ラフ・作業中・完成・その他の種類を選んでアップロードしてください。
+            タスクの詳細画面から画像を追加できます。確認用・制作中・完成・その他の種類を選んでアップロードしてください。
           </Step>
           <Step num={4} title="並び替え・フィルタ">
-            依頼一覧は依頼日・納期・金額・ステータスで並び替え可能です。ステータスボタンでフィルタリングもできます。
+            タスク一覧は依頼日・納期・金額・ステータスで並び替え可能です。ステータスボタンでフィルタリングもできます。
           </Step>
         </Section>
 
-        <Section title="⚠️ 納期アラート">
-          <p>納期が7日以内に迫った依頼は<strong>アプリ内でハイライト表示</strong>されます。</p>
-          <div style={{ background:"#fee2e2", border:"1.5px solid #fca5a5", borderRadius:12, padding:"14px 16px", margin:"12px 0", fontSize:13, color:"#b91c1c" }}>
-            <strong>⚠ あとN日</strong> と表示され、カード全体が赤くなります
+        <Section title="納期アラート">
+          <p>納期が7日以内に迫ったタスクは<strong>アプリ内でハイライト表示</strong>されます。</p>
+          <div style={{ background: "var(--danger-soft)", borderRadius: "var(--radius-md)", padding: "14px 16px", margin: "12px 0", fontSize: 13, color: "var(--danger)" }}>
+            <strong>あとN日</strong> と表示され、カード全体が強調されます
           </div>
-          <p style={{ marginTop:8 }}>アラートが表示される条件：</p>
-          <ul style={{ paddingLeft:20, fontSize:13, color:"#666", lineHeight:2 }}>
+          <p style={{ marginTop: 8 }}>アラートが表示される条件：</p>
+          <ul>
             <li>納期まで<strong>7日以内</strong>（当日含む）</li>
-            <li>ステータスが<strong>完成・キャンセル以外</strong>の依頼</li>
+            <li>ステータスが<strong>完成・キャンセル以外</strong>のタスク</li>
           </ul>
         </Section>
 
-        <Section title="🔔 プッシュ通知">
-          <p>納期が近い依頼を<strong>毎朝8時にプッシュ通知</strong>でお知らせします。</p>
-          <div style={{ background:"#d1fae5", border:"1.5px solid #6ee7b7", borderRadius:12, padding:"14px 16px", margin:"12px 0", fontSize:13, color:"#065f46" }}>
-            📱ホーム画面に追加したPWAでも通知が届きます（iOS 16.4以降）
+        <Section title="プッシュ通知">
+          <p>納期が近いタスクを<strong>毎朝8時にプッシュ通知</strong>でお知らせします。</p>
+          <div style={{ background: "var(--success-soft)", borderRadius: "var(--radius-md)", padding: "14px 16px", margin: "12px 0", fontSize: 13, color: "var(--success)" }}>
+            ホーム画面に追加したPWAでも通知が届きます（iOS 16.4以降）
           </div>
-          <p style={{ marginTop:8 }}>通知の設定方法：</p>
+          <p style={{ marginTop: 8 }}>通知の設定方法：</p>
           <Step num={1} title="通知をオンにする">
-            右上のユーザーメニュー →「🔕 通知オフ（タップでオン」をタップして通知を許可してください。
+            右上のユーザーメニュー →「通知オフ（タップでオン）」をタップして通知を許可してください。
           </Step>
           <Step num={2} title="通知が届くタイミング">
-            納期まで7日以内の依頼がある場合、毎朝8時に通知が届きます。納期当日まで毎日届きます。
+            納期まで7日以内のタスクがある場合、毎朝8時に通知が届きます。納期当日まで毎日届きます。
           </Step>
           <Step num={3} title="通知をオフにするには">
-            ユーザーメニュー →「🔔 通知オン（タップでオフ」をタップして通知を許可してください。
+            ユーザーメニュー →「通知オン（タップでオフ）」をタップして通知を許可してください。
           </Step>
-          <div style={{ background:"#fef3c7", border:"1.5px solid #fbbf24", borderRadius:12, padding:"14px 16px", margin:"12px 0", fontSize:13, color:"#92400e" }}>
-            ⚠ iOSのSafariでは、ブラウザの通知設定で「常に許可」にしていても、ホーム画面に追加したPWAでないと通知が届きません。必ず「ホーム画面に追加」してお使いください。
+          <div style={{ background: "var(--warn-soft)", borderRadius: "var(--radius-md)", padding: "14px 16px", margin: "12px 0", fontSize: 13, color: "var(--warn)" }}>
+            iOSのSafariでは、ブラウザの通知設定で「常に許可」にしていても、ホーム画面に追加したPWAでないと通知が届きません。必ず「ホーム画面に追加」してお使いください。
           </div>
         </Section>
 
-        <Section title="📷 画像のプラン制限">
+        <Section title="画像のプラン制限">
           <p>プランによってアップロードできる画像の合計枚数が異なります。</p>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10, marginTop:12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginTop: 12 }}>
             {[
-              { label:"無料", limit:"10枚まで", color:"#6b7280", bg:"#f3f4f6" },
-              { label:"スタンダード", limit:"50枚まで", color:"#3b82f6", bg:"#dbeafe" },
-              { label:"プレミアム", limit:"無制限", color:"#7c3aed", bg:"#ede9fe" },
+              { label: "無料", limit: "10枚まで" },
+              { label: "スタンダード", limit: "50枚まで" },
+              { label: "プレミアム", limit: "無制限" },
             ].map(p => (
-              <div key={p.label} style={{ background:p.bg, borderRadius:12, padding:"12px", textAlign:"center" }}>
-                <span style={{ color:p.color, fontWeight:800, fontSize:13 }}>{p.label}</span>
-                <div style={{ color:p.color, fontSize:12, marginTop:4 }}>{p.limit}</div>
+              <div key={p.label} className="card" style={{ padding: 12, textAlign: "center" }}>
+                <div style={{ fontWeight: 700, fontSize: 13 }}>{p.label}</div>
+                <div className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>{p.limit}</div>
               </div>
             ))}
           </div>
-          <p style={{ marginTop:12, fontSize:13, color:"#888" }}>
-            プランのアップグレードは右上のユーザーメニュー →「⭐ プランをアップグレード」から行えます。
+          <p style={{ marginTop: 12, fontSize: 13, color: "var(--muted)" }}>
+            プランのアップグレードは右上のユーザーメニュー →「プランをアップグレード」から行えます。
           </p>
         </Section>
 
-        <Section title="📱 スマホで使う">
+        <Section title="スマホで使う">
           <p>SafariやChromeの「ホーム画面に追加」からアプリとして使えます。アドレスバーが非表示になり、より快適に操作できます。</p>
         </Section>
 
-        <Section title="🗑 アカウントを削除したいとき">
-          <p>ユーザーメニュー →「🗑 アカウント削除を申請」から削除申請を送信できます。管理者が確認後、アカウントとすべてのデータを削除します。</p>
+        <Section title="アカウントを削除したいとき">
+          <p>ユーザーメニュー →「アカウント削除を申請」から削除申請を送信できます。管理者が確認後、アカウントとすべてのデータを削除します。</p>
         </Section>
 
       </main>
@@ -116,22 +114,24 @@ export default function GuidePage() {
   );
 }
 
+// 使い方ガイドのセクション
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ marginBottom:36 }}>
-      <h2 style={{ fontSize:16, fontWeight:800, color:"#1a0a2e", marginBottom:16, paddingBottom:6, borderBottom:"2px solid #ede9fe" }}>{title}</h2>
-      <div style={{ fontSize:14, color:"#444", lineHeight:1.8 }}>{children}</div>
+    <div className="doc-section">
+      <h2>{title}</h2>
+      <div>{children}</div>
     </div>
   );
 }
 
+// 使い方ガイドのステップ
 function Step({ num, title, children }: { num: number; title: string; children: React.ReactNode }) {
   return (
-    <div style={{ display:"flex", gap:14, marginBottom:20 }}>
-      <div style={{ width:28, height:28, borderRadius:"50%", background:"linear-gradient(135deg,#7c3aed,#4f46e5)", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:800, flexShrink:0, marginTop:2 }}>{num}</div>
+    <div className="step-row">
+      <div className="step-number">{num}</div>
       <div>
-        <div style={{ fontWeight:700, fontSize:14, color:"#1a0a2e", marginBottom:4 }}>{title}</div>
-        <div style={{ fontSize:13, color:"#666", lineHeight:1.7 }}>{children}</div>
+        <div className="step-title">{title}</div>
+        <div className="step-body">{children}</div>
       </div>
     </div>
   );

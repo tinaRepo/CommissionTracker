@@ -2,7 +2,7 @@ import { createPublicPageMetadata } from "@/lib/seo";
 
 export const metadata = createPublicPageMetadata(
     "利用規約",
-    "Commission Trackerの利用条件を定めた利用規約です。",
+    "ツクリストの利用条件を定めた利用規約です。",
     "/terms"
 );
 

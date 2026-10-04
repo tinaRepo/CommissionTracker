@@ -6,6 +6,7 @@ import {
   supabase, adminFetchAllUsers, PLAN_LIMITS,
   type UserProfile, type Plan,
 } from "@/lib/supabase";
+import { Field, Icon, cx } from "@/components/TaskShared";
 
 // ─── 型定義 ────────────────────────────────────────────────────
 
@@ -33,7 +34,7 @@ type VersionRelease = {
 };
 
 type VersionReleaseItem = {
-  id?: string;       // 既存レコードはあり、新規追加時はなし
+  id?: string;
   category: ItemCategory;
   content: string;
   sort_order: number;
@@ -48,32 +49,11 @@ type Tab = "announcements" | "releases";
 const ANNOUNCEMENT_TYPES: AnnouncementType[] = ["お知らせ", "メンテナンス", "障害情報", "キャンペーン"];
 const ITEM_CATEGORIES: ItemCategory[] = ["新機能", "改善", "修正"];
 
-const TYPE_COLOR: Record<AnnouncementType, { bg: string; color: string; border: string }> = {
-  お知らせ: { bg: "#dbeafe", color: "#1d4ed8", border: "#93c5fd" },
-  メンテナンス: { bg: "#fef3c7", color: "#b45309", border: "#fcd34d" },
-  障害情報: { bg: "#fee2e2", color: "#b91c1c", border: "#fca5a5" },
-  キャンペーン: { bg: "#d1fae5", color: "#065f46", border: "#6ee7b7" },
+const TYPE_CLASS: Record<AnnouncementType, string> = {
+  お知らせ: "badge-info", メンテナンス: "badge-warn", 障害情報: "badge-danger", キャンペーン: "badge-success",
 };
-
-const CAT_COLOR: Record<ItemCategory, { bg: string; color: string; border: string }> = {
-  新機能: { bg: "#ede9fe", color: "#6d28d9", border: "#c4b5fd" },
-  改善: { bg: "#d1fae5", color: "#065f46", border: "#6ee7b7" },
-  修正: { bg: "#fef3c7", color: "#b45309", border: "#fcd34d" },
-};
-
-// ─── 入力スタイル（既存アプリに揃える）──────────────────────────
-
-const inp: React.CSSProperties = {
-  width: "100%", padding: "10px 13px", border: "1.5px solid #e5e7eb", borderRadius: 12,
-  fontSize: 16, outline: "none", color: "#1a0a2e", background: "#faf8f5",
-  boxSizing: "border-box", fontFamily: "inherit",
-};
-
-const inp_date: React.CSSProperties = {
-  display: "block", minWidth: 0, width: "100%", flex: 1, padding: "10px 8px",
-  border: "1.5px solid #e5e7eb", borderRadius: 12,
-  fontSize: 16, outline: "none", color: "#1a0a2e", background: "#faf8f5",
-  boxSizing: "border-box", fontFamily: "inherit",
+const CAT_CLASS: Record<ItemCategory, string> = {
+  新機能: "badge-accent", 改善: "badge-success", 修正: "badge-warn",
 };
 
 const EMPTY_ANNOUNCEMENT = {
@@ -113,11 +93,7 @@ export default function AdminNotificationsPage() {
   const [rDeleteConfirm, setRDeleteConfirm] = useState<string | null>(null);
   const [rSaving, setRSaving] = useState(false);
 
-  // ── 管理者チェック ─────────────────────────────────────────
-  // NOTE: getUser()はSupabase Authサーバーへの検証往復が毎回発生するため、
-  // ローカルのセッション情報のみで済む getSession() に変更（RLSはJWT署名で
-  // サーバー側検証されるため、is_admin判定のためのuser.id取得にはこれで十分）。
-
+  // 初期化
   useEffect(() => {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -133,8 +109,7 @@ export default function AdminNotificationsPage() {
     })();
   }, []);
 
-  // ── データ取得 ─────────────────────────────────────────────
-
+  // データ取得
   async function fetchAnnouncements() {
     setALoading(true);
     const { data, error } = await supabase.from("announcements").select("*").order("published_at", { ascending: false });
@@ -143,6 +118,7 @@ export default function AdminNotificationsPage() {
     setALoading(false);
   }
 
+  // データ取得
   async function fetchReleases() {
     setRLoading(true);
     const { data } = await supabase
@@ -159,20 +135,14 @@ export default function AdminNotificationsPage() {
     setRLoading(false);
   }
 
-  // ── お知らせ CRUD ──────────────────────────────────────────
-
+  // お知らせ編集
   function openANew() {
     setAEditId(null);
-    setAForm({
-      ...EMPTY_ANNOUNCEMENT,
-      published_at: today(),
-      targetMode: "all",
-      targetPlans: [],
-      targetUserIds: []
-    });
+    setAForm({ ...EMPTY_ANNOUNCEMENT, published_at: today(), targetMode: "all", targetPlans: [], targetUserIds: [] });
     setShowAForm(true);
   }
 
+  // お知らせ編集
   function openAEdit(a: Announcement) {
     setAEditId(a.id);
     setAForm({
@@ -185,6 +155,7 @@ export default function AdminNotificationsPage() {
     setShowAForm(true);
   }
 
+  // お知らせ保存
   async function saveAnnouncement() {
     if (!aForm.title.trim() || !aForm.content.trim()) return;
     setASaving(true);
@@ -201,9 +172,8 @@ export default function AdminNotificationsPage() {
       await supabase.from("announcements").update(payload).eq("id", aEditId);
     } else {
       await supabase.from("announcements").insert(payload);
-      // 新規作成時のみプッシュ通知を送信
       sendPushNotification({
-        title: `📢 ${payload.title}`,
+        title: payload.title,
         body: payload.content.length > 100 ? payload.content.slice(0, 100) + "…" : payload.content,
         targetPlans: (payload as any).target_plans ?? null,
         targetUserIds: (payload as any).target_user_ids ?? null,
@@ -215,14 +185,14 @@ export default function AdminNotificationsPage() {
     fetchAnnouncements();
   }
 
+  // お知らせ削除
   async function deleteAnnouncement(id: string) {
     await supabase.from("announcements").delete().eq("id", id);
     setADeleteConfirm(null);
     fetchAnnouncements();
   }
 
-  // ── バージョン CRUD ────────────────────────────────────────
-
+  // バージョン編集
   function openRNew() {
     setREditId(null);
     setRForm({ version: "", title: "", released_at: today() });
@@ -230,6 +200,7 @@ export default function AdminNotificationsPage() {
     setShowRForm(true);
   }
 
+  // バージョン編集
   function openREdit(r: VersionRelease) {
     setREditId(r.id);
     setRForm({ version: r.version, title: r.title, released_at: r.released_at.slice(0, 10) });
@@ -237,6 +208,7 @@ export default function AdminNotificationsPage() {
     setShowRForm(true);
   }
 
+  // バージョン保存
   async function saveRelease() {
     if (!rForm.version.trim() || !rForm.title.trim()) return;
     setRSaving(true);
@@ -244,11 +216,9 @@ export default function AdminNotificationsPage() {
     const validItems = rItems.filter(i => i.content.trim());
 
     if (rEditId) {
-      // バージョン本体を更新
       await supabase.from("version_releases")
         .update({ version: rForm.version, title: rForm.title, released_at: rForm.released_at || today() })
         .eq("id", rEditId);
-      // items は全削除→再挿入
       await supabase.from("version_release_items").delete().eq("release_id", rEditId);
       if (validItems.length > 0) {
         await supabase.from("version_release_items").insert(
@@ -264,13 +234,11 @@ export default function AdminNotificationsPage() {
           validItems.map((item, idx) => ({ release_id: data.id, category: item.category, content: item.content, sort_order: idx }))
         );
       }
-      // 新規リリースのみプッシュ通知を送信（全ユーザー対象）
       sendPushNotification({
-        title: `🚀 新しいバージョンがリリースされました`,
+        title: "新しいバージョンがリリースされました",
         body: `v${rForm.version}: ${rForm.title}`,
       });
     }
-
 
     setRSaving(false);
     setShowRForm(false);
@@ -278,6 +246,7 @@ export default function AdminNotificationsPage() {
     fetchReleases();
   }
 
+  // バージョン削除
   async function sendPushNotification(payload: {
     title: string; body: string;
     targetPlans?: string[] | null; targetUserIds?: string[] | null;
@@ -296,13 +265,10 @@ export default function AdminNotificationsPage() {
   }
 
   async function deleteRelease(id: string) {
-    // version_release_items は cascade で自動削除
     await supabase.from("version_releases").delete().eq("id", id);
     setRDeleteConfirm(null);
     fetchReleases();
   }
-
-  // ── 更新内容の行操作 ───────────────────────────────────────
 
   function addItem() {
     setRItems(prev => [...prev, { ...EMPTY_ITEM(), sort_order: prev.length }]);
@@ -316,16 +282,12 @@ export default function AdminNotificationsPage() {
     setRItems(prev => prev.map((item, i) => i === idx ? { ...item, ...patch } : item));
   }
 
-  // ── ユーティリティ ─────────────────────────────────────────
-
-  // JST基準の日付文字列 "YYYY-MM-DD"
   function today() {
     const d = new Date();
     d.setTime(d.getTime() + 9 * 60 * 60 * 1000);
     return d.toISOString().slice(0, 10);
   }
 
-  // JST基準のISO datetime文字列（updated_at用）
   function todayISO() {
     const d = new Date();
     d.setTime(d.getTime() + 9 * 60 * 60 * 1000);
@@ -336,68 +298,48 @@ export default function AdminNotificationsPage() {
     return new Date(s).toLocaleDateString("ja-JP", { year: "numeric", month: "short", day: "numeric" });
   }
 
-  // ── レンダリング ───────────────────────────────────────────
-
   if (checking) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f9f7ff" }}>
-        <p style={{ color: "#7c3aed", fontWeight: 700 }}>確認中…</p>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <p style={{ color: "var(--accent)", fontWeight: 700 }}>確認中…</p>
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f9f7ff", fontFamily: "inherit" }}>
+    <div style={{ minHeight: "100vh", background: "var(--surface)" }}>
 
-      {/* ── ヘッダー ── */}
-      <header style={{
-        background: "linear-gradient(135deg,#1a0a2e,#2d1b69)",
-        padding: "14px 16px", display: "flex", alignItems: "center", gap: 12,
-      }}>
-        <button
-          onClick={() => router.back()}
-          style={{
-            background: "#ffffff18", border: "1px solid #ffffff30", color: "#fff",
-            borderRadius: 10, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer",
-            flexShrink: 0,
-          }}
-        >
-          ← 戻る
-        </button>
+      <header className="doc-header">
+        <button onClick={() => router.back()} className="doc-back-btn">← 戻る</button>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>お知らせ・バージョン管理</div>
-          <div style={{ fontSize: 11, color: "#c4b5fd", marginTop: 2 }}>管理者専用</div>
+          <div className="title" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>お知らせ・バージョン管理</div>
+          <div className="text-meta" style={{ color: "var(--muted-on-inverse)", marginTop: 2 }}>管理者専用</div>
         </div>
       </header>
 
-      {/* ── タブ ── */}
-      <div style={{ padding: "16px 16px 0" }}>
-        <div style={{
-          display: "flex", gap: 4,
-          background: "#ede9fe", borderRadius: 12, padding: 4,
-        }}>
+      <div className="container-narrow" style={{ paddingTop: 16 }}>
+        <div className="row" style={{ gap: 4, background: "var(--bg)", borderRadius: "var(--radius-md)", padding: 4, border: "1px solid var(--border-soft)" }}>
           {([
-            { id: "announcements" as Tab, label: "📢 お知らせ", count: announcements.length },
-            { id: "releases" as Tab, label: "🚀 バージョン管理", count: releases.length },
+            { id: "announcements" as Tab, label: "お知らせ", count: announcements.length },
+            { id: "releases" as Tab, label: "バージョン管理", count: releases.length },
           ]).map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
+              className="row"
               style={{
-                flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
-                padding: "8px 10px", borderRadius: 10, border: "none", cursor: "pointer",
-                fontSize: 13, fontWeight: 700, transition: "all 0.15s",
-                background: activeTab === tab.id ? "linear-gradient(135deg,#7c3aed,#4f46e5)" : "transparent",
-                color: activeTab === tab.id ? "#fff" : "#7c3aed",
-                boxShadow: activeTab === tab.id ? "0 2px 8px #7c3aed40" : "none",
+                flex: 1, justifyContent: "center", gap: 6, padding: "8px 10px", borderRadius: "var(--radius-sm)", border: "none",
+                fontSize: 13, fontWeight: 700,
+                background: activeTab === tab.id ? "var(--accent)" : "transparent",
+                color: activeTab === tab.id ? "#fff" : "var(--fg-2)",
               }}
             >
               <span>{tab.label}</span>
               <span style={{
                 fontSize: 11,
-                background: activeTab === tab.id ? "#ffffff30" : "#c4b5fd",
-                color: activeTab === tab.id ? "#fff" : "#6d28d9",
-                borderRadius: 999, padding: "1px 7px", flexShrink: 0,
+                background: activeTab === tab.id ? "rgba(255,255,255,0.25)" : "var(--surface-2)",
+                color: activeTab === tab.id ? "#fff" : "var(--muted)",
+                borderRadius: 999, padding: "1px 7px",
               }}>
                 {tab.count}
               </span>
@@ -406,56 +348,33 @@ export default function AdminNotificationsPage() {
         </div>
       </div>
 
-      {/* ── コンテンツ ── */}
-      <div style={{ padding: "16px 16px 60px", maxWidth: 860 }}>
+      <div className="container-narrow" style={{ padding: "16px 24px 60px" }}>
 
-        {/* ════ お知らせ一覧 ════ */}
         {activeTab === "announcements" && (
           <>
-            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
-              <button onClick={openANew} style={{
-                background: "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "#fff",
-                border: "none", borderRadius: 12, padding: "10px 22px",
-                fontWeight: 700, fontSize: 13, cursor: "pointer", boxShadow: "0 2px 12px #7c3aed40",
-              }}>
-                ＋ 新規作成
-              </button>
+            <div className="row" style={{ justifyContent: "flex-end", marginBottom: 16 }}>
+              <button onClick={openANew} className="btn btn-primary btn-sm"><Icon name="plus" size={14} /> 新規作成</button>
             </div>
 
-            {aLoading ? (
-              <LoadingState />
-            ) : announcements.length === 0 ? (
-              <EmptyState label="お知らせはまだありません" />
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {aLoading ? <LoadingState /> : announcements.length === 0 ? <EmptyState label="お知らせはまだありません" /> : (
+              <div style={{ display: "grid", gap: 10 }}>
                 {announcements.map(a => (
-                  <div key={a.id} style={{
-                    background: "#fff", borderRadius: 14, padding: "14px 16px",
-                    boxShadow: "0 1px 6px #0001", border: "1.5px solid #f3f4f6",
-                    display: "flex", flexDirection: "column", gap: 10,
-                  }}>
-                    {/* 上段：バッジ＋タイトル */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", flexShrink: 0 }}>
+                  <div key={a.id} className="card" style={{ padding: "14px 16px", display: "grid", gap: 10 }}>
+                    <div className="row" style={{ gap: 10, minWidth: 0 }}>
+                      <div className="row" style={{ gap: 6, flexWrap: "wrap", flexShrink: 0 }}>
                         <TypeBadge type={a.type} />
                         {(a.target_plans?.length || a.target_user_ids?.length) ? (
-                          <span style={{ fontSize: 10, background: "#fef3c7", color: "#92400e", borderRadius: 6, padding: "1px 6px", fontWeight: 700 }}>
-                            🎯 {a.target_plans?.length ? "プラン限定" : `${a.target_user_ids?.length}名限定`}
+                          <span className="badge badge-warn">
+                            {a.target_plans?.length ? "プラン限定" : `${a.target_user_ids?.length}名限定`}
                           </span>
                         ) : null}
                       </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{
-                          fontWeight: 700, fontSize: 14, color: "#1a0a2e", marginBottom: 2,
-                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
-                        }}>
-                          {a.title}
-                        </div>
-                        <div style={{ fontSize: 12, color: "#bbb" }}>{fmtDate(a.published_at)}</div>
+                      <div className="grow">
+                        <div style={{ fontWeight: 700, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.title}</div>
+                        <div className="text-meta">{fmtDate(a.published_at)}</div>
                       </div>
                     </div>
-                    {/* 下段：アクション */}
-                    <div style={{ display: "flex", gap: 8 }}>
+                    <div className="row" style={{ gap: 8 }}>
                       <ActionBtn label="編集" onClick={() => openAEdit(a)} />
                       <ActionBtn label="削除" danger onClick={() => setADeleteConfirm(a.id)} />
                     </div>
@@ -466,66 +385,36 @@ export default function AdminNotificationsPage() {
           </>
         )}
 
-        {/* ════ バージョン一覧 ════ */}
         {activeTab === "releases" && (
           <>
-            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
-              <button onClick={openRNew} style={{
-                background: "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "#fff",
-                border: "none", borderRadius: 12, padding: "10px 22px",
-                fontWeight: 700, fontSize: 13, cursor: "pointer", boxShadow: "0 2px 12px #7c3aed40",
-              }}>
-                ＋ 新規作成
-              </button>
+            <div className="row" style={{ justifyContent: "flex-end", marginBottom: 16 }}>
+              <button onClick={openRNew} className="btn btn-primary btn-sm"><Icon name="plus" size={14} /> 新規作成</button>
             </div>
 
-            {rLoading ? (
-              <LoadingState />
-            ) : releases.length === 0 ? (
-              <EmptyState label="バージョンはまだありません" />
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {rLoading ? <LoadingState /> : releases.length === 0 ? <EmptyState label="バージョンはまだありません" /> : (
+              <div style={{ display: "grid", gap: 10 }}>
                 {releases.map((r, i) => (
-                  <div key={r.id} style={{
-                    background: "#fff", borderRadius: 14, padding: "14px 16px",
-                    boxShadow: "0 1px 6px #0001", border: "1.5px solid #f3f4f6",
-                    display: "flex", flexDirection: "column", gap: 10,
-                  }}>
-                    {/* 上段：バージョン番号＋タイトル */}
-                    <div style={{ display: "flex", alignItems: "flex-start", gap: 10, minWidth: 0 }}>
+                  <div key={r.id} className="card" style={{ padding: "14px 16px", display: "grid", gap: 10 }}>
+                    <div className="row" style={{ gap: 10, alignItems: "flex-start", minWidth: 0 }}>
                       <div style={{ flexShrink: 0 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span style={{ fontWeight: 800, fontSize: 15, color: "#1a0a2e" }}>v{r.version}</span>
-                          {i === 0 && (
-                            <span style={{
-                              fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 999,
-                              background: "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "#fff",
-                            }}>LATEST</span>
-                          )}
+                        <div className="row" style={{ gap: 6 }}>
+                          <span style={{ fontWeight: 700, fontSize: 15 }}>v{r.version}</span>
+                          {i === 0 && <span className="badge badge-accent">LATEST</span>}
                         </div>
                       </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{
-                          fontWeight: 600, fontSize: 14, color: "#444", marginBottom: 4,
-                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
-                        }}>
+                      <div className="grow">
+                        <div style={{ fontWeight: 600, fontSize: 14, color: "var(--fg-2)", marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {r.title}
                         </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                          <span style={{ fontSize: 12, color: "#bbb" }}>{fmtDate(r.released_at)}</span>
-                          {r.items.length > 0 && (
-                            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                              {(["新機能", "改善", "修正"] as ItemCategory[])
-                                .filter(cat => r.items.some(it => it.category === cat))
-                                .map(cat => <CatBadge key={cat} cat={cat} />)
-                              }
-                            </div>
-                          )}
+                        <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
+                          <span className="text-meta">{fmtDate(r.released_at)}</span>
+                          {(["新機能", "改善", "修正"] as ItemCategory[])
+                            .filter(cat => r.items.some(it => it.category === cat))
+                            .map(cat => <CatBadge key={cat} cat={cat} />)}
                         </div>
                       </div>
                     </div>
-                    {/* 下段：アクション */}
-                    <div style={{ display: "flex", gap: 8 }}>
+                    <div className="row" style={{ gap: 8 }}>
                       <ActionBtn label="編集" onClick={() => openREdit(r)} />
                       <ActionBtn label="削除" danger onClick={() => setRDeleteConfirm(r.id)} />
                     </div>
@@ -537,115 +426,68 @@ export default function AdminNotificationsPage() {
         )}
       </div>
 
-      {/* ════ お知らせ登録・編集モーダル ════ */}
       {showAForm && (
         <Modal
           onClose={() => setShowAForm(false)}
           title={aEditId ? "お知らせを編集" : "お知らせを新規作成"}
           footer={
-            <ModalActions
-              onCancel={() => setShowAForm(false)}
-              onSubmit={saveAnnouncement}
-              disabled={!aForm.title.trim() || !aForm.content.trim() || aSaving}
-              saving={aSaving}
-              submitLabel={aEditId ? "更新する" : "作成する"}
-            />
+            <ModalActions onCancel={() => setShowAForm(false)} onSubmit={saveAnnouncement}
+              disabled={!aForm.title.trim() || !aForm.content.trim() || aSaving} saving={aSaving}
+              submitLabel={aEditId ? "更新する" : "作成する"} />
           }
         >
           <div style={{ display: "grid", gap: 16 }}>
             <Field label="タイトル *">
-              <input
-                value={aForm.title}
-                onChange={e => setAForm({ ...aForm, title: e.target.value })}
-                placeholder="例: 定期メンテナンスのお知らせ"
-                style={inp}
-              />
+              <input value={aForm.title} onChange={e => setAForm({ ...aForm, title: e.target.value })}
+                placeholder="例: 定期メンテナンスのお知らせ" className="input" />
             </Field>
             <Field label="本文 *">
-              <textarea
-                value={aForm.content}
-                onChange={e => setAForm({ ...aForm, content: e.target.value })}
-                placeholder="お知らせの本文を入力してください"
-                rows={5}
-                style={{ ...inp, resize: "vertical", lineHeight: 1.7 }}
-              />
+              <textarea value={aForm.content} onChange={e => setAForm({ ...aForm, content: e.target.value })}
+                placeholder="お知らせの本文を入力してください" rows={5} className="textarea" />
             </Field>
             <Field label="種別">
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
                 {ANNOUNCEMENT_TYPES.map(type => (
-                  <button
-                    key={type}
-                    onClick={() => setAForm({ ...aForm, type })}
-                    style={{
-                      padding: "6px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600,
-                      border: `1.5px solid ${aForm.type === type ? TYPE_COLOR[type].border : "#e5e7eb"}`,
-                      background: aForm.type === type ? TYPE_COLOR[type].bg : "#fff",
-                      color: aForm.type === type ? TYPE_COLOR[type].color : "#888",
-                      transition: "all 0.1s",
-                    }}
-                  >
+                  <button key={type} onClick={() => setAForm({ ...aForm, type })}
+                    className={cx("btn", "btn-sm", aForm.type === type ? "btn-primary" : "btn-secondary")}>
                     {type}
                   </button>
                 ))}
               </div>
             </Field>
             <Field label="配信対象">
-              <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-                {[
-                  { key: "all", label: "全員" },
-                  { key: "plan", label: "プラン指定" },
-                  { key: "user", label: "ユーザー指定" },
-                ].map(m => (
-                  <button key={m.key}
-                    onClick={() => setAForm({ ...aForm, targetMode: m.key as TargetMode })}
-                    style={{
-                      padding: "6px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600,
-                      border: `1.5px solid ${aForm.targetMode === m.key ? "#7c3aed" : "#e5e7eb"}`,
-                      background: aForm.targetMode === m.key ? "#ede9fe" : "#fff",
-                      color: aForm.targetMode === m.key ? "#6d28d9" : "#888",
-                    }}>
+              <div className="row" style={{ gap: 8, marginBottom: 10 }}>
+                {[{ key: "all", label: "全員" }, { key: "plan", label: "プラン指定" }, { key: "user", label: "ユーザー指定" }].map(m => (
+                  <button key={m.key} onClick={() => setAForm({ ...aForm, targetMode: m.key as TargetMode })}
+                    className={cx("btn", "btn-sm", aForm.targetMode === m.key ? "btn-primary" : "btn-secondary")}>
                     {m.label}
                   </button>
                 ))}
               </div>
 
-              {/* プラン指定 */}
               {aForm.targetMode === "plan" && (
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
                   {(["free", "standard", "premium"] as Plan[]).map(p => {
                     const checked = aForm.targetPlans.includes(p);
-                    const info = PLAN_LIMITS[p];
                     return (
-                      <label key={p} style={{
-                        display: "flex", alignItems: "center", gap: 6, cursor: "pointer",
-                        padding: "6px 12px", borderRadius: 8, fontSize: 13, fontWeight: 700,
-                        border: `1.5px solid ${checked ? info.color : "#e5e7eb"}`,
-                        background: checked ? info.bg : "#fff", color: checked ? info.color : "#888",
-                      }}>
+                      <label key={p} className={cx("btn", "btn-sm", checked ? "btn-primary" : "btn-secondary")} style={{ cursor: "pointer" }}>
                         <input type="checkbox" checked={checked} style={{ display: "none" }}
                           onChange={() => setAForm({
                             ...aForm,
-                            targetPlans: checked
-                              ? aForm.targetPlans.filter(x => x !== p)
-                              : [...aForm.targetPlans, p],
+                            targetPlans: checked ? aForm.targetPlans.filter(x => x !== p) : [...aForm.targetPlans, p],
                           })} />
-                        {info.label}
+                        {PLAN_LIMITS[p].label}
                       </label>
                     );
                   })}
                 </div>
               )}
 
-              {/* ユーザー指定 */}
               {aForm.targetMode === "user" && (
                 <div>
-                  <input
-                    value={userPickerSearch}
-                    onChange={e => setUserPickerSearch(e.target.value)}
-                    placeholder="名前 / IDで検索…"
-                    style={{ ...inp, marginBottom: 8 }}
-                  />
-                  <div style={{ maxHeight: 180, overflowY: "auto", border: "1.5px solid #e5e7eb", borderRadius: 10 }}>
+                  <input value={userPickerSearch} onChange={e => setUserPickerSearch(e.target.value)}
+                    placeholder="名前 / IDで検索…" className="input" style={{ marginBottom: 8 }} />
+                  <div style={{ maxHeight: 180, overflowY: "auto", border: "1px solid var(--border-soft)", borderRadius: "var(--radius-md)" }}>
                     {allUsers
                       .filter(u => {
                         const q = userPickerSearch.toLowerCase();
@@ -654,128 +496,71 @@ export default function AdminNotificationsPage() {
                       .map(u => {
                         const checked = aForm.targetUserIds.includes(u.id);
                         return (
-                          <label key={u.id} style={{
-                            display: "flex", alignItems: "center", gap: 8, padding: "8px 12px",
-                            cursor: "pointer", borderBottom: "1px solid #f3f4f6", fontSize: 13,
-                            background: checked ? "#faf5ff" : "#fff",
+                          <label key={u.id} className="row" style={{
+                            gap: 8, padding: "8px 12px", cursor: "pointer", borderBottom: "1px solid var(--border-soft)", fontSize: 13,
+                            background: checked ? "var(--accent-soft)" : "transparent",
                           }}>
                             <input type="checkbox" checked={checked}
                               onChange={() => setAForm({
                                 ...aForm,
-                                targetUserIds: checked
-                                  ? aForm.targetUserIds.filter(id => id !== u.id)
-                                  : [...aForm.targetUserIds, u.id],
+                                targetUserIds: checked ? aForm.targetUserIds.filter(id => id !== u.id) : [...aForm.targetUserIds, u.id],
                               })} />
                             <span style={{ fontWeight: 600 }}>{u.display_name ?? "（未設定）"}</span>
-                            <span style={{ color: "#bbb", fontSize: 11 }}>{u.id.slice(0, 8)}…</span>
+                            <span className="text-meta">{u.id.slice(0, 8)}…</span>
                           </label>
                         );
                       })}
                   </div>
-                  <div style={{ fontSize: 11, color: "#888", marginTop: 6 }}>
-                    {aForm.targetUserIds.length}名を選択中
-                  </div>
+                  <div className="text-meta" style={{ marginTop: 6 }}>{aForm.targetUserIds.length}名を選択中</div>
                 </div>
               )}
             </Field>
             <Field label="公開日">
-              <div style={{ display: "flex", width: "100%" }}>
-                <input type="date" value={aForm.published_at} onChange={e => setAForm({ ...aForm, published_at: e.target.value })} style={inp_date} />
-              </div>
+              <input type="date" value={aForm.published_at} onChange={e => setAForm({ ...aForm, published_at: e.target.value })} className="input" />
             </Field>
           </div>
         </Modal>
       )}
 
-      {/* ════ バージョン登録・編集モーダル ════ */}
       {showRForm && (
         <Modal
           onClose={() => setShowRForm(false)}
           title={rEditId ? "バージョンを編集" : "バージョンを新規作成"}
           footer={
-            <ModalActions
-              onCancel={() => setShowRForm(false)}
-              onSubmit={saveRelease}
-              disabled={!rForm.version.trim() || !rForm.title.trim() || rSaving}
-              saving={rSaving}
-              submitLabel={rEditId ? "更新する" : "作成する"}
-            />
+            <ModalActions onCancel={() => setShowRForm(false)} onSubmit={saveRelease}
+              disabled={!rForm.version.trim() || !rForm.title.trim() || rSaving} saving={rSaving}
+              submitLabel={rEditId ? "更新する" : "作成する"} />
           }
         >
-          {/* バージョン番号・リリース日・タイトルは固定表示 */}
           <div style={{ display: "grid", gap: 16 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <Field label="バージョン番号 *">
-                <input
-                  value={rForm.version}
-                  onChange={e => setRForm({ ...rForm, version: e.target.value })}
-                  placeholder="例: 1.2.0"
-                  style={inp}
-                />
+                <input value={rForm.version} onChange={e => setRForm({ ...rForm, version: e.target.value })} placeholder="例: 2.1.0" className="input" />
               </Field>
               <Field label="リリース日">
-                <div style={{ display: "flex", width: "100%" }}>
-                  <input type="date" value={rForm.released_at} onChange={e => setRForm({ ...rForm, released_at: e.target.value })}
-                    style={inp_date} />
-                </div>
+                <input type="date" value={rForm.released_at} onChange={e => setRForm({ ...rForm, released_at: e.target.value })} className="input" />
               </Field>
             </div>
             <Field label="タイトル *">
-              <input
-                value={rForm.title}
-                onChange={e => setRForm({ ...rForm, title: e.target.value })}
-                placeholder="例: カレンダービュー追加・バグ修正"
-                style={inp}
-              />
+              <input value={rForm.title} onChange={e => setRForm({ ...rForm, title: e.target.value })} placeholder="例: カレンダービュー追加・バグ修正" className="input" />
             </Field>
-            {/* 更新内容：リストのみ独立スクロール・高さ固定 */}
             <div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                <label style={{ fontSize: 13, fontWeight: 700, color: "#555" }}>更新内容</label>
-                <button
-                  onClick={addItem}
-                  style={{ background: "#ede9fe", color: "#7c3aed", border: "none", borderRadius: 8, padding: "5px 12px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}
-                >
-                  ＋ 追加
-                </button>
+              <div className="row" style={{ justifyContent: "space-between", marginBottom: 10 }}>
+                <label className="field-label" style={{ margin: 0 }}>更新内容</label>
+                <button onClick={addItem} className="btn btn-secondary btn-sm">＋ 追加</button>
               </div>
-              {/* 高さ固定・内側スクロール */}
-              <div style={{ maxHeight: 220, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ maxHeight: 220, overflowY: "auto", display: "grid", gap: 8 }}>
                 {rItems.map((item, idx) => (
-                  <div key={idx} style={{
-                    display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center",
-                    background: "#f9f7ff", borderRadius: 10, padding: "10px 12px",
-                    border: "1.5px solid #ede9fe",
-                  }}>
-                    <select
-                      value={item.category}
-                      onChange={e => updateItem(idx, { category: e.target.value as ItemCategory })}
-                      style={{
-                        padding: "7px 10px", border: `1.5px solid ${CAT_COLOR[item.category].border}`,
-                        borderRadius: 8, fontSize: 16, fontWeight: 700, cursor: "pointer",
-                        background: CAT_COLOR[item.category].bg, color: CAT_COLOR[item.category].color,
-                        outline: "none",
-                      }}
-                    >
+                  <div key={idx} className="row" style={{ gap: 8, flexWrap: "wrap", background: "var(--surface)", borderRadius: "var(--radius-md)", padding: "10px 12px", border: "1px solid var(--border-soft)" }}>
+                    <select value={item.category} onChange={e => updateItem(idx, { category: e.target.value as ItemCategory })}
+                      className="select" style={{ width: "auto", padding: "7px 10px", fontWeight: 700 }}>
                       {ITEM_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
-                    <input
-                      value={item.content}
-                      onChange={e => updateItem(idx, { content: e.target.value })}
-                      placeholder="例: カレンダービューを追加しました"
-                      style={{ ...inp, background: "#fff", flex: 1, minWidth: 120 }}
-                    />
-                    <button
-                      onClick={() => removeItem(idx)}
-                      disabled={rItems.length === 1}
-                      style={{
-                        width: 28, height: 28, borderRadius: "50%", border: "none", cursor: rItems.length === 1 ? "not-allowed" : "pointer",
-                        background: rItems.length === 1 ? "#f3f4f6" : "#fee2e2",
-                        color: rItems.length === 1 ? "#ccc" : "#ef4444",
-                        fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center",
-                      }}
-                    >
-                      ×
+                    <input value={item.content} onChange={e => updateItem(idx, { content: e.target.value })}
+                      placeholder="例: カレンダービューを追加しました" className="input" style={{ flex: 1, minWidth: 120 }} />
+                    <button onClick={() => removeItem(idx)} disabled={rItems.length === 1} className="icon-btn"
+                      style={{ width: 28, height: 28, background: rItems.length === 1 ? "var(--surface-2)" : "var(--danger-soft)", color: rItems.length === 1 ? "var(--meta)" : "var(--danger)", border: "none" }}>
+                      <Icon name="close" size={12} />
                     </button>
                   </div>
                 ))}
@@ -785,21 +570,8 @@ export default function AdminNotificationsPage() {
         </Modal>
       )}
 
-      {/* ════ 削除確認モーダル（お知らせ）════ */}
-      {aDeleteConfirm && (
-        <DeleteConfirmModal
-          onCancel={() => setADeleteConfirm(null)}
-          onConfirm={() => deleteAnnouncement(aDeleteConfirm)}
-        />
-      )}
-
-      {/* ════ 削除確認モーダル（バージョン）════ */}
-      {rDeleteConfirm && (
-        <DeleteConfirmModal
-          onCancel={() => setRDeleteConfirm(null)}
-          onConfirm={() => deleteRelease(rDeleteConfirm)}
-        />
-      )}
+      {aDeleteConfirm && <DeleteConfirmModal onCancel={() => setADeleteConfirm(null)} onConfirm={() => deleteAnnouncement(aDeleteConfirm)} />}
+      {rDeleteConfirm && <DeleteConfirmModal onCancel={() => setRDeleteConfirm(null)} onConfirm={() => deleteRelease(rDeleteConfirm)} />}
 
     </div>
   );
@@ -808,79 +580,35 @@ export default function AdminNotificationsPage() {
 // ─── 共通サブコンポーネント ─────────────────────────────────────
 
 function LoadingState() {
-  return <div style={{ textAlign: "center", padding: "48px 0", color: "#7c3aed", fontWeight: 700 }}>読み込み中…</div>;
+  return <div style={{ textAlign: "center", padding: "48px 0", color: "var(--accent)", fontWeight: 700 }}>読み込み中…</div>;
 }
 
 function EmptyState({ label }: { label: string }) {
   return (
-    <div style={{
-      textAlign: "center", padding: "60px 0",
-      background: "#fff", borderRadius: 16, border: "1.5px dashed #e5e7eb",
-      color: "#bbb", fontSize: 14,
-    }}>
+    <div style={{ textAlign: "center", padding: "60px 0", background: "var(--bg)", borderRadius: "var(--radius-lg)", border: "1px dashed var(--border)", color: "var(--meta)", fontSize: 14 }}>
       {label}
     </div>
   );
 }
 
 function TypeBadge({ type }: { type: AnnouncementType }) {
-  const c = TYPE_COLOR[type];
-  return (
-    <span style={{
-      display: "inline-block", padding: "3px 10px", borderRadius: 6, flexShrink: 0,
-      fontSize: 11, fontWeight: 700, background: c.bg, color: c.color, border: `1px solid ${c.border}`,
-    }}>
-      {type}
-    </span>
-  );
+  return <span className={cx("badge", TYPE_CLASS[type])}>{type}</span>;
 }
 
 function CatBadge({ cat }: { cat: ItemCategory }) {
-  const c = CAT_COLOR[cat];
-  return (
-    <span style={{
-      display: "inline-block", padding: "1px 7px", borderRadius: 4,
-      fontSize: 10, fontWeight: 700, background: c.bg, color: c.color, border: `1px solid ${c.border}`,
-    }}>
-      {cat}
-    </span>
-  );
+  return <span className={cx("badge", CAT_CLASS[cat])}>{cat}</span>;
 }
 
 function ActionBtn({ label, onClick, danger }: { label: string; onClick: () => void; danger?: boolean }) {
   return (
-    <button
-      onClick={onClick}
-      style={{
-        padding: "6px 14px", borderRadius: 8, border: "none", cursor: "pointer",
-        fontSize: 12, fontWeight: 700, transition: "opacity 0.1s",
-        background: danger ? "#fee2e2" : "#ede9fe",
-        color: danger ? "#b91c1c" : "#6d28d9",
-      }}
-      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.opacity = "0.75"; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.opacity = "1"; }}
-    >
+    <button onClick={onClick} className={cx("btn", "btn-sm", danger ? "btn-danger" : "btn-secondary")}>
       {label}
     </button>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#555", marginBottom: 6 }}>
-        {label.endsWith(" *") ? <>{label.slice(0, -2)} <span style={{ color: "#ef4444" }}>*</span></> : label}
-      </label>
-      {children}
-    </div>
-  );
-}
-
 function Modal({ title, footer, children, onClose }: {
-  title: React.ReactNode;
-  footer: React.ReactNode;
-  children: React.ReactNode;
-  onClose: () => void;
+  title: React.ReactNode; footer: React.ReactNode; children: React.ReactNode; onClose: () => void;
 }) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -889,48 +617,25 @@ function Modal({ title, footer, children, onClose }: {
     return () => { window.removeEventListener("keydown", handler); document.body.style.overflow = ""; };
   }, []);
   return (
-    <div
-      style={{ position: "fixed", inset: 0, background: "#0007", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, overscrollBehavior: "contain", touchAction: "none" }}
-      onClick={onClose}
-    >
-      <div
-        style={{ background: "#fff", borderRadius: 20, maxWidth: 540, width: "100%", height: "calc(100vh - 32px)", maxHeight: 600, display: "flex", flexDirection: "column", boxShadow: "0 8px 48px #0004" }}
-        onClick={e => e.stopPropagation()}
-      >
-        {/* タイトル（固定） */}
-        <div style={{ padding: "16px 20px 0", flexShrink: 0 }}>
-          <div style={{ fontWeight: 800, fontSize: 18, color: "#1a0a2e", marginBottom: 12 }}>{title}</div>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-sheet" style={{ maxWidth: 540 }} onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 12 }}>{title}</div>
         </div>
-        {/* フォーム（スクロール） */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "4px 20px 0" }}>
-          {children}
-        </div>
-        {/* ボタン（固定） */}
-        <div style={{ padding: "0 20px 16px", flexShrink: 0 }}>
-          {footer}
-        </div>
+        <div className="modal-body" style={{ padding: "4px 24px 0" }}>{children}</div>
+        <div className="modal-footer">{footer}</div>
       </div>
     </div>
   );
 }
+
 function ModalActions({ onCancel, onSubmit, disabled, saving, submitLabel }: {
-  onCancel: () => void; onSubmit: () => void;
-  disabled: boolean; saving: boolean; submitLabel: string;
+  onCancel: () => void; onSubmit: () => void; disabled: boolean; saving: boolean; submitLabel: string;
 }) {
   return (
-    <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
-      <button onClick={onCancel} style={{ flex: 1, background: "#f3f4f6", border: "none", borderRadius: 10, padding: "12px", fontWeight: 600, cursor: "pointer" }}>
-        キャンセル
-      </button>
-      <button
-        onClick={onSubmit}
-        disabled={disabled}
-        style={{
-          flex: 2, color: "#fff", border: "none", borderRadius: 10, padding: "12px",
-          fontWeight: 800, fontSize: 15, cursor: disabled ? "not-allowed" : "pointer",
-          background: disabled ? "#c4b5fd" : "linear-gradient(135deg,#7c3aed,#4f46e5)",
-        }}
-      >
+    <div className="row" style={{ gap: 10, marginTop: 20 }}>
+      <button onClick={onCancel} className="btn btn-secondary" style={{ flex: 1 }}>キャンセル</button>
+      <button onClick={onSubmit} disabled={disabled} className="btn btn-primary" style={{ flex: 2 }}>
         {saving ? "保存中…" : submitLabel}
       </button>
     </div>
@@ -939,18 +644,13 @@ function ModalActions({ onCancel, onSubmit, disabled, saving, submitLabel }: {
 
 function DeleteConfirmModal({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void }) {
   return (
-    <div style={{ position: "fixed", inset: 0, background: "#0007", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ background: "#fff", borderRadius: 20, padding: "32px", maxWidth: 340, width: "90%", textAlign: "center", boxShadow: "0 8px 48px #0004" }}>
-        <div style={{ fontSize: 40, marginBottom: 12 }}>🗑</div>
-        <div style={{ fontWeight: 800, fontSize: 17, color: "#1a0a2e", marginBottom: 10 }}>本当に削除しますか？</div>
-        <div style={{ fontSize: 13, color: "#888", lineHeight: 1.7, marginBottom: 24 }}>この操作は元に戻せません。</div>
-        <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={onCancel} style={{ flex: 1, background: "#f3f4f6", border: "none", borderRadius: 10, padding: "11px", fontWeight: 600, cursor: "pointer" }}>
-            キャンセル
-          </button>
-          <button onClick={onConfirm} style={{ flex: 1, background: "#ef4444", color: "#fff", border: "none", borderRadius: 10, padding: "11px", fontWeight: 800, cursor: "pointer" }}>
-            削除する
-          </button>
+    <div className="modal-overlay">
+      <div className="modal-compact" style={{ maxWidth: 340 }}>
+        <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 10 }}>本当に削除しますか？</div>
+        <div className="text-muted" style={{ fontSize: 13, lineHeight: 1.7, marginBottom: 24 }}>この操作は元に戻せません。</div>
+        <div className="row" style={{ gap: 10 }}>
+          <button onClick={onCancel} className="btn btn-secondary" style={{ flex: 1 }}>キャンセル</button>
+          <button onClick={onConfirm} className="btn btn-danger-solid" style={{ flex: 1 }}>削除する</button>
         </div>
       </div>
     </div>

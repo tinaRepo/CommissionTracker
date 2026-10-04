@@ -2,30 +2,31 @@ import Script from "next/script";
 import { PageViewTracker } from '../components/PageViewTracker';
 import type { Metadata } from "next";
 import "./globals.css";
+import "./components.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://commission-tracker-nine.vercel.app"),
   title: {
-    default: "Commission Tracker | 絵の依頼管理ツール",
-    template: "%s | Commission Tracker",
+    default: "ツクリスト | 納期・タスク管理ツール",
+    template: "%s | ツクリスト",
   },
-  description: "イラスト・絵の依頼を一元管理できる無料Webアプリ。依頼状況・納期・金額・ラフ画像をまとめて管理。絵師への依頼をもう迷子にしない。",
-  applicationName: "Commission Tracker",
-  keywords: ["イラスト依頼", "絵の依頼", "依頼管理", "イラスト依頼管理", "納期管理"],
+  description: "依頼・タスクの納期を一元管理できる無料Webアプリ。依頼状況・納期・金額・確認用画像をまとめて管理。作り手への依頼をもう迷子にしない。",
+  applicationName: "ツクリスト",
+  keywords: ["タスク管理", "納期管理", "依頼管理", "外注管理", "スケジュール管理"],
   manifest: "/manifest.json",
   openGraph: {
     type: "website",
     locale: "ja_JP",
-    siteName: "Commission Tracker",
-    title: "Commission Tracker | 絵の依頼管理ツール",
+    siteName: "ツクリスト",
+    title: "ツクリスト | 納期・タスク管理ツール",
     description: "依頼状況・納期・金額・画像をまとめて管理できる無料Webアプリ。",
-    images: [{ url: "/web-app-manifest-512x512.png", width: 512, height: 512, alt: "Commission Tracker" }],
+    images: [{ url: "/web-app-manifest-512x512.png", width: 512, height: 512, alt: "ツクリスト" }],
   },
-  twitter: { card: "summary", title: "Commission Tracker | 絵の依頼管理ツール" },
+  twitter: { card: "summary", title: "ツクリスト | 納期・タスク管理ツール" },
   other: { "mobile-web-app-capable": "yes" },
   appleWebApp: {
     capable: true,
-    title: "Commission Tracker",
+    title: "ツクリスト",
     statusBarStyle: "default",
   },
   icons: {

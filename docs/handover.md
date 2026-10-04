@@ -1,52 +1,14 @@
-# Commission Tracker 引き継ぎ資料
+# ツクリスト 引き継ぎ資料
+
+> 旧名称: Commission Tracker（絵師向け依頼管理）。v2.0.0で汎用納期管理サービス「ツクリスト」に改称。
+> 用語・DB名称の変更詳細は [rebrand-plan.md](./rebrand-plan.md) を参照。
 
 ## サービス概要
-├── layout.tsx                  # 全体layout、共通metadata、AdSense/GAタグ
-├── globals.css                 # 全体スタイル
-├── page.tsx                    # メインアプリ（CommissionApp、検索エンジン対象外）
-├── sitemap.ts                  # 検索対象の公開ページ一覧（/sitemap.xml）
-├── not-found.tsx               # 404画面
-├── error.tsx                   # ページ単位の予期しないエラー画面
-├── global-error.tsx            # ルートlayoutを含む致命的エラー画面
-├── login/
-│   ├── layout.tsx              # noindex metadata
-│   └── page.tsx                # ログイン・新規登録・パスワードリセット・Googleログイン
-├── lp/
-│   ├── layout.tsx              # LP固有SEO metadata
-│   └── page.tsx                # ランディングページ
-├── pricing/
-│   ├── layout.tsx              # 料金ページ固有SEO metadata
-│   └── page.tsx                # プラン表示・Stripeチェックアウト
-├── guide/
-│   ├── layout.tsx              # ガイド固有SEO metadata
-│   └── page.tsx                # 使い方ガイド
-├── terms/
-│   ├── layout.tsx              # 利用規約のSEO metadata
-│   └── page.tsx                # 利用規約
-├── privacy/
-│   ├── layout.tsx              # プライバシーポリシーのSEO metadata
-│   └── page.tsx                # プライバシーポリシー
-├── tokusho/
-│   ├── layout.tsx              # 特商法ページのSEO metadata
-│   └── page.tsx                # 特定商取引法
-├── update-password/
-│   ├── layout.tsx              # noindex metadata
-│   └── page.tsx                # パスワード設定・再設定
-├── maintenance/
-│   ├── layout.tsx              # noindex metadata
-│   └── page.tsx                # メンテナンス中の利用者向け画面
-├── forbidden/
-│   ├── layout.tsx              # noindex metadata
-│   └── page.tsx                # 管理者権限がない場合の案内
-| ------------- | --------------------------------------------------------- | ------------------------------------------- |
-│   ├── layout.tsx              # noindex metadata
-│   ├── notifications/page.tsx  # 管理者ページ（お知らせ・バージョン情報編集）
-│   └── page.tsx                # 管理者ページ（ユーザー・プラン・メンテナンス管理）
-Google Cloud Console → 承認済みのリダイレクトURI：
-│   ├── callback/route.ts       # OAuthコールバック
-│   └── confirm/route.ts        # パスワード設定・リセットリンクの検証
 
-│   ├── auth/last-login-provider/route.ts # 直近ログイン方式のDB保存・HttpOnly Cookie発行/取得
+依頼・タスクの納期、金額、確認用画像をまとめて管理するWebアプリ。
+イラスト依頼に限らず、外注・制作物の依頼全般（デザイン・動画・執筆・開発など）で利用できる。
+用語は「作り手」（依頼を受ける側）と「依頼する側」で統一する。
+
 ## 技術スタック
 
 | 項目           | 内容                                         |
@@ -66,94 +28,83 @@ Google Cloud Console → 承認済みのリダイレクトURI：
 
 ```
 app/
-├── page.tsx                    # メインアプリ（CommissionApp）/ ログイン済み→アプリ、未ログイン→/login
-├── login/page.tsx              # ログイン・新規登録・パスワードリセット・Googleログイン
-├── lp/page.tsx                 # ランディングページ（/lp）
-├── pricing/page.tsx            # プラン選択・Stripeチェックアウト
-├── guide/page.tsx              # 使い方ガイド
-├── terms/page.tsx              # 利用規約
-├── privacy/page.tsx            # プライバシーポリシー
-├── tokusho/page.tsx            # 特定商取引法
-├── update-password/page.tsx    # パスワード再設定
-├── maintenance/page.tsx        # メンテナンス中の利用者向け画面
-├── forbidden/page.tsx          # 管理者権限がない場合の案内
-├── mgmt-c7f2a91e/
-│   ├── notifications/page.tsx  # 管理者ページ（お知らせ・バージョン情報編集）
-│   └── page.tsx                # 管理者ページ（URLは推測されにくい形式）
+├── layout.tsx                  # 全体layout、共通metadata、AdSense/GAタグ
+├── globals.css
+├── page.tsx                    # メインアプリ（TaskApp、検索エンジン対象外）
+├── sitemap.ts
+├── not-found.tsx / error.tsx / global-error.tsx
+├── login/                      # ログイン・新規登録・パスワードリセット・Googleログイン
+├── lp/                         # ランディングページ
+├── pricing/                    # プラン表示・Stripeチェックアウト
+├── guide/ terms/ privacy/ tokusho/
+├── update-password/            # パスワード設定・再設定
+├── maintenance/                # メンテナンス中の利用者向け画面
+├── forbidden/                  # 管理者権限がない場合の案内
+├── mgmt-c7f2a91e/              # 管理者ページ（URLは推測されにくい形式）
+│   ├── page.tsx                # ユーザー・プラン・メンテナンス管理
+│   └── notifications/page.tsx  # お知らせ・バージョン情報編集
 ├── auth/
-│   │   ├── last-login-provider/route.ts  # 直近ログインプロバイダーのDB保存・Cookie発行/取得
-│   │   └── set-password/route.ts         # パスワード設定・変更（Admin API経由、email identityの正規リンク）
-│   ├── callback/
-│   │   └── route.ts      # OAuth コールバック
-│   └─── comfirm/
-│        └── route.ts      # OAuth コールバック（パスワードリセット用）
-├── api/
-│   ├── stripe/
-│   │   ├── checkout/route.ts   # Stripeチェックアウトセッション作成
-│   │   ├── webhook/route.ts    # Stripe Webhook（決済完了・解約処理）
-│   │   └── portal/route.ts    # Stripeカスタマーポータル
-│   ├── push/
-│   │   └── subscribe/route.ts  # プッシュ通知購読登録・解除
-│   ├── pwa-prompt/route.ts     # PWA追加案内の状態取得・Cookie更新
-│   ├── cron/
-│   │   └── deadline-notify/route.ts # 毎朝8時（UTC23時）の納期通知Cron
-│   ├── admin/
-│   │   ├── delete-user/route.ts    # 管理者によるユーザー削除
-│   │   └── notify-push/route.ts    # 管理者によるお知らせ・リリースのプッシュ通知
-│   ├── request-delete/route.ts     # ユーザーのアカウント削除申請
-│   └── contact/route.ts            # お問い合わせメール送信
+│   ├── callback/route.ts       # OAuthコールバック
+│   └── confirm/route.ts        # パスワード設定・リセットリンクの検証
+└── api/
+    ├── stripe/{checkout,webhook,portal}/route.ts
+    ├── push/subscribe/route.ts
+    ├── pwa-prompt/route.ts
+    ├── cron/deadline-notify/route.ts   # 毎朝8時（UTC23時）の納期通知Cron（tasksテーブル参照）
+    ├── admin/{delete-user,notify-push}/route.ts
+    ├── auth/last-login-provider/route.ts
+    ├── request-delete/route.ts
+    └── contact/route.ts
 
 components/
-├── CommissionApp.tsx           # メインアプリUI（一覧・フィルタ・ソート・カレンダー切替）
+├── TaskApp.tsx                 # メインアプリUI（旧 CommissionApp.tsx）
 ├── DemoApp.tsx                 # デモモード（Supabase不使用・メモリのみ）
-├── CommissionShared.tsx        # CommissionApp/DemoApp共通の定数・フォーマッタ・UI部品（STATUSES/IMAGE_TYPES/fmtDate/fmtShortDate/fmtPrice/daysUntil/Field/DateField/DateRangeField/StatusBadge/CommissionListCard）
-├── CommissionSearchBar.tsx     # CommissionApp/DemoApp共通の検索バー（ステータス・並び替え・開閉式の詳細検索パネル・合計金額表示）
-├── PageViewTracker.tsx         # Google Analytics（GA4）のページビュー計測用
-├── PushNotificationToggle.tsx  # プッシュ通知オン/オフトグル
-├── InstallPromptBanner.tsx     # PWAホーム画面追加の案内バナー（CommissionAppで遅延読み込み）
-├── SystemMessage.tsx           # 404・権限不足・エラー画面の共通表示
-├── NotificationsModal.tsx      # お知らせ・リリースノート統合モーダル（表示専用。データはuseNotificationsフック経由でCommissionApp/DemoAppから受け取る）
-├── ContactModal.tsx            # お問い合わせモーダル（メインアプリ・デモ・ログイン画面で共通利用）
-└── AdminNotificationsPage.tsx  # 管理者向けお知らせ・バージョン管理画面
+├── TaskShared.tsx              # TaskApp/DemoApp共通の定数・フォーマッタ・UI部品
+│                                # （旧 CommissionShared.tsx。STATUSES/IMAGE_TYPES/fmtDate/fmtShortDate/fmtPrice/daysUntil/
+│                                #   Field/DateField/DateRangeField/StatusBadge/TaskListCard）
+├── TaskSearchBar.tsx           # 共通検索バー（旧 CommissionSearchBar.tsx）
+├── PageViewTracker.tsx
+├── PushNotificationToggle.tsx
+├── InstallPromptBanner.tsx
+├── SystemMessage.tsx
+├── NotificationsModal.tsx
+├── ContactModal.tsx
+└── AdminNotificationsPage.tsx
 
 hooks/
-├── useNotifications.ts         # お知らせ・リリースノートの取得＋未読管理を集約した共有フック
-│                                # （ヘッダーの未読バッジ・NotificationsModal・DemoAppの3箇所が利用。
-│                                #   未ログイン(userId=null)でも内容の閲覧はでき、未読管理のみ無効化される）
-├── useCommissionSearch.ts      # 検索・フィルタ・並び替えのロジックを集約した共有フック
-                                 # （CommissionApp・DemoAppの両方が利用）
-└── useInstallPrompt.ts         # PWA追加案内の端末判定・表示頻度・インストール操作を管理
+├── useNotifications.ts         # お知らせ・リリースノートの取得＋未読管理
+├── useTaskSearch.ts            # 検索・フィルタ・並び替え（旧 useCommissionSearch.ts）
+└── useInstallPrompt.ts
 
 docs/
-├── google-login-setup.md       # Google OAuth・メールリンク設定
-├── handover.md                 # 引き継ぎ資料
-├── seo-and-ads.md              # SEO・Search Console・AdSense運用メモ
-├── supabase-migration-guide.md # Supabaseマイグレーション手順
-└── update-notes.md             # バージョン・コミットメッセージ運用メモ
+├── google-login-setup.md / handover.md / rebrand-plan.md
+├── seo-and-ads.md / supabase-migration-guide.md / update-notes.md
 
 lib/
-├── seo.ts                      # 公開ページmetadata・noindex設定
-└── supabase.ts                 # Supabaseクライアント・各種API関数
+├── seo.ts
+└── supabase.ts                 # Supabaseクライアント・型（Task/TaskImage/TaskStatus等）・API関数
 
-public/
-├── ads.txt                     # Google AdSense認定販売者情報
-├── apple-touch-icon.png        # iOSホーム画面用アイコン
-├── favicon.ico                 # ブラウザー用favicon
-├── icon0.svg                   # Web Push通知アイコン
-├── manifest.json               # PWAマニフェスト
-├── offline.html                # オフライン用フォールバック画面
-├── robots.txt                  # クロール対象・サイトマップ指定
-├── sw.js                       # Service Worker（プッシュ通知・オフライン画面）
-├── web-app-manifest-192x192.png # PWAアイコン
-└── web-app-manifest-512x512.png # PWAアイコン
+public/                         # ads.txt, manifest.json, sw.js, offline.html, アイコン類, robots.txt
 
 supabase/migrations/
-├── 20260927000000_V1.2.0_announcements_targeting.sql # お知らせ配信対象
-└── 20260927000001_V1.2.0_add_maintenance_mode.sql    # メンテナンス設定
+├── ...（既存）
+├── 20260927000000_V1.2.0_announcements_targeting.sql
+├── 20260927000001_V1.2.0_add_maintenance_mode.sql
+└── 20260928000000_V2.0.0_rebrand_to_tasks.sql   # commissions→tasks 等の名称変更
 
 vercel.json                     # Cron Job設定（毎日UTC23時=JST8時）
 middleware.ts                   # メンテナンスモード時の全画面/API制御
 ```
+
+### v2.0.0で削除するファイル（新名称へ置換済み）
+
+- `components/CommissionApp.tsx` → `TaskApp.tsx`
+- `components/CommissionShared.tsx` → `TaskShared.tsx`
+- `components/CommissionSearchBar.tsx` → `TaskSearchBar.tsx`
+- `hooks/useCommissionSearch.ts` → `useTaskSearch.ts`
+
+なお旧`CommissionShared.tsx`にあった`CommissionCard`（縦長の詳細カード）は
+どこからも参照されていなかったため、`TaskShared.tsx`には引き継いでいない。
 
 ---
 
@@ -161,31 +112,31 @@ middleware.ts                   # メンテナンスモード時の全画面/API
 
 ```bash
 # Supabase
-NEXT_PUBLIC_SUPABASE_URL=           # Project URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY=      # anon public key
-SUPABASE_SERVICE_ROLE_KEY=          # service_role key（サーバーサイドのみ）
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=          # サーバーサイドのみ
 
-# Resend（メール送信）
+# Resend
 RESEND_API_KEY=
-ADMIN_EMAIL=                        # 管理者メールアドレス
+ADMIN_EMAIL=
 
-# アプリURL
-NEXT_PUBLIC_APP_URL=https://commission-tracker-nine.vercel.app
+# アプリURL（ドメイン確定後に実URLへ。例: https://commission-tracker-nine.vercel.app）
+NEXT_PUBLIC_APP_URL=
 
 # Stripe（本番: sk_live_ / pk_live_）
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
-STRIPE_STANDARD_PRICE_ID=          # サーバーサイド用
-STRIPE_PREMIUM_PRICE_ID=           # サーバーサイド用
-NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID=  # フロントエンド用
-NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID=   # フロントエンド用
+STRIPE_STANDARD_PRICE_ID=
+STRIPE_PREMIUM_PRICE_ID=
+NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID=
+NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID=
 
-# Web Push（プッシュ通知）
+# Web Push
 NEXT_PUBLIC_VAPID_PUBLIC_KEY=
 VAPID_PRIVATE_KEY=
 VAPID_EMAIL=mailto:xxx@example.com
-CRON_SECRET=                        # Cron Job認証用シークレット
+CRON_SECRET=
 ```
 
 ---
@@ -193,139 +144,99 @@ CRON_SECRET=                        # Cron Job認証用シークレット
 ## Supabaseテーブル構成
 
 ### `user_profiles`
-| カラム                 | 型          | 説明                                                                        |
-| ---------------------- | ----------- | --------------------------------------------------------------------------- |
-| id                     | uuid        | auth.users参照                                                              |
-| plan                   | text        | free / standard / premium                                                   |
-| is_admin               | boolean     | 管理者フラグ                                                                |
-| display_name           | text        | 表示名                                                                      |
-| has_password           | boolean     | パスワード設定済みか（Google専用ユーザーの初期設定判定用）                  |
-| last_login_provider    | text        | 直近ログインしたプロバイダー（email/google）                                |
-| last_sign_in_at        | timestamptz | 最終ログイン日時（ログインのたびに`/api/auth/last-login-provider`から更新） |
-| stripe_customer_id     | text        | StripeカスタマーID                                                          |
-| stripe_subscription_id | text        | サブスクリプションID                                                        |
-| subscription_status    | text        | active / inactive                                                           |
+| カラム                 | 型          | 説明                                         |
+| ---------------------- | ----------- | -------------------------------------------- |
+| id                     | uuid        | auth.users参照                               |
+| plan                   | text        | free / standard / premium                    |
+| is_admin               | boolean     | 管理者フラグ                                 |
+| display_name           | text        | 表示名                                       |
+| has_password           | boolean     | パスワード設定済みか                         |
+| last_login_provider    | text        | 直近ログインしたプロバイダー（email/google） |
+| last_sign_in_at        | timestamptz | 最終ログイン日時                             |
+| stripe_customer_id     | text        | StripeカスタマーID                           |
+| stripe_subscription_id | text        | サブスクリプションID                         |
+| subscription_status    | text        | active / inactive                            |
 
-### `commissions`
-依頼情報。user_idでRLS分離。
+### `tasks`（旧 `commissions`）
+依頼・タスク情報。user_idでRLS分離。
 
-### `commission_images`
-画像情報。commission_idに紐づく。Storage: `commission-images` バケット。
+| カラム          | 型      | 説明                                                                                         | 旧名称         |
+| --------------- | ------- | -------------------------------------------------------------------------------------------- | -------------- |
+| id              | uuid    | PK                                                                                           |                |
+| user_id         | uuid    | auth.users参照                                                                               |                |
+| title           | text    | 件名                                                                                         |                |
+| assignee_name   | text    | 依頼先名（必須）                                                                             | artist         |
+| contact         | text    | SNS/連絡先（X ID等）                                                                         | x_id           |
+| ordered_at      | date    | 依頼日                                                                                       |                |
+| deadline        | date    | 納期                                                                                         |                |
+| submission_date | date    | 提出日                                                                                       | rough_date     |
+| price           | numeric | 金額                                                                                         |                |
+| currency        | text    | 通貨（既定JPY）                                                                              |                |
+| status          | text    | pending(依頼済み) / checking(確認中) / progress(制作中) / done(完成) / cancelled(キャンセル) | rough→checking |
+| notes           | text    | メモ                                                                                         |                |
 
-### `push_subscriptions`
-プッシュ通知の購読情報。1ユーザー1レコード。
+### `task_images`（旧 `commission_images`）
+画像情報。Storageバケット: `task-images`（旧 `commission-images`）。
 
-### `version_releases`
-リリースバージョン情報。管理者のみ書き込み可、全ユーザー読み取り可。
+| カラム       | 型   | 説明                                                           | 旧名称        |
+| ------------ | ---- | -------------------------------------------------------------- | ------------- |
+| id           | uuid | PK                                                             |               |
+| task_id      | uuid | tasks参照                                                      | commission_id |
+| storage_path | text | `{user_id}/{task_id}/{image_type}_{timestamp}.{ext}`           |               |
+| file_name    | text | 元ファイル名                                                   |               |
+| image_type   | text | preview(確認用) / wip(制作中) / finished(完成) / other(その他) | rough→preview |
 
-| カラム      | 型          | 説明                     |
-| ----------- | ----------- | ------------------------ |
-| id          | uuid        | PK                       |
-| version     | text        | バージョン番号（unique） |
-| title       | text        | リリースタイトル         |
-| released_at | date        | リリース日               |
-| created_at  | timestamptz | 作成日時                 |
+### `push_subscriptions` / `version_releases` / `version_release_items` / `announcements` / `user_notification_status` / `user_settings` / `app_settings`
+v1.2.0から変更なし。`announcements`は`target_plans`・`target_user_ids`による配信対象指定、
+`app_settings`はメンテナンスモード設定（`setting_key='maintenance'`の1行）を保持する。
+RLS・カラムの詳細は各マイグレーションSQLを参照。
 
-### `version_release_items`
-更新内容の明細。1バージョンに対して複数登録可。
+---
 
-| カラム     | 型          | 説明                 |
-| ---------- | ----------- | -------------------- |
-| id         | uuid        | PK                   |
-| release_id | uuid        | version_releases参照 |
-| category   | text        | 新機能 / 改善 / 修正 |
-| content    | text        | 更新内容テキスト     |
-| sort_order | integer     | 表示順               |
-| created_at | timestamptz | 作成日時             |
+## デザインシステム（v2.0.0で刷新）
 
-### `announcements`
-ユーザー向けお知らせ。管理者のみ書き込み可。読み取りは全員配信または配信対象に該当するユーザーに限定する（RLSで制御）。
+絵文字・紫グラデーション多用の「AIが作った感」のある見た目から、
+[Apple系デザインシステム](https://getdesign.md/apple/design-md)を参考にした
+単色アクセント・余白・タイポグラフィ中心の見た目に刷新した。
 
-| カラム          | 型          | 説明                                              |
-| --------------- | ----------- | ------------------------------------------------- |
-| id              | uuid        | PK                                                |
-| title           | text        | タイトル                                          |
-| content         | text        | 本文                                              |
-| type            | text        | お知らせ / メンテナンス / 障害情報 / キャンペーン |
-| published_at    | timestamptz | 公開日時                                          |
-| target_plans    | text[]      | 配信対象プラン。NULLはプラン指定なし              |
-| target_user_ids | uuid[]      | 配信対象ユーザーID。NULLはユーザー指定なし        |
-| created_at      | timestamptz | 作成日時                                          |
-| updated_at      | timestamptz | 更新日時                                          |
+### ファイル構成
 
-管理画面（`components/AdminNotificationsPage.tsx`）のお知らせ登録・編集フォームでは、
-配信対象を「全員」「プラン指定」「ユーザー指定」から選択する。プラン指定ではfree・
-standard・premiumを複数選択でき、ユーザー指定ではユーザーを複数選択できる。
-管理一覧には、対象が限定されている場合に「プラン限定」または「N名限定」バッジを表示する。
+- `app/globals.css`：デザイントークン（CSS変数）とベーススタイル（リセット・タイポグラフィ・
+  `.container`等の汎用レイアウトユーティリティ）。色・角丸・影・モーション・フォントは
+  すべてここで一元管理する。
+- `app/components.css`：ボタン・カード・バッジ・フォーム・モーダル・アプリ共通ヘッダー/
+  フッター・LP用セクション・FAQ等、アプリ全体で再利用するコンポーネントクラス。
+  両ファイルとも`app/layout.tsx`でグローバルに読み込んでいる。
 
-配信時の絞り込みはクライアントでなく`announcements_select_targeted` RLSポリシーで行う。
-管理者はすべてのお知らせを確認でき、一般ユーザーは全員対象のお知らせ、契約プランが
-`target_plans`に含まれるお知らせ、または自身のIDが`target_user_ids`に含まれるお知らせを
-読み取れる。配信対象を変更する場合は、次のマイグレーションを検証DBで確認してから
-本番DBへ適用する。
+新しい画面・コンポーネントを作る際は、まずこの2ファイルのクラスで組み立てられないか検討し、
+色や余白をその場でハードコードしない。個別のpxやレイアウト調整（flex方向、margin等）は
+インラインstyleのままで構わないが、色・影・角丸・フォントは必ず`var(--xxx)`を参照すること。
 
-```text
-supabase/migrations/20260927000000_V1.2.0_announcements_targeting.sql
-```
+### トークンの考え方
 
-### `app_settings`
-アプリ全体の設定を保持する。現在はメンテナンスモード設定を1行で管理する。
+- **単色アクセント**：`--accent`（インディゴ）のみを強調色として使い、グラデーションは
+  使わない。旧デザインの紫グラデーションボタン・ヘッダーは廃止した。
+- **ニュートラルな余白重視のレイアウト**：`--surface`/`--surface-2`等の低彩度背景と、
+  十分な余白（`--gutter`、`.section`の`padding: 96px 24px`等）で情報を整理する。
+- **最小限のラインアイコン**：絵文字（🎨🔔✉️⭐等）の多用はAI生成特有の見た目になりやすいため、
+  ナビゲーション等の主要アイコンは`components/TaskShared.tsx`の`<Icon name="..." />`
+  （軽量な自前SVGパス）に置き換えた。新しいアイコンが必要な場合もここに追加し、
+  絵文字を新たに増やさないこと。
+- **ダーク/ライトの切り替え面**：アプリのヘッダー・LP・ログイン画面は`--surface-inverse`
+  （濃色面）、本文エリアは`--bg`/`--surface`（淡色面）という二面構成にしている
+  （Apple系デザインの「白黒セクションの反復」を踏襲）。
 
-| カラム              | 型          | 説明                                     |
-| ------------------- | ----------- | ---------------------------------------- |
-| setting_key         | text        | 設定キー（現在は`maintenance`のみ）      |
-| maintenance_enabled | boolean     | メンテナンスモードの有効状態             |
-| maintenance_message | text        | 利用者向け案内文（NULLなら既定文を表示） |
-| updated_at          | timestamptz | 最終更新日時                             |
+### 適用状況
 
-マイグレーションは`supabase/migrations/20260927000001_V1.2.0_add_maintenance_mode.sql`。
-RLSで全ロールの読み取りを許可し、更新は`is_admin()`がtrueのユーザーだけに許可する。
+全面的にクラスベースへ刷新したファイル：`TaskShared.tsx`・`TaskSearchBar.tsx`・
+`TaskApp.tsx`・`DemoApp.tsx`・`SystemMessage.tsx`・`ContactModal.tsx`・
+`NotificationsModal.tsx`・`PushNotificationToggle.tsx`・`InstallPromptBanner.tsx`・
+`AdminNotificationsPage.tsx`、および`app/login`・`app/lp`・`app/pricing`・
+`app/guide`・`app/terms`・`app/privacy`・`app/tokusho`・`app/maintenance`・
+`app/update-password`・`app/mgmt-c7f2a91e`の各ページ。
 
-### メンテナンスモード
-
-管理者ページ（`/mgmt-c7f2a91e`）でメンテナンスの開始・終了と、利用者向け案内文（最大500文字）を設定する。
-開始／終了操作と案内文保存は別操作。設定は`app_settings`の`setting_key = 'maintenance'`行に保存される。
-
-`middleware.ts`はメンテナンスが有効な間、管理者以外の画面遷移を`/maintenance`へrewriteし、APIにはHTTP 503と`Retry-After: 300`を返す。管理者は通常どおり管理画面に入り、メンテナンス解除が可能。ログイン、認証コールバック、メンテナンス画面、ログインプロバイダーAPIは判定対象から除外する。設定DBを読めない場合はサービス全体を止めないよう通常アクセスを許可する。
-
-メンテナンス機能を有効化する前に、対象のDBへ次のマイグレーションを適用すること。未適用時は管理画面に設定読み込みエラーが出る。
-
-```text
-supabase/migrations/20260927000001_V1.2.0_add_maintenance_mode.sql
-```
-
-### お知らせ・リリースのプッシュ通知
-
-管理画面（`components/AdminNotificationsPage.tsx`）でお知らせまたはバージョン情報を
-新規作成した後、`POST /api/admin/notify-push`を呼び出してWeb Pushを送信する。
-既存データの編集では通知しない。
-
-- 新規お知らせ：フォームで選択した配信対象を通知にも適用する。個別ユーザー指定がある場合はそのユーザー、プラン指定がある場合は現在の`user_profiles.plan`が該当するユーザー、どちらも指定されていない場合は全ユーザーの購読先が対象。通知タイトルは`📢 {お知らせタイトル}`、本文はお知らせ本文の先頭100文字（100文字を超える場合は末尾に`…`を付加）。
-- 新規バージョン情報：全ユーザーの購読先が対象。通知タイトルは「新しいバージョンがリリースされました」、本文は`v{version}: {title}`。
-- APIはBearerトークンをSupabase Authで検証し、`user_profiles.is_admin`を確認してからService Roleで購読者を取得する。クライアントから任意に呼べるAPIなので、認証・管理者確認を外さないこと。
-- 送信には既存のVAPID環境変数（`VAPID_EMAIL`、`NEXT_PUBLIC_VAPID_PUBLIC_KEY`、`VAPID_PRIVATE_KEY`）と`NEXT_PUBLIC_APP_URL`を使用する。通知クリック時の遷移先はアプリURL。
-- 購読先ごとに送信し、無効な購読（HTTP 410）は`push_subscriptions`から削除する。APIは送信成功数・失敗数を返すが、管理画面側では結果を表示せず、通知送信の失敗でお知らせ／リリースの保存を失敗扱いにはしない（ベストエフォート）。
-- 実装先は`app/api/admin/notify-push/route.ts`。通知内容・対象・送信タイミングを変更する場合は、管理画面の新規保存処理とAPIの両方を確認する。
-
-### `user_notification_status`
-お知らせの既読管理。ユーザーが開いた時に is_read=true に更新。
-
-| カラム          | 型          | 説明                        |
-| --------------- | ----------- | --------------------------- |
-| user_id         | uuid        | auth.users参照（PK複合）    |
-| announcement_id | uuid        | announcements参照（PK複合） |
-| is_read         | boolean     | 既読フラグ                  |
-| created_at      | timestamptz | 作成日時                    |
-
-### `user_settings`
-ユーザーごとの設定。バージョン未読管理などを担う。
-
-| カラム               | 型          | 説明                     |
-| -------------------- | ----------- | ------------------------ |
-| user_id              | uuid        | auth.users参照（PK）     |
-| last_seen_release_id | uuid        | 最後に確認したリリースID |
-| created_at           | timestamptz | 作成日時                 |
-| updated_at           | timestamptz | 更新日時                 |
+新しい画面を追加する場合も、既存ページと同じ`.doc-header`/`.hero`/`.card`/`.modal-*`等の
+クラスを再利用し、独自の配色・ボタンスタイルを新設しないこと。
 
 ---
 
@@ -339,19 +250,26 @@ supabase/migrations/20260927000001_V1.2.0_add_maintenance_mode.sql
 
 ---
 
-## RLSポリシー（policy.sql参照）
+## 名称変更（v2.0.0）の適用手順
 
-重要：`user_profiles` のRLSは無限再帰を防ぐため `is_admin()` 関数を使用。
+1. 検証DBで`20260928000000_V2.0.0_rebrand_to_tasks.sql`を`--dry-run`後に適用（`docs/supabase-migration-guide.md`参照）。
+2. **Storageの移行**：バケット名は変更できないため、マイグレーションは`task-images`を新設しRLSを張るのみ。
+   `commission-images`内のオブジェクトを`task-images`へコピーする（`storage_path`の構造は不変なのでDB更新は不要）。
+3. 新コードを検証環境にデプロイし、依頼登録・編集・画像アップロード・納期通知Cronを確認。
+4. 問題なければ本番DBへ適用し、本番デプロイ。**DB適用とコードのデプロイは同時期に行うこと**
+   （旧コードは`commissions`テーブルを参照するため、片方だけ先行すると全操作が失敗する）。
+5. 移行確認後、旧`commission-images`バケットを削除。
+6. 実ドメイン確定後、`NEXT_PUBLIC_APP_URL`・`app/layout.tsx`の`metadataBase`・`lib/seo.ts`の`SITE_URL`・
+   `app/tokusho/page.tsx`のURL・`app/api/request-delete/route.ts`のフォールバックURL・`public/robots.txt`のSitemap URL、
+   Search Console／AdSense／Google OAuth／Supabase Redirect URLsを更新。
 
-```sql
-create or replace function is_admin()
-returns boolean language sql security definer stable as $$
-  select exists (
-    select 1 from user_profiles
-    where id = auth.uid() and is_admin = true
-  );
-$$;
-```
+---
+
+## RLSポリシー
+
+`user_profiles`のRLSは無限再帰を防ぐため`is_admin()`関数（security definer）を使用。
+`tasks`は`auth.uid() = user_id`のみ、`task_images`は親`tasks`のオーナーのみ操作可。
+Storageは`(storage.foldername(name))[1] = auth.uid()`でフォルダ単位に制限。
 
 管理者設定方法：
 ```sql
@@ -362,376 +280,75 @@ update user_profiles set is_admin = true where id = 'UUID';
 
 ## 実装済み機能一覧
 
-- ✅ メール/パスワード認証（ログイン・新規登録・パスワードリセット）
-- ✅ Googleログイン
-- ✅ 依頼の登録・編集・削除
-- ✅ ステータス管理（5種類）
-- ✅ 納期7日前アラート（アプリ内ハイライト）
-- ✅ 依頼登録時に画像をまとめてアップロード（新規登録フォームから追加可能）
-- ✅ 画像アップロード（ラフ・作業中・完成・その他）
-- ✅ 一覧カードにサムネイル表示（最初の1枚・Signed URLはまとめて1回で取得・詳細は後述の「パフォーマンス改善」参照）
-- ✅ 画像の拡大プレビュー・削除・ダウンロード（元画質保持・blob download）
-- ✅ プランごとの画像枚数制限
-- ✅ 依頼一覧の並び替え・フィルタ（ステータスはプルダウン方式）
-- ✅ 開閉式の詳細検索パネル（キーワード・依頼日/納期のFrom-To日付範囲・金額範囲、既定は折りたたみ）
-- ✅ 検索結果の合計金額表示（チェックボックスで切替、既定は非表示）
-- ✅ 表示名設定
-- ✅ プッシュ通知（毎朝8時・納期7日以内）
+- ✅ メール/パスワード認証・Googleログイン・パスワード設定/変更・Google連携/解除
+- ✅ タスクの登録・編集・削除
+- ✅ ステータス管理（依頼済み／確認中／制作中／完成／キャンセル）
+- ✅ 納期7日前アラート（アプリ内ハイライト）・プッシュ通知（毎朝8時）
+- ✅ 画像アップロード（確認用・制作中・完成・その他）、プラン別枚数制限、拡大プレビュー・削除・ダウンロード
+- ✅ 登録時の画像まとめアップロード、一覧サムネイル（署名付きURL一括取得）
+- ✅ 並び替え・ステータスフィルタ・開閉式詳細検索（キーワード・依頼日/納期範囲・金額範囲）・合計金額表示
 - ✅ Stripeサブスク（月額課金・解約・カスタマーポータル）
-- ✅ 管理者ページ（プラン変更・ユーザー削除・名前検索）
-- ✅ 管理者：お知らせ管理（登録・編集・削除）
-- ✅ 管理者：バージョン管理（登録・編集・削除・更新内容管理）
-- ✅ アカウント削除申請（Resendでメール通知）
-- ✅ お問い合わせフォーム（モーダル表示・管理者通知メール・ユーザー自動返信）
-- ✅ デモモード（ログイン不要・メモリのみ・✉️🔔ボタン付き）
-- ✅ PWA対応（ホーム画面追加）
-- ✅ LP（/lp）
-- ✅ 法的ページ（利用規約・プライバシー・特定商取引法）
-- ✅ Google AdSense（審査中）
-- ✅ お知らせ・リリースノート統合管理（DB管理・タブ切替・未読バッジ通知）
-- ✅ お知らせ・バージョン管理モーダル（ベルマーク押下でモーダル表示、既読管理。アカウント作成日より前に公開されたお知らせは自動的に既読扱い）
-- ✅ 全モーダル固定サイズ統一・iOS Safari対応（背景スクロールロック）
-- ✅ ユーザーメニューのテキスト折り返し防止
-- ✅ Googleアカウントとの連携・解除（メール登録ユーザー向け、`linkIdentity`/`unlinkIdentity`）
-- ✅ 連携解除時・ログアウト時、パスワード未設定かつGoogle未連携の場合の警告表示
+- ✅ 管理者ページ（プラン変更・ユーザー削除・メンテナンスモード）
+- ✅ お知らせ・リリースノート管理（配信対象指定・プッシュ通知・未読管理）
+- ✅ アカウント削除申請、お問い合わせフォーム、デモモード、PWA（ホーム画面追加バナー）
+- ✅ LP・ガイド・利用規約・プライバシー・特定商取引法
 
 ---
 
 ## PWAホーム画面追加バナー
 
-`CommissionApp`のメイン画面に`components/InstallPromptBanner.tsx`を配置し、
-`hooks/useInstallPrompt.ts`で表示条件と端末別のインストール案内を管理している。
-`CommissionApp.tsx`から`next/dynamic`（`{ ssr: false }`）で読み込み、案内バナーのコードを
-メイン画面の初期バンドルから分離している。
+`components/InstallPromptBanner.tsx`＋`hooks/useInstallPrompt.ts`。`next/dynamic`（`ssr:false`）で遅延読み込み。
 
-- 初回訪問では表示せず、2回目以降の訪問で表示候補にする。訪問回数は同じタブセッション中に1回だけ加算する。
-- iOSでは3秒後にSafariの共有メニューから「ホーム画面に追加」する手順を表示する。iOSではブラウザーAPIから直接インストールできないため、操作ボタンは表示しない。
-- Androidでは`beforeinstallprompt`イベントを保持し、イベント受信後1.5秒でバナーを表示する。「追加する」からネイティブのインストール確認を開く。
-- 「あとで」を押した場合は14日間再表示せず、3回目の「あとで」以降は再表示しない。
-- `display-mode: standalone`またはiOSのstandalone状態を検出した場合は表示しない。`appinstalled`イベント、またはAndroidでインストールを承認した場合も以後表示しない。
-- 表示状態（訪問回数・「あとで」の回数と日時・再表示停止フラグ）は`GET /api/pwa-prompt`で取得し、`POST /api/pwa-prompt`の`visit` / `dismiss` / `installed`アクションで更新する。APIは`ct_pwa_prompt` Cookie（有効期間1年、`HttpOnly`・`Secure`・`SameSite=Lax`、`Path=/`）に保存し、アカウントやDBには紐付けない。
-- ブラウザーのCookie単位で保持されるため、同じブラウザーではタブセッションをまたいで訪問回数・表示抑制状態を引き継ぐ。別ブラウザーや別端末とは共有されない。
-
-表示条件や頻度を変更する場合は`hooks/useInstallPrompt.ts`、バナーの文言や見た目を変更する場合は
-`components/InstallPromptBanner.tsx`を編集する。READMEの機能一覧とiOSプッシュ通知の注意事項も
-あわせて整合させること。
+- 初回訪問では表示せず、2回目以降の訪問で表示候補。訪問回数はタブセッションごとに1回加算。
+- iOSは3秒後に共有メニュー手順を案内、Androidは`beforeinstallprompt`受信1.5秒後に「追加する」ボタン付きで表示。
+- 「あとで」は14日間再表示せず、3回目以降は非表示。standalone・インストール済みは表示しない。
+- 状態は`/api/pwa-prompt`が`ct_pwa_prompt` Cookie（1年・HttpOnly・Secure・SameSite=Lax）に保存。DB非連携。
 
 ---
 
-## パフォーマンス改善（2026年9月実施）
+## パフォーマンス方針（要点）
 
-ログイン後の「読み込み中…」表示や、お知らせモーダルの表示までの遅延について
-ユーザーから指摘があり、以下の改善を実施した。DBスキーマの変更は伴わない。
+- 画像の署名付きURLは`getSignedImageUrls()`で一括取得（N+1禁止）。
+- クライアントでuser.id等を参照するだけなら`getSession()`を使う（`getUser()`は往復が発生）。
+- 依存しないクエリは`Promise.all`。ローディングは本体データ取得後すぐ解除し、サムネイル等は裏で取得。
+- 未使用時に不要なモーダルは`next/dynamic`でコード分割。GA/AdSenseは`lazyOnload`（AdSense loaderのみ通常の`<script async>`）。
+- 外部キー列にはインデックスを張る（`20260922000000_..._add_performance_indexes.sql`、v2.0.0でインデックス名も`idx_tasks_*`に変更）。
+- 同じデータを複数UIで使うなら共有フックへ（`useNotifications`）。
 
-### 1. 画像の署名付きURL取得のN+1問題を解消
+---
 
-以前は依頼一覧のサムネイル（`CardThumbnail`）や詳細モーダルの画像一覧（`ImageSection`）で、
-画像1枚ごとに `getSignedImageUrl()`（Supabase Storageの `createSignedUrl()`）を個別に呼んでおり、
-依頼件数・画像枚数分のリクエストが並行発生していた。
+## TaskApp / DemoApp の共通化方針
 
-`lib/supabase.ts` に `getSignedImageUrls(storagePaths: string[])` を追加し、
-Supabase Storageの `createSignedUrls()`（複数パスをまとめて署名できるAPI）で
-1回のリクエストにまとめるよう変更した。
+`TaskApp.tsx`（本番）と`DemoApp.tsx`（デモ）で見た目・検索条件は同一であるべきなので、
+定数・フォーマッタ・UI部品は`TaskShared.tsx`、検索ロジックは`useTaskSearch.ts`、検索バーは`TaskSearchBar.tsx`に集約している。
+検索条件や見た目の変更はこの3ファイルを編集し、TaskApp/DemoApp側は極力触らない。
+`useTaskSearch`は`SearchableTask`（`assignee_name`・`contact`等、DBカラム名と同じキー）を満たす型なら受け付けるため、
+`Task`（本番）・`DemoTask`（デモ）ともマッピング無しで渡せる。
+画像アップロード・プラン制限（Supabase Storage vs メモリのみ）は意図的に共通化していない。
 
-- 一覧: `CommissionApp` の `load()` 内で、各依頼の先頭画像パスをまとめて1回取得し、
-  `thumbnailUrls`（`Record<commissionId, url>`）としてstateに保持。
-  `CardThumbnail` はpropsで受け取ったURLを表示するだけの純粋表示コンポーネントに変更。
-- 詳細モーダル: `ImageSection` 内の `images.map(...)` による個別取得ループを
-  `getSignedImageUrls(images.map(i => i.storage_path))` の1回呼び出しに置き換え。
+### 検索パネルの設計
+常時表示はステータス・並び替え・「詳細検索」ボタンのみ。キーワード・日付範囲・金額範囲・合計金額表示は開閉式パネル
+（既定は閉）。条件が効いている間はボタンに件数バッジ。日付/金額が未設定のタスクはレンジ検索の対象外として除外する。
+新しい検索条件もこのパネルに追加すること。
 
-今後、画像URLを複数枚まとめて扱う機能を追加する場合は、必ず
-`getSignedImageUrl`（1枚用）ではなく `getSignedImageUrls`（複数枚用）を使うこと。
+### 一覧カード（`TaskListCard`）
+2行構成（件名+ステータス／依頼先名+納期）。画像枚数はサムネイル右下のバッジ。依頼日・提出日は詳細モーダルのみ。
+狭い画面ではflexWrapを使わず、`flex:"1 1 0%"`+`minWidth:0`+`text-overflow:ellipsis`で省略する。
 
-### 2. `supabase.auth.getUser()` を極力 `getSession()` に置き換え
-
-`getUser()` はSupabase Authサーバーへの検証往復（ネットワークリクエスト）が毎回発生するため、
-クライアント側でuser.idやemailを読み取るだけの場面では `getSession()`
-（ローカルのセッション情報を返すのみで高速）で十分と判断し、以下を置き換えた。
-
-- `lib/supabase.ts`: `fetchMyProfile` / `uploadImage` / `createCommission` /
-  `changeMyPassword` / `requestSetPasswordEmail`
-- `components/CommissionApp.tsx`: `handleSaveName`
-- `components/NotificationsModal.tsx`: `fetchAll`
-- `components/AdminNotificationsPage.tsx`: 管理者チェック（`checkAdminAndLoad`相当の処理）
-
-書き込み系操作（RLSで保護されたテーブルへのinsert/update等）はJWT署名がサーバー側で
-検証されるため、クライアント側で `getSession()` を使っても安全性は変わらない。
-再認証が必要な操作（パスワード変更前の `signInWithPassword` 等）はそのまま維持している。
-
-### 3. お知らせ関連クエリの並列化
-
-`NotificationsModal` の `fetchAnnouncements` / `fetchReleases` は、互いに依存しない
-2クエリ（例: `announcements` と `user_notification_status`）を `await` で直列実行していたため、
-`Promise.all` で並列化した。`CommissionApp.fetchUnreadCount` はもともと4クエリを
-`Promise.all` で並列実行済みだったため変更していない。
-
-> NOTE: バッジ用の `fetchUnreadCount`（ヘッダーの未読数）とモーダル用の `fetchAll`
-> （`NotificationsModal`）は現状、ほぼ同じデータをそれぞれ取得しており重複がある。
-> 将来的な追加改善として、モーダルを開いた際にバッジ側の結果を再利用する、
-> または共通のカスタムフックに寄せることを検討余地として残している。
-
-### 4. ログイン直後の不要な待機を削除
-
-`app/login/page.tsx` のメールログイン成功後に入っていた `setTimeout(..., 500)`
-（セッション反映待ちのつもりの明示的な500ms待機）を削除した。
-`signInWithPassword()` が成功した時点でsupabase-js側のローカルセッションは
-既に確立されているため、待機は不要だった。
-
-### 5. 「読み込み中」表示がサムネイル取得完了まで伸びていた問題を修正
-
-上記1の対応直後、`CommissionApp.load()` 内で「依頼一覧の取得」と
-「一覧サムネイルの署名付きURL取得（バッチ化後）」を同じtry節でawaitしてから
-`setLoading(false)`していたため、依頼一覧本体は取得できているのに
-画像URL取得の完了までずっと「読み込み中…」画面のままになってしまっていた
-（N+1は解消したが、体感速度としては後退していた）。
-依頼一覧・プロフィールが揃った時点で先に`setLoading(false)`し、
-サムネイルURLの取得は画面表示後にバックグラウンドで継続する形に修正した。
-
-### 6. `countMyImages()` の2回の往復を1クエリに統合
-
-以前は「①自分の全commission IDを取得 → ②それをin句に渡してcommission_imagesを
-カウント」という直列2クエリだった。`commission_images` → `commissions` の
-外部キーを使い、`commissions!inner(user_id)` の埋め込みフィルタで
-`commissions.user_id`を直接条件に指定することで1クエリに統合した
-（`canUploadImage`経由で画像アップロードのたびに呼ばれる処理）。
-
-### 7. モーダルコンポーネントの遅延読み込み（コード分割）
-
-`NotificationsModal` / `ContactModal` は開かれるまで使われないにも関わらず
-`CommissionApp.tsx`に静的importされ、初期JSバンドルに含まれていた。
-`next/dynamic`（`{ ssr: false }`）で読み込むよう変更し、メイン画面の
-初期バンドルサイズを削減した。ログイン画面の`DemoApp`で既に使われていた
-パターンを踏襲している。
-
-### 8. サードパーティスクリプトの読み込みタイミング見直し
-
-`app/layout.tsx`のGoogle Analytics・Google AdSenseの`<Script>`を
-`strategy="afterInteractive"`から`strategy="lazyOnload"`（ページがアイドル状態に
-なってから読み込む）に変更した。GAは`window.dataLayer`にイベントをキューイングする
-方式のため、gtag.js本体の読み込みが遅れても計測上の実害はない。
-
-### 9. DBインデックスの追加（`20260922000000_V1.2.0_add_performance_indexes.sql`）
-
-PostgreSQLは外部キー列に自動でインデックスを作成しないため、以下に
-インデックスを追加するマイグレーションを新設した（既存カラム・スキーマは変更なし）。
-
-- `commissions (user_id, created_at desc)`：全RLSポリシーのフィルタ条件であり、
-  `fetchCommissions()`のソート条件でもあるため複合インデックスにしている。
-- `commission_images (commission_id)`：RLSや`fetchCommissions()`の埋め込み取得の結合条件。
-- `announcements (published_at desc)` / `version_releases (released_at desc)` /
-  `version_release_items (release_id)`：一覧のorder by・結合に備えた将来対応。
-
-適用は `docs/supabase-migration-guide.md` の手順に従い、検証DB→本番DBの順で
-`supabase db push`すること（このマイグレーションファイルを作成しただけでは
-DBには反映されない）。
-
-### 10. お知らせ関連クエリの一本化（`hooks/useNotifications.ts`）＋ アカウント作成日より前のお知らせの既読扱い
-
-以前は「ヘッダーの未読バッジ（`CommissionApp.fetchUnreadCount`）」と
-「お知らせモーダル（`NotificationsModal.fetchAll`）」がそれぞれ独自に
-announcements / user_notification_status / version_releases / user_settings を
-取得しており、実質同じデータを二重に取得していた（モーダルを開くたびに
-再取得が走り、開いてから表示されるまでの間が生じる原因にもなっていた）。
-
-**設計変更**：
-- 新設した `hooks/useNotifications.ts` にデータ取得・未読判定・既読化の
-  ロジックをすべて集約した。`CommissionApp`がこのフックを1回だけ呼び出し、
-  取得結果（`announcements` / `releases` / `unreadAnnouncementIds` /
-  `hasUnreadRelease` / `unreadCount`）と既読化関数（`markAnnouncementRead` /
-  `markReleasesRead`）をpropsとして`NotificationsModal`へ渡す。
-- `NotificationsModal`はsupabaseを直接呼ばない「制御されたコンポーネント」に
-  変更した。開いた時点で既にデータが手元にあるため、以前あった
-  「モーダルを開いてからのわずかな表示の間」も解消される。
-- お知らせを既読にする（`markAnnouncementRead`）・リリースノートを既読にする
-  （`markReleasesRead`）操作は共有フックのstateを直接更新するため、
-  モーダルを開いたままでもヘッダーの未読バッジがリアルタイムに減る
-  （以前の`onRead`コールバックによる再取得は不要になり削除した）。
-
-**新しい仕様：アカウント作成日より前の告知は既読扱い（お知らせ・リリースノート共通）**：
-- `announcements.published_at` が、そのユーザーの`user_profiles.created_at`
-  （アカウント作成日時）より**前**のお知らせは、そのユーザーにとっては
-  登録前のサービス側の告知であり新着とは言えないため、
-  `user_notification_status`に既読レコードが無くても未読カウント・
-  一覧の未読マーク（赤い丸）の対象から自動的に除外し、既読として扱う。
-- `version_releases`側も同様の考え方を適用した。リリースノートは元々
-  「最新の1件が既読かどうか」のみを`user_settings.last_seen_release_id`で
-  管理する設計のため、**最新リリースの`released_at`がアカウント作成日より前**
-  であれば、`last_seen_release_id`の値に関わらず常に既読（未読バッジなし）
-  として扱う。新規登録後に新しいバージョンがリリースされれば、通常通り
-  未読バッジが立つ。
-- いずれの判定もクライアント側で`useNotifications`が`accountCreatedAt`
-  （`profile.created_at`）と比較して行う導出値であり、DBへの書き込みは
-  発生しない（DBに保存する必要のないステータスのため）。一覧上には
-  引き続き表示されるが、未読の赤丸・バッジは付かない。
-
-このため、新規登録直後のユーザーは（管理者が過去に投稿した古いお知らせや
-過去のバージョンのリリースノートで）不要に未読バッジが立つことがなくなる。
+### モーダル設計
+`height: calc(100vh - 32px)` / `maxHeight: 600` / flex column。タイトル・ボタン固定、コンテンツのみスクロール。
+オーバーレイに`overscrollBehavior: contain`+`touchAction: none`（iOS Safariの背景スクロール防止）。
 
 ---
 
 ## TODO / 今後の対応予定
 
-- **Resendを使ったSupabase Auth用SMTP設定**：現状Supabase AuthのメールはSupabase標準の
-  メール送信機能を利用しているが、送信元ドメインの独自化・到達率向上のため、
-  Resend経由のカスタムSMTPをSupabase Dashboard → Authentication → Emails →
-  SMTP Settings に設定する予定。設定時は`RESEND_API_KEY`とは別に、Resendが発行する
-  SMTP用の認証情報（ホスト・ポート・ユーザー名・パスワード）が必要になる点に注意。
-  設定後はこのセクションを実施済みに更新すること。
-
----
-
-## モーダル設計方針
-
-全モーダル共通で以下の設計を採用。
-
-```
-height: calc(100vh - 32px)   // オーバーレイの padding 16px × 2 を引いた値
-maxHeight: 600               // PC では最大 600px に収める
-display: flex
-flexDirection: column
-```
-
-内部構造：
-- **タイトルエリア**（`flexShrink: 0` で固定）
-- **コンテンツエリア**（`flex: 1` + `overflowY: auto` でスクロール）
-- **ボタンエリア**（`flexShrink: 0` で固定）
-
-オーバーレイには `overscrollBehavior: contain` + `touchAction: none` を設定し、iOS Safariで背景がスクロールする問題を防止。
-
----
-
-## 検索条件パネルの設計方針（依頼一覧）
-
-`CommissionApp.tsx`の依頼一覧は、ステータス・並び替えに加えて
-キーワード・日付範囲・金額範囲による詳細検索に対応している。
-検索条件を並べすぎるとUXが低下するため、以下の方針を採用している。
-
-- **常時表示するのは最小限**：ステータス（プルダウン）・並び替え・「🔍 詳細検索」の
-  開閉ボタンのみを常時表示する。
-- **詳細な検索条件は開閉式パネルに格納**：キーワード検索、依頼日/納期のFrom-To日付範囲、
-  金額の範囲、「検索結果の合計金額を表示する」チェックボックスは、`showFilters`が
-  `true`の時だけレンダリングする折りたたみパネルに入れる。既定値は`false`（閉）。
-- **閉じていても状態が分かるようにする**：詳細検索パネルを閉じていても、
-  何らかの条件（キーワード・日付範囲・金額範囲のいずれか）が入力されていれば、
-  開閉ボタンに件数バッジ（`activeFilterCount`）を表示し、ユーザーが
-  「検索条件が効いていることに気づかない」状態を防ぐ。
-- **合計金額はデフォルト非表示**：「検索結果の合計金額を表示する」チェックボックスは
-  既定でオフ。オンにすると、現在の検索条件（`filtered`）に一致する依頼の金額合計を
-  一覧の上部に表示する（`showTotalPrice`とは独立して`filtered`自体は常に計算されるため、
-  チェックのオン/オフ自体はフィルタリング結果に影響しない、あくまで表示のオプション）。
-- **日付・金額のレンジ検索の未設定値の扱い**：`inDateRange` / `inPriceRange`
-  ヘルパーは、from/toどちらも未入力なら無条件で通過させ、片方のみ入力されている
-  場合はその条件だけで判定する。ただし対象となる依頼側の日付・金額が
-  そもそも未設定（`undefined`）の場合は、レンジ検索の対象外として除外する
-  （「金額を絞り込んでいるのに金額未設定の依頼が紛れ込む」ことを防ぐため）。
-- 新しく検索条件を追加する場合も、常時表示のUIには足さず、この開閉パネルに追加すること。
-
----
-
-## CommissionApp / DemoApp の共通化（2026年9月実施）
-
-`CommissionApp.tsx`（本番）と`DemoApp.tsx`（ログイン不要のデモ）は、
-UI構造がほぼ同じであるにも関わらずコードが別々にコピーされており、
-検索UX改善のように片方だけ機能追加すると、もう片方には反映されず
-表示のズレ・型不整合によるビルドエラーが発生する状態だった
-（実際に、`NotificationsModal`のprops仕様変更がDemoApp側に反映されておらず
-ビルドエラーになっていた）。これを受けて、以下の範囲で共通化した。
-
-### 共通化した範囲
-1. **定数・フォーマッタ・見た目のUI部品**（`components/CommissionShared.tsx`）：
-   `STATUSES`・`IMAGE_TYPES`・`fmtDate`・`fmtPrice`・`daysUntil`・
-   `inp`/`inp_date`（入力欄のスタイル）・`Field`・`DateField`・
-   `DateRangeField`・`StatusBadge`。CommissionApp・DemoAppどちらも
-   ここからimportし、それぞれで再定義しない。
-   - `CommissionStatus`・`ImageType`型も、DemoApp側でのローカル再定義をやめ、
-     `@/lib/supabase`からimportする形に統一した。
-   - `fmtPrice`の表示形式がCommissionApp（`"12,000 円"`）とDemoApp
-     （`"¥12,000"`）で微妙に異なっていたため、共通化にあたり
-     CommissionApp側の形式（本番の表示）に統一した。
-2. **検索・フィルタ・並び替えのロジック**（`hooks/useCommissionSearch.ts`）：
-   ステータス・キーワード・依頼日/納期のFrom-To日付範囲・金額範囲・
-   合計金額表示チェックボックス等のstateと、それに基づく`filtered`配列・
-   `totalPrice`・`activeFilterCount`の算出ロジックを1つのフックに集約した。
-   対象データの型が`Commission`（本番）と`DemoCommission`（デモ）で
-   完全に同一ではないため、検索に使うフィールド（title/artist/x_id/
-   ordered_at/deadline/price/status/notes）だけを満たす`SearchableCommission`
-   という最小限の型を要求するジェネリック関数にしている。
-3. **検索バーのUI**（`components/CommissionSearchBar.tsx`）：
-   ステータスのプルダウン・並び替え・詳細検索の開閉ボタン・開閉式パネル・
-   合計金額表示行をまとめたコンポーネント。`useCommissionSearch()`の
-   戻り値をそのまま`<CommissionSearchBar search={search} />`として渡すだけで、
-   CommissionApp・DemoAppどちらでも同じ見た目・挙動になる。
-
-### 意図的に共通化しなかった範囲
-- **画像アップロード・プラン制限**：CommissionAppはSupabase Storageへの
-  実アップロード・署名付きURL・課金プランに応じた枚数制限を扱うのに対し、
-  DemoAppは`URL.createObjectURL`によるメモリ上の疑似画像・固定の
-  `DEMO_MAX_IMAGES`枚数制限であり、実装の意味が本質的に異なるため、
-  無理に共通化していない。
-- **認証・データ永続化まわり全般**（Supabase呼び出し・フォーム送信処理など）。
-
-### `NotificationsModal`のprops不足によるビルドエラーの修正
-`useNotifications`フックが`userId`に加えて`accountCreatedAt`を要求する形に
-変更されていたが、DemoApp側は未ログインであるため`user`も`profile`も
-存在せず、`NotificationsModal`に必要なprops（`announcements`・`releases`・
-`unreadAnnouncementIds`・`hasUnreadRelease`・`loading`・
-`onMarkAnnouncementRead`・`onMarkReleasesRead`）を渡せずビルドエラーに
-なっていた。これに対し、`useNotifications`を次のように拡張して解消した。
-
-- `userId`が`null`（未ログイン）の場合でも、announcements・
-  version_releasesの**本体**はRLS上どのロールからでも閲覧できるため、
-  そのまま取得して返す（読み取り専用ブラウジング）。
-- 既読状態（`user_notification_status`・`user_settings`）は個人に
-  紐づく情報のため、`userId`がある時だけ取得する。
-- `userId`が`null`の間は、`unreadAnnouncementIds`は常に空集合、
-  `hasUnreadRelease`は常に`false`を返す（＝未読バッジは一切出さない）。
-  `markAnnouncementRead`・`markReleasesRead`も内部で`userId`の有無を
-  チェックしており、未ログイン時は何もしない（no-op）。
-
-これにより、`DemoApp`は`useNotifications(null, null)`を呼ぶだけで
-`CommissionApp`と全く同じ`NotificationsModal`を、未読管理なしの
-読み取り専用モードで利用できる。
-
----
-
-## 依頼一覧カードのコンパクト化（2026年9月実施）
-
-スマホ実機で確認したところ、画像付きの依頼カードが縦にとても長くなり、
-「何がどの項目か分かりにくい」との指摘があった。原因は、ステータス・
-⚠警告・画像枚数をヘッダー行に、絵師名・依頼日・納期・ラフ日を
-`flexWrap`のメタ情報行にそれぞれ詰め込んでおり、スマホの狭い画面幅では
-折り返しが多発して1件あたり縦に何行にもなってしまっていたこと。
-
-これを受けて、`components/CommissionShared.tsx`に共通の
-`CommissionListCard`コンポーネントを新設し、CommissionApp・DemoAppの
-一覧カードをそれに置き換えた（`CardThumbnail`は廃止しこの中に統合）。
-
-### 変更点
-- **画像枚数はサムネイルに重ねるバッジに**：「📷 N枚」という独立した
-  テキストをやめ、サムネイル画像の右下に小さな丸バッジ（`📷N`）として
-  重ねて表示する。ヘッダー行のテキスト量が減り、視覚的にも
-  「どの画像の枚数か」が一目で分かる。
-- **「⚠ あと0日」を削除**：カード右側に既にある納期カウントダウン
-  （残N日／本日納期／N日超過）と意味が重複していたため削除し、
-  情報を一本化した。
-- **依頼日・ラフ提出日は一覧から省略**：一覧で必要なのは
-  「今どのステータスで、納期はいつか」が中心という判断で、
-  依頼日・ラフ提出日は詳細モーダル側でのみ表示するようにした。
-- **絵師名＋納期を1行に固定**：2行目を「🖌 絵師名 ・ 納期 MM/DD」の
-  1行だけにし、`flexWrap`をやめてflexboxの`flex`/`minWidth:0`+
-  `text-overflow: ellipsis`で折り返しを起こさない構成にした。
-  絵師名側は長い場合に省略記号（…）で切り詰め、より重要な納期は
-  常に末尾に固定表示され省略されないようにしている。
-- **一覧の日付は月日のみ（`fmtShortDate`）**：年込みの完全な日付
-  （`fmtDate`）は詳細モーダルにのみ残し、一覧では`MM/DD`表記にして
-  横幅を圧縮した。
-- サムネイルサイズを72px→56pxに、カードのpaddingも縮小し、
-  カード自体の高さも抑えている。
-
-この結果、画像の有無に関わらずカードの高さがほぼ一定（2行構成）になり、
-一覧で多くの依頼を見渡しやすくなった。今後この一覧カードの見た目を
-変更する場合は、`CommissionApp.tsx`/`DemoApp.tsx`ではなく
-`components/CommissionShared.tsx`の`CommissionListCard`を編集すること。
+- **Resendを使ったSupabase Auth用SMTP設定**：現状Supabase Authのメールは標準送信機能を利用。
+  送信元ドメイン独自化・到達率向上のため、Supabase Dashboard → Authentication → Emails → SMTP Settingsに
+  Resend経由のカスタムSMTPを設定する予定（`RESEND_API_KEY`とは別にSMTP用認証情報が必要）。設定後は本項を更新すること。
+- 実ドメイン確定に伴うURL差し替え（上記「名称変更の適用手順」6）。
+- `package.json`の`name`（`commission-tracker`）は未変更。必要なら`tsukurist`へ変更し、`npm version`で更新（`docs/update-notes.md`）。
+- ステータス「制作中」は創作寄りの語のため、他業種向けに「対応中」等へ汎用化するかは要検討（現状は要望どおり維持）。
 
 ---
 
@@ -745,89 +362,26 @@ UI構造がほぼ同じであるにも関わらずコードが別々にコピー
 | 1.0.3      | Google認証                                                                              |
 | 1.1.0      | お知らせ・リリースノート統合管理・未読バッジ通知                                        |
 | 1.2.0      | 配信対象指定・プッシュ通知、PWA/メンテナンス対応、SEO強化、認証・通知・エラー画面の改善 |
+| 2.0.0      | 「ツクリスト」へ改称。汎用タスク管理向けに用語・テーブル・カラム・バケット名を変更      |
+
+リリース履歴（`version_releases`）への2.0.0登録は管理画面（`/mgmt-c7f2a91e/notifications`）から行う。
 
 ---
 
 ## 注意事項
 
-- `mgmt-c7f2a91e` が管理者ページのURL（推測されにくくするため）
-- 管理者のお知らせ・バージョン管理は `/mgmt-c7f2a91e/notifications`
-- `ContactModal` は CommissionApp・DemoApp・ログイン画面の3箇所で共通利用
-- Resend 無料プランは `onboarding@resend.dev` からの送信のみ。独自ドメイン設定後は `route.ts` の `from` を変更すること
-- Service Role Keyは絶対にフロントエンドに露出させないこと
-- Stripeのテストキー（`sk_test_`）と本番キー（`sk_live_`）を混在させないこと
-- Cron Jobは本番環境（mainブランチ）のみ実行される
-- iOSのプッシュ通知はホーム画面追加（PWA）必須・iOS 16.4以降
-- モーダル内の `autoFocus` は全コンポーネントで削除済み（iOS Safariでキーボードが即時展開されるのを防止）
-- 一覧カードのサムネイル・詳細モーダルの画像は、`getSignedImageUrls()`（複数パスをまとめて署名するAPI）で
-  1回のリクエストにまとめて取得する方式に統一済み（詳細は上記「パフォーマンス改善」参照）。
-  新たに画像URLを扱う機能を追加する際は、1枚ずつ `getSignedImageUrl()` をループで呼ぶ実装（N+1）を
-  避け、必ず `getSignedImageUrls()` を使うこと。
-- クライアント側でuser.id/emailの参照のみが目的の場合は `supabase.auth.getUser()` ではなく
-  `supabase.auth.getSession()` を優先すること（`getUser()` はAuthサーバーへの検証往復が発生し遅い）。
-  ただし、Admin APIやサーバーサイド（Route Handler）側での認可チェックなど、
-  「セッションが本当に有効か」をサーバー側で厳密に検証する必要がある文脈は対象外
-  （それらは元々 `getUser(token)` をSupabaseサーバー側で呼んでおり、この変更の対象ではない）。
-- 開かれるまで使われないモーダル（`NotificationsModal`・`ContactModal`）は`CommissionApp.tsx`で
-  `next/dynamic`（`{ ssr: false }`）経由で読み込んでいる。新たに同様の「常時マウントだが
-  開くまで使わない」モーダルを追加する場合もこのパターンに倣うこと。
-- `20260922000000_V1.2.0_add_performance_indexes.sql` はインデックス追加のみの
-  非破壊的マイグレーション。ファイルを作成しただけではDBに反映されないため、
-  `docs/supabase-migration-guide.md`の手順（検証DB→本番DBの順に`supabase db push`）で
-  必ず適用すること。既存の`create table`文にはインデックス定義が無いため、
-  新しいテーブル・外部キー列を追加する際は、この教訓を踏まえてインデックスも
-  併せて検討すること（PostgreSQLは外部キーに自動でインデックスを張らない）。
-- お知らせ・リリースノートの取得と未読判定は`hooks/useNotifications.ts`に集約している。
-  ヘッダーの未読バッジと`NotificationsModal`はいずれもこのフックの戻り値を参照するだけで、
-  それぞれが独自にsupabaseへクエリすることは無い。お知らせ関連の挙動を変更する場合は
-  このフックを修正すること（`NotificationsModal`側にクエリを書き足さない）。
-- お知らせ・リリースノートはいずれも、公開日（`published_at`／`released_at`）が
-  本人のアカウント作成日（`user_profiles.created_at`）より前の場合、
-  既読レコードが無くても常に既読扱いになる（`useNotifications`内で
-  クライアント側の導出値として判定しており、DBへの書き込みは発生しない）。
-  一覧上には引き続き表示されるが未読の赤丸・バッジは付かない。
-  リリースノートは「最新の1件が既読かどうか」のみを管理する既存設計を踏襲し、
-  最新リリースの`released_at`のみで判定する（過去の個々のバージョンごとには判定しない）。
-- パスワード設定・変更、直近ログインプロバイダー判定はSupabaseの`user.identities`を利用しており、テーブル追加・マイグレーションは不要
-- 直近ログインプロバイダーは `user_profiles.last_login_provider` をDBの正としつつ、
-  未認証のログイン画面向けにはHttpOnly Cookie（`ct_last_login_provider`）経由でのみ提供する。
-  localStorageや通常のJS読み取り可能なCookieは使用しない（XSS時の詐称・漏えいリスク低減のため）。
-- Google専用で登録したユーザーがパスワードログインを追加する場合、
-  Admin API（`admin.updateUserById`）や通常の`updateUser({password})`では
-  `auth.identities`にemail identityが正規にリンクされない
-  （Admin API経由はさらにセッション無効化を伴いログアウトされる場合がある）。
-  そのため、既存のパスワードリセット導線
-  （`resetPasswordForEmail` → `/auth/confirm` → `/update-password`）を再利用し、
-  正規のリカバリーセッション上で`updateUser({password})`を実行する方式に統一する。
-  この際、Supabase Dashboardの「Automatic Linking」設定が有効であることが前提となる。
-- 既にパスワードを持つユーザーのパスワード変更は、識別子の追加が不要なため
-  通常の`signInWithPassword`による再認証＋`updateUser({password})`で完結する。
-- パスワードリセットメールのリンクはPKCEフロー（`code`パラメータ）で返ってくるため、
-  `auth/confirm/route.ts`は`token_hash`+`type`（従来型）と`code`（PKCE）の両方に対応する。
-  片方だけの対応だと、既存セッションがある状態（Googleログイン中にパスワード設定を試みた場合等）で
-  サイレントに処理が失敗し、何も起きていないのにアプリ画面に戻ってしまうため注意。
-- Googleのみで登録し、かつパスワード未設定のユーザーはidentitiesが1件のみのため、
-  `unlinkIdentity()`は仕様上必ず失敗する（Supabaseの安全装置）。このケースでは
-  「解除を試みて失敗させる」のではなく、UI側で「パスワード設定」または
-  「アカウント削除申請」に誘導する。削除申請が承認されアカウントが削除されれば、
-  identitiesごと削除されるため、実質的に連携解除と同じ結果になる。
-- Supabaseの`resetPasswordForEmail`・`linkIdentity`・`signInWithOAuth`など、`redirectTo`を
-  指定するAPIを新たに使う際は、そのURLを必ずSupabase Dashboard → Authentication →
-  URL Configuration → Redirect URLsに事前登録すること。未登録の場合、GoTrueは
-  エラーを出さず黙ってSite URLへフォールバックし、認証トークンがハッシュフラグメントとして
-  付与されるため、supabase-jsが意図せず自動ログインしてしまう（詳細: docs/google-login-setup.md）。
-- 新規ユーザー作成トリガー（`handle_new_user`）は、`display_name`の初期値も設定する。
-  メール登録は`signUp`の`options.data.display_name`（フォーム必須項目）から、
-  Google登録は`raw_user_meta_data`の`full_name`/`name`から取得する。
-  これにより、Google登録ユーザーも管理者画面で最初から表示名が見える。
-- `last_sign_in_at`はログイン成功のたびに`/api/auth/last-login-provider`のPOSTで更新される。
-  ログイン処理そのものとは独立した「補助的な記録」のため、更新に失敗してもログイン自体は成功する。
-- メールアドレス形式チェック（`isValidEmailFormat`）、表示名の文字数上限（`DISPLAY_NAME_MAX_LENGTH=30`）、
-  パスワードの最小文字数（`PASSWORD_MIN_LENGTH=6`）は`lib/supabase.ts`に定数・関数として共通化している。
-  ログイン画面・パスワード変更/設定画面（モーダル含む）で重複実装せず、この共通定義を参照すること。
-- パスワードリセットフロー（`/update-password`）でパスワードを設定した直後、
-  ブラウザ上のセッション情報（`user.identities`）がその場では更新されないことがある。
-  この場合、Google連携解除がSupabaseの安全装置（identity 0件禁止）で失敗するが、
-  実データ上は`email` identityが正しく作成されている。一度ログアウトし、
-  メールアドレス・パスワードで再ログインしてセッションを取り直せば解除できるようになる。
-  UI側では連携解除の確認モーダルにこの旨の注釈を表示し、エラー時にも案内している。
+- `mgmt-c7f2a91e`が管理者ページのURL。お知らせ管理は`/mgmt-c7f2a91e/notifications`。
+- Resend無料プランは`onboarding@resend.dev`からのみ送信。独自ドメイン設定後は各routeの`from`を変更。
+- Service Role Keyはフロントエンドに露出させない。Stripeのテストキーと本番キーを混在させない。
+- Cron Jobは本番環境（mainブランチ）のみ実行される。iOSのプッシュ通知はPWA必須（iOS 16.4以降）。
+- モーダル内の`autoFocus`は削除済み（iOS Safariのキーボード即時展開防止）。
+- `redirectTo`を使うAPI（`resetPasswordForEmail`・`linkIdentity`・`signInWithOAuth`）のURLは必ずSupabaseのRedirect URLsに登録
+  （未登録だとSite URLへ黙ってフォールバックし意図せず自動ログインする。詳細: `docs/google-login-setup.md`）。
+- お知らせ・リリースの取得と未読判定は`useNotifications`に集約。公開日がアカウント作成日より前のものは常に既読扱い（クライアント導出、DB書き込みなし）。
+- 直近ログインプロバイダーは`user_profiles.last_login_provider`が正。ログイン画面向けにはHttpOnly Cookie（`ct_last_login_provider`）のみ。
+- Google専用ユーザーのパスワード追加は、既存のリセット導線（`resetPasswordForEmail`→`/auth/confirm`→`/update-password`）を再利用する
+  （Admin API・`updateUser`ではemail identityが正規リンクされない）。`/auth/confirm`は`token_hash`+`type`と`code`（PKCE）の両方に対応。
+- パスワード未設定かつGoogleのみのユーザーは`unlinkIdentity()`が仕様上失敗するため、UIでパスワード設定/削除申請へ誘導する。
+- 新規ユーザー作成トリガー`handle_new_user`は`display_name`初期値も設定（メール登録は`options.data.display_name`、Googleは`full_name`/`name`）。
+- メール形式チェック・表示名上限（30）・パスワード最小長（6）は`lib/supabase.ts`の共通定義を参照する。
+- 新規のマイグレーションは必ずファイル化してから適用し、適用済みファイルは編集しない（`docs/supabase-migration-guide.md`）。

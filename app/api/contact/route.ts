@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     }
 
     const adminEmail = process.env.ADMIN_EMAIL!;
-    const appName = "Commission Tracker";
+    const appName = "ツクリスト";
     const fromAddr = "noreply@resend.dev"; // 独自ドメイン設定後は変更
 
     // ── 管理者への通知メール ──────────────────────────────────
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
         <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:640px;margin:0 auto;padding:20px;color:#111827">
           <div style="margin-bottom:24px">
             <div style="font-size:12px;color:#8b5cf6;font-weight:700;letter-spacing:0.08em;text-transform:uppercase">
-              Commission Tracker
+              ${appName}
             </div>
             <h1 style="margin:8px 0 0;font-size:28px;font-weight:700;color:#111827">
               📨新しいお問い合わせ
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
             <div style="font-size:13px;font-weight:600;color:#6b7280;margin-bottom:8px">お問い合わせ内容</div>
             <div style="background:#fafafa;border:1px solid #e5e7eb;border-radius:12px;padding:16px;line-height:1.8;white-space:pre-wrap;">${esc(body)}</div>
           </div>
-          <div style="margin-top:24px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:12px;color:#6b7280;">${email? "返信ボタンからユーザーへ直接返信できます。": "メールアドレスは入力されていません。"}
+          <div style="margin-top:24px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:12px;color:#6b7280;">${email ? "返信ボタンからユーザーへ直接返信できます。" : "メールアドレスは入力されていません。"}
           </div>
         </div>
       `,
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
           <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:640px;margin:0 auto;background:#ffffff;">
             <div style="background:linear-gradient(135deg,#7c3aed,#8b5cf6);padding:32px 24px;border-radius:16px 16px 0 0;color:white;">
               <div style="font-size:14px;opacity:0.9">
-                Commission Tracker
+                ${appName}
               </div>
               <h1 style="margin:8px 0 0;font-size:28px;line-height:1.4;color:white;">
                 📨お問い合わせを受け付けました
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
                 ${esc(name)} 様
               </p>
               <p style="margin:0 0 20px;color:#374151;line-height:1.9;">
-                Commission Trackerをご利用いただきありがとうございます。<br>
+                ${appName}をご利用いただきありがとうございます。<br>
                 以下の内容でお問い合わせを受け付けました。<br>
                 通常2〜3営業日以内にご返信いたします。
               </p>

@@ -11,50 +11,39 @@ type Props = {
 
 export default function SystemMessage({ code, title, description, onRetry }: Props) {
     const router = useRouter();
+    const isNeutral = code === "404" || code === "OFFLINE";
 
     return (
         <main style={{
             minHeight: "100vh", padding: 24, display: "grid", placeItems: "center",
-            background: "linear-gradient(145deg, #1a0a2e 0%, #252044 56%, #16434a 100%)",
-            color: "#1a0a2e", fontFamily: "'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Yu Gothic', sans-serif",
+            background: "var(--surface-inverse)",
         }}>
             <section style={{
-                width: "min(100%, 520px)", padding: "clamp(28px, 6vw, 48px)",
-                background: "#fff", borderRadius: 20, boxShadow: "0 24px 70px #0005",
+                width: "min(100%, 480px)", padding: "clamp(28px, 6vw, 44px)",
+                background: "var(--bg)", borderRadius: "var(--radius-xl)", boxShadow: "var(--shadow-lg)",
             }}>
-                <div aria-hidden="true" style={{
-                    color: code === "404" ? "#0f766e" : code === "OFFLINE" ? "#0f766e" : "#b91c1c", fontSize: 13,
-                    fontWeight: 800, marginBottom: 12,
-                }}>
-                    COMMISSION TRACKER <span style={{ color: "#a3a3a3", fontWeight: 500 }}> / {code}</span>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--muted)", marginBottom: 12, letterSpacing: "0.04em" }}>
+                    ツクリスト <span style={{ color: "var(--meta)", fontWeight: 500 }}>/ {code}</span>
                 </div>
                 <div style={{
-                    color: code === "404" || code === "OFFLINE" ? "#0f766e" : "#b91c1c", fontSize: 64,
-                    fontWeight: 900, lineHeight: 1, marginBottom: 20, fontVariantNumeric: "tabular-nums",
+                    color: isNeutral ? "var(--accent)" : "var(--danger)", fontSize: 56,
+                    fontWeight: 700, lineHeight: 1, marginBottom: 20, fontVariantNumeric: "tabular-nums",
                 }}>
                     {code}
                 </div>
-                <h1 style={{ fontSize: 23, lineHeight: 1.4, margin: "0 0 10px", fontWeight: 800 }}>
+                <h1 style={{ fontSize: 21, lineHeight: 1.4, marginBottom: 10, fontWeight: 700 }}>
                     {title}
                 </h1>
-                <p style={{ color: "#626262", fontSize: 14, lineHeight: 1.8, margin: "0 0 28px" }}>
+                <p style={{ color: "var(--muted)", fontSize: 14, lineHeight: 1.8, marginBottom: 28 }}>
                     {description}
                 </p>
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <div className="row" style={{ gap: 10, flexWrap: "wrap" }}>
                     {onRetry && (
-                        <button type="button" onClick={onRetry} style={{
-                            flex: "1 1 180px", minHeight: 46, padding: "10px 16px", border: 0,
-                            borderRadius: 10, background: "#1a0a2e", color: "#fff", fontSize: 14,
-                            fontWeight: 700, cursor: "pointer",
-                        }}>
+                        <button type="button" onClick={onRetry} className="btn btn-primary" style={{ flex: "1 1 160px" }}>
                             もう一度読み込む
                         </button>
                     )}
-                    <button type="button" onClick={() => router.push("/")} style={{
-                        flex: "1 1 150px", minHeight: 46, padding: "10px 16px", border: "1px solid #d1d5db",
-                        borderRadius: 10, background: "#fff", color: "#303030", fontSize: 14,
-                        fontWeight: 700, cursor: "pointer",
-                    }}>
+                    <button type="button" onClick={() => router.push("/")} className="btn btn-secondary" style={{ flex: "1 1 140px" }}>
                         ホームへ戻る
                     </button>
                 </div>

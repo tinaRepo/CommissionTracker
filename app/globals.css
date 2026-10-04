@@ -1,34 +1,209 @@
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* ============================================================
+   globals.css — デザイントークン & ベーススタイル
+   ------------------------------------------------------------
+   Apple系デザインシステム（getdesign.md/apple/design-md）を参考に、
+   単色アクセント・十分な余白・控えめな影・グラデーション不使用の
+   方針でトークンを定義する。個別コンポーネントの見た目は
+   components.css 側で、これらのトークンだけを使って組み立てること。
+   ============================================================ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 :root {
-  --bg: #faf8f5;
-  --card: #ffffff;
-  --purple-dark: #1a0a2e;
-  --purple-mid: #7c3aed;
-  --purple-light: #c4b5fd;
-  --purple-indigo: #4f46e5;
-  --text-main: #1a0a2e;
-  --text-sub: #555;
-  --text-muted: #aaa;
-  --border: #e5e7eb;
-  --red: #ef4444;
-  --amber: #f59e0b;
-  --green: #10b981;
+  /* ---- カラー: サーフェス ---- */
+  --bg: #ffffff;
+  --surface: #f7f7f8;
+  --surface-2: #eeeef1;
+  --surface-inverse: #0b0b0f;
+  --surface-inverse-2: #16161b;
+
+  /* ---- カラー: テキスト ---- */
+  --fg: #1d1d1f;
+  --fg-2: #48484a;
+  --muted: #6e6e73;
+  --meta: #86868b;
+  --fg-on-inverse: #f5f5f7;
+  --muted-on-inverse: #a1a1a6;
+
+  /* ---- カラー: ボーダー ---- */
+  --border: #d9d9de;
+  --border-soft: #e8e8ed;
+  --border-on-inverse: rgba(255, 255, 255, 0.14);
+
+  /* ---- カラー: アクセント（単色。グラデーションは使わない） ---- */
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-active: #3730a3;
+  --accent-soft: #eef0fd;
+  --on-accent: #ffffff;
+
+  /* ---- カラー: セマンティック ---- */
+  --success: #1f8a4c;
+  --success-soft: #e8f6ee;
+  --warn: #a8620a;
+  --warn-soft: #fbf0dd;
+  --danger: #c53030;
+  --danger-soft: #fbe9e9;
+  --info: #5b53d6;
+  --info-soft: #eeecfb;
+  --neutral: #5f5f63;
+  --neutral-soft: #eeeeef;
+
+  /* ---- タイポグラフィ ---- */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Hiragino Kaku Gothic ProN",
+    "Noto Sans JP", "Yu Gothic", "Segoe UI", sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Hiragino Kaku Gothic ProN",
+    "Noto Sans JP", "Yu Gothic", "Segoe UI", sans-serif;
+
+  /* ---- 角丸 ---- */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-pill: 999px;
+
+  /* ---- 影（控えめに） ---- */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 8px 28px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.16);
+  --ring-focus: 0 0 0 4px rgba(79, 70, 229, 0.18);
+
+  /* ---- モーション ---- */
+  --duration-fast: 150ms;
+  --duration-base: 220ms;
+  --ease-standard: cubic-bezier(0.28, 0, 0.22, 1);
+
+  /* ---- レイアウト ---- */
+  --container-max: 960px;
+  --container-narrow: 720px;
+  --gutter: 24px;
 }
 
-html, body { height: 100%; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111114;
+    --surface: #1a1a1e;
+    --surface-2: #232327;
+    --fg: #f5f5f7;
+    --fg-2: #d4d4d8;
+    --muted: #9c9ca3;
+    --meta: #77777e;
+    --border: #303035;
+    --border-soft: #26262b;
+    --accent-soft: #23213f;
+  }
+}
+
+html,
 body {
-  background: var(--bg);
-  font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Yu Gothic', sans-serif;
-  color: var(--text-main);
+  height: 100%;
+}
+
+body {
+  background: var(--surface);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: 15px;
   line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
 }
 
-input, textarea, select, button {
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--fg);
+}
+
+a {
+  color: inherit;
+}
+
+input,
+textarea,
+select,
+button {
   font-family: inherit;
+  color: inherit;
 }
 
-/* scrollbar */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #c4b5fd80; border-radius: 99px; }
+button {
+  cursor: pointer;
+}
+
+/* ---- スクロールバー ---- */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: var(--radius-pill);
+}
+
+/* ---- 汎用レイアウトユーティリティ ---- */
+.container {
+  width: 100%;
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+
+.container-narrow {
+  width: 100%;
+  max-width: var(--container-narrow);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+}
+
+.grow {
+  flex: 1 1 0%;
+  min-width: 0;
+}
+
+.text-muted {
+  color: var(--muted);
+}
+
+.text-meta {
+  color: var(--meta);
+  font-size: 12px;
+}
+
+.text-danger {
+  color: var(--danger);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

@@ -1,5 +1,5 @@
 // Web Push通知のService Worker
-const OFFLINE_CACHE = 'commission-tracker-offline-v1';
+const OFFLINE_CACHE = 'tsukurist-offline-v1';
 
 self.addEventListener('install', function (event) {
   event.waitUntil(
@@ -23,7 +23,7 @@ self.addEventListener('push', function (event) {
   if (!event.data) return;
 
   const data = event.data.json();
-  const title = data.title || 'Commission Tracker';
+  const title = data.title || 'ツクリスト';
   const options = {
     body: data.body || '',
     icon: '/icon0.svg',
