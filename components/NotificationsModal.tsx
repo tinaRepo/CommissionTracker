@@ -119,7 +119,7 @@ export default function NotificationsModal({
                 className="row"
                 style={{
                   flex: 1, justifyContent: "center", gap: 6, padding: "7px 0", borderRadius: "var(--radius-sm)",
-                  border: "none", fontSize: 13, fontWeight: activeTab === tab.id ? 700 : 500,
+                  border: "none", fontSize: 13, fontWeight: activeTab === tab.id ? 600 : 400,
                   background: activeTab === tab.id ? "var(--bg)" : "transparent",
                   color: activeTab === tab.id ? "var(--fg)" : "var(--muted)",
                   boxShadow: activeTab === tab.id ? "var(--shadow-xs)" : "none",
@@ -196,7 +196,7 @@ function AnnouncementRow({ announcement, isUnread, formatDate, onClick }: {
           <TypeBadge type={announcement.type} />
           <span className="text-meta">{formatDate(announcement.published_at)}</span>
         </div>
-        <p style={{ margin: 0, fontSize: 14, fontWeight: isUnread ? 700 : 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <p style={{ margin: 0, fontSize: 14, fontWeight: isUnread ? 600 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {announcement.title}
         </p>
       </div>

@@ -86,6 +86,9 @@ lib/
 
 public/                         # ads.txt, manifest.json, sw.js, offline.html, アイコン類, robots.txt
 
+scripts/
+└── migrate-storage.mjs         # commission-images → task-images のStorage移行（冪等・--dry-run / --cleanup）
+
 supabase/migrations/
 ├── ...（既存）
 ├── 20260927000000_V1.2.0_announcements_targeting.sql
@@ -253,8 +256,7 @@ RLS・カラムの詳細は各マイグレーションSQLを参照。
 ## 名称変更（v2.0.0）の適用手順
 
 1. 検証DBで`20260928000000_V2.0.0_rebrand_to_tasks.sql`を`--dry-run`後に適用（`docs/supabase-migration-guide.md`参照）。
-2. **Storageの移行**：バケット名は変更できないため、マイグレーションは`task-images`を新設しRLSを張るのみ。
-   `commission-images`内のオブジェクトを`task-images`へコピーする（`storage_path`の構造は不変なのでDB更新は不要）。
+2. **Storageの移行**：`node --env-file=.env.local scripts/migrate-storage.mjs`(まず --dry-run)。DB 適用前に事前コピーし、デプロイ直後に再実行して差分を拾う。検証後 `--cleanup` で旧バケットを削除。
 3. 新コードを検証環境にデプロイし、依頼登録・編集・画像アップロード・納期通知Cronを確認。
 4. 問題なければ本番DBへ適用し、本番デプロイ。**DB適用とコードのデプロイは同時期に行うこと**
    （旧コードは`commissions`テーブルを参照するため、片方だけ先行すると全操作が失敗する）。

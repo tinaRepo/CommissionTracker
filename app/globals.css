@@ -1,10 +1,12 @@
 /* ============================================================
    globals.css — デザイントークン & ベーススタイル
    ------------------------------------------------------------
-   Apple系デザインシステム（getdesign.md/apple/design-md）を参考に、
-   単色アクセント・十分な余白・控えめな影・グラデーション不使用の
-   方針でトークンを定義する。個別コンポーネントの見た目は
-   components.css 側で、これらのトークンだけを使って組み立てること。
+   DESIGN.md（Apple系デザインシステム）に準拠したトークン定義。
+   - アクセントは Action Blue (#0066cc) の単色のみ。第二のブランド色は作らない
+   - 面の切り替え（白 / パーチメント / ニアブラック）がセクションの区切り
+   - 影はプロダクト画像・フローティング面（モーダル）専用の1種類のみ
+   - グラデーションは使わない
+   個別コンポーネントは components.css 側で、これらのトークンのみ使って組み立てる。
    ============================================================ */
 
 *,
@@ -18,62 +20,84 @@
 :root {
   /* ---- カラー: サーフェス ---- */
   --bg: #ffffff;
-  --surface: #f7f7f8;
-  --surface-2: #eeeef1;
-  --surface-inverse: #0b0b0f;
-  --surface-inverse-2: #16161b;
+  /* canvas */
+  --surface: #f5f5f7;
+  /* canvas-parchment */
+  --surface-2: #e8e8ed;
+  --surface-pearl: #fafafc;
+  --surface-inverse: #272729;
+  /* surface-tile-1（濃色タイル） */
+  --surface-inverse-2: #2a2a2c;
+  /* surface-tile-2 */
+  --surface-black: #000000;
+  /* global-nav / 真の黒 */
 
   /* ---- カラー: テキスト ---- */
   --fg: #1d1d1f;
-  --fg-2: #48484a;
+  /* ink */
+  --fg-2: #333333;
+  /* ink-muted-80 */
   --muted: #6e6e73;
-  --meta: #86868b;
-  --fg-on-inverse: #f5f5f7;
-  --muted-on-inverse: #a1a1a6;
+  --meta: #7a7a7a;
+  /* ink-muted-48 */
+  --fg-on-inverse: #ffffff;
+  --muted-on-inverse: #cccccc;
+  /* body-muted */
 
   /* ---- カラー: ボーダー ---- */
-  --border: #d9d9de;
-  --border-soft: #e8e8ed;
-  --border-on-inverse: rgba(255, 255, 255, 0.14);
+  --border: #d2d2d7;
+  /* 入力欄・ゴースト系 */
+  --border-soft: #e0e0e0;
+  /* hairline（カード等の1px罫線） */
+  --divider: #f0f0f0;
+  /* divider-soft */
+  --border-on-inverse: rgba(255, 255, 255, 0.16);
 
-  /* ---- カラー: アクセント（単色。グラデーションは使わない） ---- */
-  --accent: #4f46e5;
-  --accent-hover: #4338ca;
-  --accent-active: #3730a3;
-  --accent-soft: #eef0fd;
+  /* ---- カラー: アクセント（Action Blue 単色） ---- */
+  --accent: #0066cc;
+  /* 文字リンク・強調 */
+  --accent-fill: #0066cc;
+  /* ボタン等の塗り */
+  --accent-hover: #0071e3;
+  --accent-active: #0058b0;
+  --accent-focus: #0071e3;
+  /* フォーカスリング */
+  --accent-soft: #e8f1fb;
   --on-accent: #ffffff;
 
-  /* ---- カラー: セマンティック ---- */
+  /* ---- カラー: セマンティック（状態表示専用。ブランド色ではない） ---- */
   --success: #1f8a4c;
   --success-soft: #e8f6ee;
   --warn: #a8620a;
   --warn-soft: #fbf0dd;
   --danger: #c53030;
   --danger-soft: #fbe9e9;
-  --info: #5b53d6;
-  --info-soft: #eeecfb;
+  --info: #0066cc;
+  --info-soft: #e8f1fb;
   --neutral: #5f5f63;
   --neutral-soft: #eeeeef;
 
   /* ---- タイポグラフィ ---- */
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Hiragino Kaku Gothic ProN",
-    "Noto Sans JP", "Yu Gothic", "Segoe UI", sans-serif;
-  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Hiragino Kaku Gothic ProN",
-    "Noto Sans JP", "Yu Gothic", "Segoe UI", sans-serif;
+  --font-sans: "SF Pro Text", -apple-system, BlinkMacSystemFont, system-ui,
+    "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", "Segoe UI", sans-serif;
+  --font-display: "SF Pro Display", -apple-system, BlinkMacSystemFont, system-ui,
+    "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", "Segoe UI", sans-serif;
 
-  /* ---- 角丸 ---- */
+  /* ---- 角丸（none 0 / sm 8 / md 11 / lg 18 / pill） ---- */
   --radius-sm: 8px;
-  --radius-md: 12px;
+  --radius-md: 11px;
   --radius-lg: 18px;
-  --radius-xl: 24px;
-  --radius-pill: 999px;
+  --radius-xl: 18px;
+  /* DESIGN.mdに xl は無いため lg に統一 */
+  --radius-pill: 9999px;
 
-  /* ---- 影（控えめに） ---- */
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 8px 28px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.16);
-  --ring-focus: 0 0 0 4px rgba(79, 70, 229, 0.18);
+  /* ---- 影（フラットが基本。影は浮遊する面とプロダクト画像のみ） ---- */
+  --shadow-xs: none;
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: rgba(0, 0, 0, 0.22) 3px 5px 30px 0;
+  /* product shadow */
+  --ring-focus: 0 0 0 3px rgba(0, 113, 227, 0.25);
 
   /* ---- モーション ---- */
   --duration-fast: 150ms;
@@ -81,23 +105,30 @@
   --ease-standard: cubic-bezier(0.28, 0, 0.22, 1);
 
   /* ---- レイアウト ---- */
-  --container-max: 960px;
+  --container-max: 980px;
   --container-narrow: 720px;
   --gutter: 24px;
+  --section-y: 80px;
 }
 
+/* DESIGN.md はライト基調。ダーク設定時は面と文字色だけ入れ替え、アクセントは Sky Link Blue に */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #111114;
-    --surface: #1a1a1e;
-    --surface-2: #232327;
+    --bg: #1d1d1f;
+    --surface: #161617;
+    --surface-2: #2a2a2c;
+    --surface-pearl: #232325;
     --fg: #f5f5f7;
-    --fg-2: #d4d4d8;
-    --muted: #9c9ca3;
-    --meta: #77777e;
-    --border: #303035;
-    --border-soft: #26262b;
-    --accent-soft: #23213f;
+    --fg-2: #d2d2d7;
+    --muted: #a1a1a6;
+    --meta: #86868b;
+    --border: #3a3a3c;
+    --border-soft: #2c2c2e;
+    --divider: #262628;
+    --accent: #2997ff;
+    --accent-soft: rgba(41, 151, 255, 0.16);
+    --info: #2997ff;
+    --info-soft: rgba(41, 151, 255, 0.16);
   }
 }
 
@@ -110,8 +141,11 @@ body {
   background: var(--surface);
   color: var(--fg);
   font-family: var(--font-sans);
-  font-size: 15px;
-  line-height: 1.6;
+  font-size: 17px;
+  /* DESIGN: 本文は16pxではなく17px */
+  line-height: 1.47;
+  /* 日本語は欧文のような負のトラッキングを入れると詰まって読みにくいため 0 */
+  letter-spacing: 0;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -120,8 +154,10 @@ h2,
 h3,
 h4 {
   font-family: var(--font-display);
-  font-weight: 700;
+  font-weight: 600;
+  /* 700ではなく600（500は使わない） */
   letter-spacing: -0.01em;
+  line-height: 1.2;
   color: var(--fg);
 }
 
@@ -139,6 +175,11 @@ button {
 
 button {
   cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent-focus);
+  outline-offset: 2px;
 }
 
 /* ---- スクロールバー ---- */

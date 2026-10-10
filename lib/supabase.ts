@@ -64,9 +64,9 @@ export interface TaskImage {
 
 // ---- プラン制限 ----
 export const PLAN_LIMITS: Record<Plan, { label: string; imageLimit: number | null; color: string; bg: string }> = {
-  free: { label: "無料", imageLimit: 10, color: "#6b7280", bg: "#f3f4f6" },
-  standard: { label: "スタンダード", imageLimit: 50, color: "#3b82f6", bg: "#dbeafe" },
-  premium: { label: "プレミアム", imageLimit: null, color: "#f59e0b", bg: "#fef3c7" },
+  free: { label: "無料", imageLimit: 10, color: "#6e6e73", bg: "#f5f5f7" },
+  standard: { label: "スタンダード", imageLimit: 50, color: "#0066cc", bg: "#e8f1fb" },
+  premium: { label: "プレミアム", imageLimit: null, color: "#ffffff", bg: "#1d1d1f" },
 };
 
 // --- 簡易メールアドレス形式チェック ---

@@ -49,7 +49,7 @@ export default function LandingPage() {
 
       {/* ナビ */}
       <nav className="nav-public" style={{
-        background: scrolled ? "rgba(11,11,15,0.9)" : "transparent",
+        background: scrolled ? "rgba(0,0,0,0.8)" : "transparent",
         backdropFilter: scrolled ? "blur(10px)" : "none",
         borderBottom: scrolled ? "1px solid var(--border-on-inverse)" : "1px solid transparent",
       }}>

@@ -1,27 +1,40 @@
 /* ============================================================
-   components.css — 共通コンポーネントクラス
+   components.css — 共通コンポーネントクラス（DESIGN.md準拠）
    ------------------------------------------------------------
-   globals.css のトークンのみを使って組み立てる、アプリ全体で
-   再利用するUIパーツ。個別ページ側は原則としてここのクラスを
-   組み合わせるだけにし、色や余白をその場でハードコードしない。
+   globals.css のトークンのみを使って組み立てる。個別ページ側は
+   原則ここのクラスを組み合わせるだけにし、色や余白をハードコードしない。
+   DESIGN.mdの規則:
+     - ボタン押下は transform: scale(0.95)（hoverは定義しない方針だが、
+       PCでの操作感のため背景の微変化のみ許容）
+     - 影はカード・ボタン・テキストに付けない
+     - 太さは 300/400/600（500は使わない）
    ============================================================ */
 
 /* ---------------- Buttons ---------------- */
 
+/* 標準 = button-primary 系の pill */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  border: none;
+  border: 1px solid transparent;
   border-radius: var(--radius-pill);
-  padding: 10px 20px;
-  font-size: 14px;
-  font-weight: 600;
+  padding: 10px 22px;
+  min-height: 44px;
+  /* タッチターゲット44px */
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.2;
   white-space: nowrap;
   transition: background var(--duration-fast) var(--ease-standard),
     color var(--duration-fast) var(--ease-standard),
-    opacity var(--duration-fast) var(--ease-standard);
+    opacity var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-standard);
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.95);
 }
 
 .btn:disabled {
@@ -33,14 +46,16 @@
   width: 100%;
 }
 
+/* 小 = button-dark-utility の形（角丸8px / 14px） */
 .btn-sm {
-  padding: 7px 14px;
-  font-size: 13px;
-  border-radius: var(--radius-md);
+  min-height: 34px;
+  padding: 8px 15px;
+  font-size: 14px;
+  border-radius: var(--radius-sm);
 }
 
 .btn-primary {
-  background: var(--accent);
+  background: var(--accent-fill);
   color: var(--on-accent);
 }
 
@@ -48,18 +63,15 @@
   background: var(--accent-hover);
 }
 
-.btn-primary:active:not(:disabled) {
-  background: var(--accent-active);
-}
-
+/* button-secondary-pill: ゴーストpill（Action Blueの1px枠） */
 .btn-secondary {
-  background: var(--surface);
-  color: var(--fg);
-  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: var(--surface-2);
+  background: var(--accent-soft);
 }
 
 .btn-ghost {
@@ -68,13 +80,13 @@
 }
 
 .btn-ghost:hover:not(:disabled) {
-  background: var(--surface);
+  background: var(--surface-2);
 }
 
 .btn-danger {
   background: transparent;
   color: var(--danger);
-  border: 1px solid var(--danger-soft);
+  border-color: var(--danger);
 }
 
 .btn-danger:hover:not(:disabled) {
@@ -90,57 +102,72 @@
   background: #a82626;
 }
 
+/* 濃色面（ヘッダー・LP・ログイン）向け */
 .btn-inverse {
   background: var(--fg-on-inverse);
-  color: var(--surface-inverse);
+  color: var(--fg);
+}
+
+.btn-inverse:hover:not(:disabled) {
+  background: #e8e8ed;
 }
 
 .btn-inverse-outline {
-  background: rgba(255, 255, 255, 0.08);
+  background: transparent;
   color: var(--fg-on-inverse);
-  border: 1px solid var(--border-on-inverse);
+  border-color: var(--border-on-inverse);
 }
 
 .btn-inverse-outline:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.12);
 }
 
+/* button-icon-circular */
 .icon-btn {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid var(--border-on-inverse);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid transparent;
   color: var(--fg-on-inverse);
   font-size: 16px;
+  transition: transform var(--duration-fast) var(--ease-standard),
+    background var(--duration-fast) var(--ease-standard);
 }
 
 .icon-btn:hover {
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.icon-btn:active {
+  transform: scale(0.95);
 }
 
 /* ---------------- Cards & surfaces ---------------- */
 
+/* store-utility-card: 白 / 1px hairline / 角丸18 / 影なし */
 .card {
   background: var(--bg);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-xs);
+  box-shadow: none;
 }
 
 .card-interactive {
   cursor: pointer;
-  transition: box-shadow var(--duration-base) var(--ease-standard),
-    border-color var(--duration-base) var(--ease-standard),
-    transform var(--duration-base) var(--ease-standard);
+  transition: border-color var(--duration-base) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-standard);
 }
 
 .card-interactive:hover {
-  box-shadow: var(--shadow-sm);
-  transform: translateY(-1px);
+  border-color: var(--border);
+}
+
+.card-interactive:active {
+  transform: scale(0.99);
 }
 
 .card-urgent {
@@ -148,11 +175,44 @@
   box-shadow: 0 0 0 1px var(--danger);
 }
 
+/* 浮遊パネル（検索パネル・PWAバナー）: 影ではなく罫線で面を分ける */
 .panel {
   background: var(--bg);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
+  box-shadow: none;
+}
+
+/* sub-nav-frosted / floating-sticky-bar: パーチメント80% + backdrop blur */
+.sub-nav-frosted {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--divider);
+}
+
+/* 全幅タイル（面の色の切り替えが区切り。角丸なし） */
+.tile {
+  padding: var(--section-y) var(--gutter);
+  border-radius: 0;
+}
+
+.tile-light {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.tile-parchment {
+  background: var(--surface);
+  color: var(--fg);
+}
+
+.tile-dark {
+  background: var(--surface-inverse);
+  color: var(--fg-on-inverse);
 }
 
 /* ---------------- Badges & tags ---------------- */
@@ -163,9 +223,8 @@
   padding: 3px 11px;
   border-radius: var(--radius-pill);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   white-space: nowrap;
-  letter-spacing: 0.01em;
 }
 
 .badge-neutral {
@@ -198,7 +257,7 @@
   color: var(--accent);
 }
 
-/* タスクステータス（TaskShared.STATUS_BADGE_CLASS から参照） */
+/* タスクステータス（TaskShared.STATUSES.badgeClass から参照） */
 .badge-pending {
   background: var(--warn-soft);
   color: var(--warn);
@@ -230,7 +289,7 @@
   padding: 2px 8px;
   border-radius: var(--radius-sm);
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 600;
   background: rgba(0, 0, 0, 0.55);
   color: #fff;
 }
@@ -247,22 +306,24 @@
   font-weight: 600;
   color: var(--muted);
   margin-bottom: 6px;
-  letter-spacing: 0.02em;
 }
 
 .field-required {
   color: var(--danger);
 }
 
+/* search-input / 入力欄: 白背景 + 1px hairline、フォーカスでAction Blue */
 .input,
 .textarea,
 .select {
   width: 100%;
-  padding: 10px 13px;
+  padding: 11px 14px;
+  min-height: 44px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   font-size: 16px;
-  background: var(--surface);
+  /* iOSの自動ズーム抑制のため16px以上を維持 */
+  background: var(--bg);
   color: var(--fg);
   outline: none;
   transition: border-color var(--duration-fast) var(--ease-standard),
@@ -272,9 +333,8 @@
 .input:focus,
 .textarea:focus,
 .select:focus {
-  border-color: var(--accent);
+  border-color: var(--accent-focus);
   box-shadow: var(--ring-focus);
-  background: var(--bg);
 }
 
 .textarea {
@@ -290,7 +350,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--fg-2);
   cursor: pointer;
 }
@@ -300,7 +360,7 @@
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 15, 20, 0.5);
+  background: rgba(0, 0, 0, 0.5);
   z-index: 200;
   display: flex;
   align-items: center;
@@ -348,9 +408,10 @@
 
 /* ---------------- App shell ---------------- */
 
+/* global-nav: 真っ黒の細いバー */
 .app-header {
-  background: var(--surface-inverse);
-  padding: 18px 32px;
+  background: var(--surface-black);
+  padding: 14px 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -375,7 +436,7 @@
 .stat-value {
   color: var(--fg-on-inverse);
   font-size: 19px;
-  font-weight: 700;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
@@ -391,7 +452,8 @@
   background: var(--bg);
   border-radius: var(--radius-md);
   border: 1px solid var(--border-soft);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-lg);
+  /* 浮遊メニューのみ影を許容 */
   min-width: 220px;
   overflow: hidden;
   z-index: 99;
@@ -399,14 +461,14 @@
 
 .user-menu-item {
   width: 100%;
-  padding: 11px 16px;
+  padding: 12px 16px;
   background: none;
   border: none;
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--divider);
   cursor: pointer;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--fg);
-  font-weight: 500;
+  font-weight: 400;
   text-align: left;
   white-space: nowrap;
 }
@@ -425,12 +487,14 @@
 
 .user-menu-item.accent {
   color: var(--accent);
-  font-weight: 700;
+  font-weight: 600;
 }
 
+/* footer: パーチメント面 */
 .app-footer {
+  background: var(--surface);
   border-top: 1px solid var(--border-soft);
-  padding: 24px 32px;
+  padding: 32px;
   text-align: center;
 }
 
@@ -438,7 +502,7 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 4px 16px;
+  gap: 4px 20px;
 }
 
 .footer-links a {
@@ -459,7 +523,7 @@
   left: 0;
   right: 0;
   z-index: 100;
-  padding: 16px 32px;
+  padding: 12px 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -483,49 +547,52 @@
   border-radius: var(--radius-pill);
   padding: 6px 18px;
   font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  font-weight: 400;
   color: var(--muted-on-inverse);
   margin-bottom: 28px;
 }
 
+/* hero-display: 56px / 600 / 1.07 */
 .hero-title {
   font-family: var(--font-display);
-  font-size: clamp(34px, 6vw, 64px);
-  font-weight: 700;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
+  font-size: clamp(34px, 6vw, 56px);
+  font-weight: 600;
+  line-height: 1.12;
+  letter-spacing: -0.01em;
   margin-bottom: 22px;
   color: var(--fg-on-inverse);
 }
 
 .hero-subtitle {
-  font-size: clamp(14px, 1.6vw, 17px);
+  font-size: clamp(15px, 1.8vw, 21px);
+  font-weight: 400;
   color: var(--muted-on-inverse);
-  max-width: 480px;
+  max-width: 520px;
   margin: 0 auto 40px;
-  line-height: 1.8;
+  line-height: 1.7;
 }
 
 .section {
-  padding: 96px 24px;
+  padding: var(--section-y) 24px;
 }
 
 .section-tight {
-  padding: 64px 24px;
+  padding: 48px 24px;
 }
 
+/* display-lg: 40px / 600 / 1.1 */
 .section-title {
   font-family: var(--font-display);
-  font-size: clamp(24px, 3.4vw, 36px);
-  font-weight: 700;
+  font-size: clamp(26px, 3.6vw, 40px);
+  font-weight: 600;
+  line-height: 1.2;
   letter-spacing: -0.01em;
   margin-bottom: 12px;
 }
 
 .section-subtitle {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 17px;
 }
 
 .feature-grid {
@@ -544,18 +611,17 @@
 }
 
 .feature-cell .icon {
-  font-size: 22px;
   margin-bottom: 14px;
-  opacity: 0.8;
+  color: var(--accent);
 }
 
 .feature-cell h3 {
-  font-size: 15px;
+  font-size: 17px;
   margin-bottom: 8px;
 }
 
 .feature-cell p {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--muted);
   line-height: 1.7;
 }
@@ -590,22 +656,22 @@
   align-items: center;
   cursor: pointer;
   text-align: left;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
 }
 
 .faq-answer {
   padding: 0 20px 18px;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--muted);
-  line-height: 1.7;
+  line-height: 1.8;
 }
 
 /* ---------------- Static content pages (terms / privacy / guide) ---------------- */
 
 .doc-header {
-  background: var(--surface-inverse);
-  padding: 20px 24px;
+  background: var(--surface-black);
+  padding: 14px 24px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -614,26 +680,30 @@
 .doc-header .title {
   color: var(--fg-on-inverse);
   font-size: 17px;
-  font-weight: 700;
-}
-
-.doc-back-btn {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid var(--border-on-inverse);
-  color: var(--muted-on-inverse);
-  border-radius: var(--radius-sm);
-  padding: 6px 12px;
-  font-size: 12px;
   font-weight: 600;
 }
 
+.doc-back-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid transparent;
+  color: var(--muted-on-inverse);
+  border-radius: var(--radius-sm);
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.doc-back-btn:active {
+  transform: scale(0.95);
+}
+
 .doc-section {
-  margin-bottom: 32px;
+  margin-bottom: 40px;
 }
 
 .doc-section h2 {
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 19px;
+  font-weight: 600;
   margin-bottom: 12px;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--border-soft);
@@ -641,9 +711,9 @@
 
 .doc-section p,
 .doc-section li {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--fg-2);
-  line-height: 1.8;
+  line-height: 1.85;
 }
 
 .doc-section ul {
@@ -666,21 +736,21 @@
   align-items: center;
   justify-content: center;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   flex-shrink: 0;
   margin-top: 2px;
 }
 
 .step-title {
-  font-weight: 700;
-  font-size: 14px;
+  font-weight: 600;
+  font-size: 15px;
   margin-bottom: 4px;
 }
 
 .step-body {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--muted);
-  line-height: 1.7;
+  line-height: 1.75;
 }
 
 /* ---------------- Toast ---------------- */
@@ -694,8 +764,7 @@
   color: var(--bg);
   padding: 12px 22px;
   border-radius: var(--radius-pill);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
-  box-shadow: var(--shadow-md);
   z-index: 999;
 }
