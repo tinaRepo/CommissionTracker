@@ -3,10 +3,24 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+// リダイレクト先（next）は自サイト内のパスのみ許可する（オープンリダイレクト対策）。
+// "//evil.com"・"/\evil.com"・"https://evil.com"・"@evil.com" などは "/" にフォールバックする。
+function safeNextPath(raw: string | null): string {
+  if (!raw) return "/";
+  if (!raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\")) return "/";
+  try {
+    const u = new URL(raw, "http://localhost");
+    if (u.origin !== "http://localhost") return "/";
+    return `${u.pathname}${u.search}${u.hash}`;
+  } catch {
+    return "/";
+  }
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/";
+  const next = safeNextPath(searchParams.get("next"));
 
   if (code) {
     const response = NextResponse.redirect(`${origin}${next}`);

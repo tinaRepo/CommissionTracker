@@ -1,8 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/cron/deadline-notify?secret=8hGk29sLxQp4ZrT7vWmYcD1eF3uBnA",
-      "schedule": "00 23 * * *"
+      "path": "/api/cron/deadline-notify",
+      "schedule": "0 * * * *"
     }
   ]
 }

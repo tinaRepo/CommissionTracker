@@ -21,8 +21,7 @@
   border: 1px solid transparent;
   border-radius: var(--radius-pill);
   padding: 10px 22px;
-  min-height: 44px;
-  /* タッチターゲット44px */
+  min-height: 44px;                 /* タッチターゲット44px */
   font-size: 15px;
   font-weight: 400;
   line-height: 1.2;
@@ -200,20 +199,9 @@
   border-radius: 0;
 }
 
-.tile-light {
-  background: var(--bg);
-  color: var(--fg);
-}
-
-.tile-parchment {
-  background: var(--surface);
-  color: var(--fg);
-}
-
-.tile-dark {
-  background: var(--surface-inverse);
-  color: var(--fg-on-inverse);
-}
+.tile-light { background: var(--bg); color: var(--fg); }
+.tile-parchment { background: var(--surface); color: var(--fg); }
+.tile-dark { background: var(--surface-inverse); color: var(--fg-on-inverse); }
 
 /* ---------------- Badges & tags ---------------- */
 
@@ -227,61 +215,19 @@
   white-space: nowrap;
 }
 
-.badge-neutral {
-  background: var(--neutral-soft);
-  color: var(--neutral);
-}
-
-.badge-info {
-  background: var(--info-soft);
-  color: var(--info);
-}
-
-.badge-warn {
-  background: var(--warn-soft);
-  color: var(--warn);
-}
-
-.badge-success {
-  background: var(--success-soft);
-  color: var(--success);
-}
-
-.badge-danger {
-  background: var(--danger-soft);
-  color: var(--danger);
-}
-
-.badge-accent {
-  background: var(--accent-soft);
-  color: var(--accent);
-}
+.badge-neutral { background: var(--neutral-soft); color: var(--neutral); }
+.badge-info { background: var(--info-soft); color: var(--info); }
+.badge-warn { background: var(--warn-soft); color: var(--warn); }
+.badge-success { background: var(--success-soft); color: var(--success); }
+.badge-danger { background: var(--danger-soft); color: var(--danger); }
+.badge-accent { background: var(--accent-soft); color: var(--accent); }
 
 /* タスクステータス（TaskShared.STATUSES.badgeClass から参照） */
-.badge-pending {
-  background: var(--warn-soft);
-  color: var(--warn);
-}
-
-.badge-checking {
-  background: var(--info-soft);
-  color: var(--info);
-}
-
-.badge-progress {
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-
-.badge-done {
-  background: var(--success-soft);
-  color: var(--success);
-}
-
-.badge-cancelled {
-  background: var(--neutral-soft);
-  color: var(--neutral);
-}
+.badge-pending { background: var(--warn-soft); color: var(--warn); }
+.badge-checking { background: var(--info-soft); color: var(--info); }
+.badge-progress { background: var(--accent-soft); color: var(--accent); }
+.badge-done { background: var(--success-soft); color: var(--success); }
+.badge-cancelled { background: var(--neutral-soft); color: var(--neutral); }
 
 .tag {
   display: inline-flex;
@@ -321,8 +267,7 @@
   min-height: 44px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  font-size: 16px;
-  /* iOSの自動ズーム抑制のため16px以上を維持 */
+  font-size: 16px;                  /* iOSの自動ズーム抑制のため16px以上を維持 */
   background: var(--bg);
   color: var(--fg);
   outline: none;
@@ -452,8 +397,7 @@
   background: var(--bg);
   border-radius: var(--radius-md);
   border: 1px solid var(--border-soft);
-  box-shadow: var(--shadow-lg);
-  /* 浮遊メニューのみ影を許容 */
+  box-shadow: var(--shadow-lg);     /* 浮遊メニューのみ影を許容 */
   min-width: 220px;
   overflow: hidden;
   z-index: 99;
@@ -684,6 +628,9 @@
 }
 
 .doc-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid transparent;
   color: var(--muted-on-inverse);
@@ -768,3 +715,206 @@
   font-weight: 600;
   z-index: 999;
 }
+
+/* ---------------- Tags ---------------- */
+
+/* 一覧カード・詳細のタグ表示 */
+.tag-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--fg-2);
+  background: var(--surface-2);
+  white-space: nowrap;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* フォーム内のタグ選択（トグル式） */
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  min-height: 32px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--fg-2);
+  font-size: 13px;
+  transition: background var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-standard);
+}
+
+.tag-chip:active {
+  transform: scale(0.95);
+}
+
+.tag-chip.on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ---------------- Segmented control（リスト / カレンダー切替） ---------------- */
+
+.seg {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  background: var(--surface-2);
+  border-radius: var(--radius-pill);
+}
+
+.seg button {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  padding: 6px 16px;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.seg button.on {
+  background: var(--bg);
+  color: var(--fg);
+  font-weight: 600;
+}
+
+/* ---------------- Calendar ---------------- */
+
+.cal-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.cal-title {
+  font-size: 17px;
+  font-weight: 600;
+  min-width: 108px;
+  text-align: center;
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--border-soft);
+  gap: 1px;
+}
+
+.cal-dow {
+  background: var(--surface);
+  padding: 8px 0;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.cal-dow.sun, .cal-cell.sun .cal-num { color: var(--danger); }
+.cal-dow.sat, .cal-cell.sat .cal-num { color: var(--info); }
+
+.cal-cell {
+  background: var(--bg);
+  border: none;
+  min-height: 62px;
+  padding: 6px 4px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: var(--fg);
+  text-align: center;
+}
+
+.cal-cell.out { background: var(--surface); }
+.cal-cell.out .cal-num { opacity: 0.45; }
+.cal-cell.selected { box-shadow: inset 0 0 0 2px var(--accent); }
+
+.cal-num {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+}
+
+.cal-cell.today .cal-num {
+  background: var(--accent-fill);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+.cal-dots {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  min-height: 8px;
+}
+
+.cal-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--neutral);
+}
+
+.cal-dot.dim { opacity: 0.35; }
+.cal-dot-pending { background: var(--warn); }
+.cal-dot-checking { background: var(--info); }
+.cal-dot-progress { background: var(--accent); }
+.cal-dot-done { background: var(--success); }
+.cal-dot-cancelled { background: var(--neutral); }
+.cal-dot.overdue { background: var(--danger); }
+
+.cal-more {
+  font-size: 10px;
+  color: var(--meta);
+  line-height: 1;
+}
+
+.cal-day-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 18px 0 8px;
+}
+
+.cal-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  text-align: left;
+  color: var(--fg);
+}
+
+.cal-item:active { transform: scale(0.99); }
+.cal-item.dim { opacity: 0.55; }
+.cal-item.overdue { border-color: var(--danger); }
+
+.cal-week-day {
+  margin-bottom: 14px;
+}
+
+.cal-week-day.today .cal-day-title { color: var(--accent); }

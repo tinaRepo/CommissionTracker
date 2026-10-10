@@ -1,114 +1,42 @@
-import webpush from "web-push";
-import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { createAdminClient, getUserFromRequest } from "@/lib/server/admin";
+import { deleteUserCompletely } from "@/lib/server/delete-account";
 
-// VAPIDキーの設定
-webpush.setVapidDetails(
-  process.env.VAPID_EMAIL!,
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-);
-
-// 納期が近いタスクのユーザーにWeb Push通知を送るCron JobのAPIルート
-export async function GET(request: NextRequest) {
-  // Cron Jobの認証チェック
-  const { searchParams } = new URL(request.url);
-  const secret = searchParams.get("secret");
-  if (secret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export async function POST(request: NextRequest) {
   try {
-    const adminSupabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
-
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
-
-    // 今日から7日後までの納期があるタスクを取得
-    const now = new Date();
-    const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-    jst.setHours(0, 0, 0, 0);
-    const in7days = new Date(jst.getTime() + 7 * 24 * 60 * 60 * 1000);
-
-    const todayStr = jst.toISOString().split("T")[0];
-    const in7daysStr = in7days.toISOString().split("T")[0];
-
-    // 納期が今日〜7日後で完成・キャンセル以外のタスクを取得
-    const { data: tasks } = await adminSupabase
-      .from("tasks")
-      .select("user_id, title, deadline")
-      .gte("deadline", todayStr)
-      .lte("deadline", in7daysStr)
-      .not("status", "in", '("done","cancelled")');
-
-    if (!tasks || tasks.length === 0) {
-      return NextResponse.json({ message: "No upcoming deadlines" });
+    const { userId } = await request.json();
+    if (!userId || typeof userId !== "string") {
+      return NextResponse.json({ error: "userId is required" }, { status: 400 });
     }
 
-    // ユーザーごとにタスクをグループ化
-    const byUser: Record<string, { title: string; deadline: string }[]> = {};
-    for (const t of tasks) {
-      if (!byUser[t.user_id]) byUser[t.user_id] = [];
-      byUser[t.user_id].push({ title: t.title, deadline: t.deadline });
+    const admin = createAdminClient();
+
+    // 呼び出し元が管理者かチェック
+    const caller = await getUserFromRequest(request, admin);
+    if (!caller) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { data: callerProfile } = await admin
+      .from("user_profiles").select("is_admin").eq("id", caller.id).single();
+    if (!callerProfile?.is_admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+    // 自分自身は削除できない
+    if (caller.id === userId) {
+      return NextResponse.json({ error: "自分自身は削除できません" }, { status: 400 });
     }
 
-    // 各ユーザーのpush_subscriptionを取得して通知送信
-    let sent = 0;
-    let failed = 0;
-
-    for (const [userId, items] of Object.entries(byUser)) {
-      const { data: sub } = await adminSupabase
-        .from("push_subscriptions")
-        .select("subscription")
-        .eq("user_id", userId)
-        .single();
-
-      if (!sub) continue;
-
-      // 通知内容を作成
-      const count = items.length;
-      const first = items[0];
-      const [dy, dm, dd] = first.deadline.split("-").map(Number);
-      const deadlineDate = new Date(dy, dm - 1, dd);
-      const todayLocal = new Date(jst.getFullYear(), jst.getMonth(), jst.getDate());
-      const daysLeft = Math.ceil(
-        (deadlineDate.getTime() - todayLocal.getTime()) / 86400000
-      );
-
-      const body = count === 1
-        ? `「${first.title}」の納期まであと${daysLeft}日`
-        : `納期が近いタスクが${count}件あります`;
-
-      try {
-        await webpush.sendNotification(
-          sub.subscription,
-          JSON.stringify({
-            title: "⏰ 納期アラート",
-            body,
-            url: appUrl,
-          })
-        );
-        sent++;
-      } catch (e: any) {
-        console.error(`Failed to send to ${userId}:`, e.message);
-        // 無効なsubscriptionは削除
-        if (e.statusCode === 410) {
-          await adminSupabase
-            .from("push_subscriptions")
-            .delete()
-            .eq("user_id", userId);
-        }
-        failed++;
-      }
+    const result = await deleteUserCompletely(admin, userId);
+    if (!result.ok) {
+      console.error(`delete-user failed at ${result.stage}:`, result.error);
+      const message =
+        result.stage === "stripe" ? "Stripeの解約に失敗したため、ユーザーは削除していません。再度お試しください。"
+          : result.stage === "storage" ? "画像の削除に失敗したため、ユーザーは削除していません。再度お試しください。"
+            : "削除に失敗しました";
+      return NextResponse.json({ error: message }, { status: result.stage === "auth" ? 500 : 502 });
     }
 
-    return NextResponse.json({ sent, failed });
+    return NextResponse.json({ success: true });
   } catch (e: any) {
-    console.error("cron error:", e);
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    console.error("delete-user error:", e);
+    return NextResponse.json({ error: "削除に失敗しました" }, { status: 500 });
   }
 }
