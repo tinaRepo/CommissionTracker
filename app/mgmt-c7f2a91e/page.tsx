@@ -160,7 +160,7 @@ export default function AdminPage() {
       <header className="doc-header" style={{ flexDirection: "column", alignItems: "stretch", gap: 14 }}>
         <div className="row" style={{ justifyContent: "space-between" }}>
           <div className="row" style={{ gap: 10 }}>
-            <button onClick={() => window.location.href = "/"} className="doc-back-btn">← 戻る</button>
+            <button onClick={() => window.location.href = "/"} className="doc-back-btn"><Icon name="arrowLeft" size={14} /> 戻る</button>
             <div>
               <div className="title">管理者ページ</div>
               <div className="text-meta" style={{ color: "var(--muted-on-inverse)" }}>ユーザーのプラン管理</div>
@@ -170,7 +170,7 @@ export default function AdminPage() {
             <button onClick={() => router.push("/mgmt-c7f2a91e/notifications")} className="btn btn-inverse-outline btn-sm">
               お知らせ管理
             </button>
-            <button onClick={loadUsers} className="icon-btn"><Icon name="settings" size={15} /></button>
+            <button onClick={loadUsers} className="icon-btn" title="再読み込み" aria-label="再読み込み"><Icon name="refresh" size={15} /></button>
           </div>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
@@ -191,8 +191,8 @@ export default function AdminPage() {
         <section className="card" style={{ padding: 16, marginBottom: 18, borderColor: maintenanceEnabled ? "var(--danger)" : undefined }}>
           <div className="row" style={{ justifyContent: "space-between", gap: 12, marginBottom: 8 }}>
             <div>
-              <h2 style={{ fontSize: 15, fontWeight: 700 }}>メンテナンスモード</h2>
-              <div style={{ marginTop: 4, color: maintenanceEnabled ? "var(--danger)" : "var(--success)", fontSize: 12, fontWeight: 700 }}>
+              <h2 style={{ fontSize: 15, fontWeight: 600 }}>メンテナンスモード</h2>
+              <div style={{ marginTop: 4, color: maintenanceEnabled ? "var(--danger)" : "var(--success)", fontSize: 12, fontWeight: 600 }}>
                 {maintenanceLoading ? "設定を読み込み中…" : maintenanceEnabled ? "有効: 利用者のアクセスを停止中" : "無効: 通常公開中"}
               </div>
             </div>
@@ -258,13 +258,13 @@ export default function AdminPage() {
                   <div className="row" style={{ gap: 10, marginBottom: 12 }}>
                     <div style={{
                       width: 40, height: 40, borderRadius: "50%", flexShrink: 0, background: "var(--surface-2)",
-                      display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 700,
+                      display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 600,
                     }}>
                       {(u.display_name ?? u.id).charAt(0).toUpperCase()}
                     </div>
                     <div className="grow">
                       <div className="row" style={{ gap: 6, flexWrap: "wrap", marginBottom: 2 }}>
-                        <span style={{ fontWeight: 700, fontSize: 14 }}>
+                        <span style={{ fontWeight: 600, fontSize: 14 }}>
                           {u.display_name ?? <span className="text-meta" style={{ fontStyle: "italic" }}>未設定</span>}
                         </span>
                         {u.is_admin && <span className="badge badge-accent">管理者</span>}
@@ -315,7 +315,7 @@ export default function AdminPage() {
             return (
               <div key={p} className="card" style={{ padding: 12 }}>
                 <span className="badge" style={{ background: "var(--surface-2)", color: "var(--fg-2)" }}>{info.label}</span>
-                <div style={{ fontSize: 11, marginTop: 6, fontWeight: 700 }}>
+                <div style={{ fontSize: 11, marginTop: 6, fontWeight: 600 }}>
                   {info.imageLimit === null ? "無制限" : `${info.imageLimit}枚`}
                 </div>
               </div>
@@ -329,9 +329,9 @@ export default function AdminPage() {
         const name = target?.display_name ?? deleteConfirm.slice(0, 8) + "...";
         return (
           <div className="modal-overlay">
-            <div className="modal-compact" style={{ maxWidth: 360 }}>
-              <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 8 }}>ユーザーを削除しますか？</div>
-              <div style={{ fontSize: 14, color: "var(--danger)", fontWeight: 700, marginBottom: 8 }}>「{name}」</div>
+            <div role="dialog" aria-modal="true" className="modal-compact" style={{ maxWidth: 360 }}>
+              <div style={{ fontWeight: 600, fontSize: 17, marginBottom: 8 }}>ユーザーを削除しますか？</div>
+              <div style={{ fontSize: 14, color: "var(--danger)", fontWeight: 600, marginBottom: 8 }}>「{name}」</div>
               <div className="text-muted" style={{ fontSize: 13, marginBottom: 24, lineHeight: 1.6 }}>
                 すべてのタスクデータ・画像が<strong style={{ color: "var(--fg)" }}>完全に削除されます。取り消せません。</strong>
               </div>

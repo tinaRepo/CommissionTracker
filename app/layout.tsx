@@ -1,5 +1,7 @@
 import Script from "next/script";
+import { Analytics } from "@vercel/analytics/next";
 import { PageViewTracker } from '../components/PageViewTracker';
+import AdSenseLoader from "@/components/AdSenseLoader";
 import type { Metadata } from "next";
 import "./globals.css";
 import "./components.css";
@@ -23,7 +25,11 @@ export const metadata: Metadata = {
     images: [{ url: "/web-app-manifest-512x512.png", width: 512, height: 512, alt: "ツクリスト" }],
   },
   twitter: { card: "summary", title: "ツクリスト | 納期・タスク管理ツール" },
-  other: { "mobile-web-app-capable": "yes" },
+  other: {
+    "mobile-web-app-capable": "yes",
+    // AdSenseのサイト所有確認用（広告は読み込まない）。広告スクリプトは AdSenseLoader が公開ページだけで読み込む
+    "google-adsense-account": "ca-pub-4461599437148086",
+  },
   appleWebApp: {
     capable: true,
     title: "ツクリスト",
@@ -45,16 +51,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ja">
-      <head>
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4461599437148086"
-          crossOrigin="anonymous"
-        />
-      </head>
       <body>
         {children}
         <PageViewTracker />
+        <Analytics />
+        <AdSenseLoader />
 
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-VL43MH743Z"

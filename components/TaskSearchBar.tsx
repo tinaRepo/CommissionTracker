@@ -1,23 +1,27 @@
 "use client";
 
 import type { UseTaskSearchResult } from "@/hooks/useTaskSearch";
-import { STATUSES, Field, DateRangeField, fmtPrice, cx } from "./TaskShared";
+import { STATUSES, Field, DateRangeField, Icon, fmtPrice, cx } from "./TaskShared";
 
 // ============================================================
-// TaskApp・DemoApp共通の検索バー（ステータス・並び替え・
+// TaskApp・DemoApp共通の検索バー（ステータス・タグ・並び替え・
 // 開閉式の詳細検索パネル・合計金額表示）。
 //
 // useTaskSearch()の戻り値をそのまま渡すだけで動作する。
+// tags を渡した場合だけ、タグの絞り込みセレクトを表示する（デモは渡さない）。
 // 見た目は app/components.css の共通クラスのみで構成する。
+// ※ iOS Safariは16px未満の入力欄で自動ズームするため、selectにfontSizeを指定しない。
 // ============================================================
 
 type Props<T> = {
   search: UseTaskSearchResult<T>;
+  tags?: { id: string; name: string }[];
 };
 
-export function TaskSearchBar<T>({ search }: Props<T>) {
+export function TaskSearchBar<T>({ search, tags }: Props<T>) {
   const {
     filterStatus, setFilterStatus,
+    filterTag, setFilterTag,
     sortKey, setSortKey,
     sortDir, setSortDir,
     showFilters, setShowFilters,
@@ -38,10 +42,23 @@ export function TaskSearchBar<T>({ search }: Props<T>) {
           value={filterStatus}
           onChange={e => setFilterStatus(e.target.value as any)}
           className="select"
-          style={{ width: "auto", padding: "8px 14px", fontSize: 13, fontWeight: 600 }}>
+          style={{ width: "auto", padding: "8px 14px", fontWeight: 600 }}>
           <option value="all">すべてのステータス</option>
           {STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
         </select>
+
+        {/* タグ：プルダウン方式（タグが1つ以上あるときだけ） */}
+        {tags && tags.length > 0 && (
+          <select
+            value={filterTag}
+            onChange={e => setFilterTag(e.target.value)}
+            className="select"
+            aria-label="タグで絞り込み"
+            style={{ width: "auto", padding: "8px 14px", fontWeight: 600 }}>
+            <option value="all">すべてのタグ</option>
+            {tags.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        )}
 
         {/* 詳細検索の開閉ボタン */}
         <button
@@ -52,12 +69,14 @@ export function TaskSearchBar<T>({ search }: Props<T>) {
           {activeFilterCount > 0 && (
             <span style={{
               background: "rgba(255,255,255,0.25)", borderRadius: 999,
-              fontSize: 10, fontWeight: 700, padding: "1px 6px", minWidth: 16, textAlign: "center"
+              fontSize: 10, fontWeight: 600, padding: "1px 6px", minWidth: 16, textAlign: "center"
             }}>
               {activeFilterCount}
             </span>
           )}
-          <span style={{ fontSize: 10, transition: "transform 0.15s", transform: showFilters ? "rotate(180deg)" : "none" }}>▾</span>
+          <span style={{ display: "inline-flex", transition: "transform 0.15s", transform: showFilters ? "rotate(180deg)" : "none" }}>
+            <Icon name="chevronDown" size={12} />
+          </span>
         </button>
 
         {/* 並び替え */}
@@ -65,7 +84,7 @@ export function TaskSearchBar<T>({ search }: Props<T>) {
           <select
             value={sortKey}
             onChange={e => setSortKey(e.target.value as any)}
-            className="select" style={{ width: "auto", padding: "7px 12px", fontSize: 12 }}>
+            className="select" style={{ width: "auto", padding: "7px 12px" }}>
             <option value="ordered_at">依頼日順</option>
             <option value="deadline">納期順</option>
             <option value="price">金額順</option>
@@ -141,7 +160,7 @@ export function TaskSearchBar<T>({ search }: Props<T>) {
         <div className="container" style={{ marginTop: 10 }}>
           <div className="row" style={{
             padding: "10px 16px", background: "var(--accent-soft)", borderRadius: "var(--radius-md)",
-            fontSize: 13, color: "var(--accent)", fontWeight: 700, justifyContent: "space-between", flexWrap: "wrap", gap: 6
+            fontSize: 13, color: "var(--accent)", fontWeight: 600, justifyContent: "space-between", flexWrap: "wrap", gap: 6
           }}>
             <span>検索結果の合計金額</span>
             <span>{fmtPrice(totalPrice, "JPY")}（該当 {filtered.length} 件）</span>

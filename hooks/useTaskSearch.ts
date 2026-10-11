@@ -7,14 +7,9 @@ import type { TaskStatus } from "@/lib/supabase";
 // TaskApp（本番）とDemoApp（デモ）で共通の検索・フィルタ・並び替え
 // ロジックを1箇所にまとめたフック。
 //
-// 旧useCommissionSearch.tsから、汎用的な納期管理サービス「ツクリスト」向けに
-// リネーム・用語変更したもの（artist→assignee_name、x_id→contact）。
-//
-// 対象データの型はTask（本番）・DemoTask（デモ）で微妙に
-// 異なる（idやuser_id、imagesの型など）が、検索に使うフィールド
-// （title/assignee_name/contact/ordered_at/deadline/price/status/notes）は
-// 共通しているため、SearchableTaskを満たす型であればどちらでもそのまま使える。
-//
+// 検索に使うフィールド（title/assignee_name/contact/ordered_at/deadline/price/
+// status/notes/tag_ids）を持つ型ならそのまま使える（Task・DemoTaskとも可）。
+// tag_ids は任意（デモにはタグが無いので省略できる）。
 // ============================================================
 
 export type SearchableTask = {
@@ -26,15 +21,18 @@ export type SearchableTask = {
   price?: number;
   status: TaskStatus;
   notes?: string;
+  tag_ids?: string[];
 };
 
 export type TaskSortKey = "ordered_at" | "deadline" | "price" | "status";
 export type SortDir = "asc" | "desc";
 
 export type UseTaskSearchResult<T> = {
-  // ステータス・並び替え（常時表示のUI用）
+  // ステータス・タグ・並び替え（常時表示のUI用）
   filterStatus: "all" | TaskStatus;
   setFilterStatus: (v: "all" | TaskStatus) => void;
+  filterTag: "all" | string; // "all" またはタグID
+  setFilterTag: (v: "all" | string) => void;
   sortKey: TaskSortKey;
   setSortKey: (v: TaskSortKey) => void;
   sortDir: SortDir;
@@ -79,6 +77,7 @@ function inPriceRange(value: number | undefined, min: string, max: string): bool
 
 export function useTaskSearch<T extends SearchableTask>(items: T[]): UseTaskSearchResult<T> {
   const [filterStatus, setFilterStatus] = useState<"all" | TaskStatus>("all");
+  const [filterTag, setFilterTag] = useState<"all" | string>("all");
   const [sortKey, setSortKey] = useState<TaskSortKey>("ordered_at");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
@@ -94,6 +93,7 @@ export function useTaskSearch<T extends SearchableTask>(items: T[]): UseTaskSear
 
   const filtered = useMemo(() => {
     let list = filterStatus === "all" ? items : items.filter(t => t.status === filterStatus);
+    if (filterTag !== "all") list = list.filter(t => (t.tag_ids ?? []).includes(filterTag));
 
     const kw = keyword.trim().toLowerCase();
     if (kw) {
@@ -121,7 +121,7 @@ export function useTaskSearch<T extends SearchableTask>(items: T[]): UseTaskSear
       if (av > bv) return sortDir === "asc" ? 1 : -1;
       return 0;
     });
-  }, [items, filterStatus, sortKey, sortDir, keyword, orderedFrom, orderedTo, deadlineFrom, deadlineTo, priceMin, priceMax]);
+  }, [items, filterStatus, filterTag, sortKey, sortDir, keyword, orderedFrom, orderedTo, deadlineFrom, deadlineTo, priceMin, priceMax]);
 
   // 検索結果（filtered）の合計金額。「合計金額を表示」チェックがオンの時だけUIに出す。
   const totalPrice = useMemo(
@@ -141,6 +141,7 @@ export function useTaskSearch<T extends SearchableTask>(items: T[]): UseTaskSear
 
   return {
     filterStatus, setFilterStatus,
+    filterTag, setFilterTag,
     sortKey, setSortKey,
     sortDir, setSortDir,
     showFilters, setShowFilters,

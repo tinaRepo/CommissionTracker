@@ -1,9 +1,11 @@
 "use client";
+
+import { Icon } from "@/components/TaskShared";
 import { useState, useEffect } from "react";
 
 // モックデータ
 const MOCK_TASKS = [
-  { title: "名刺デザイン一式", assignee: "田中デザイン事務所", status: "制作中", deadline: "04/05", price: "¥5,000", urgent: true },
+  { title: "名刺デザイン一式", assignee: "田中デザイン事務所", status: "対応中", deadline: "04/05", price: "¥5,000", urgent: true },
   { title: "紹介動画の編集", assignee: "スタジオみらい", status: "確認中", deadline: "04/12", price: "¥12,000", urgent: false },
   { title: "バナー制作", assignee: "フリーランス佐藤", status: "依頼済み", deadline: "04/20", price: "¥3,500", urgent: false },
 ];
@@ -11,9 +13,9 @@ const MOCK_TASKS = [
 // 機能紹介・料金プラン・FAQのデータ
 const FEATURES = [
   { title: "タスクを一元管理", desc: "件名・依頼先名・納期・金額・メモをまとめて記録。依頼の迷子がなくなります。" },
-  { title: "ステータス管理", desc: "依頼済み・確認中・制作中・完成・キャンセルの5段階で進捗を管理。" },
+  { title: "ステータス管理", desc: "依頼済み・確認中・対応中・完成・キャンセルの5段階で進捗を管理。" },
   { title: "納期アラート", desc: "納期7日前になると自動でハイライト。締め切りを見逃しません。" },
-  { title: "画像添付", desc: "確認用・制作中・完成画像をアップロードして一括管理。種類ごとに整理できます。" },
+  { title: "画像添付", desc: "確認用・作業中・完成画像をアップロードして一括管理。種類ごとに整理できます。" },
   { title: "並び替え・フィルタ", desc: "依頼日・納期・金額・ステータスで並び替え。フィルタリングも可能。" },
   { title: "スマホ対応", desc: "PCでもスマホでも快適に使えます。ホーム画面に追加してアプリとして利用可能。" },
 ];
@@ -49,11 +51,11 @@ export default function LandingPage() {
 
       {/* ナビ */}
       <nav className="nav-public" style={{
-        background: scrolled ? "rgba(11,11,15,0.9)" : "transparent",
-        backdropFilter: scrolled ? "blur(10px)" : "none",
+        background: scrolled ? "rgba(0,0,0,0.8)" : "transparent",
+        backdropFilter: scrolled ? "saturate(180%) blur(20px)" : "none",
         borderBottom: scrolled ? "1px solid var(--border-on-inverse)" : "1px solid transparent",
       }}>
-        <span style={{ fontWeight: 700, fontSize: 16, letterSpacing: "-0.01em" }}>ツクリスト</span>
+        <span style={{ fontWeight: 600, fontSize: 16, letterSpacing: "-0.01em" }}>ツクリスト</span>
         <div className="row" style={{ gap: 16 }}>
           <a href="/login" style={{ color: "var(--muted-on-inverse)", fontSize: 13, textDecoration: "none", fontWeight: 600 }}>ログイン</a>
           <a href="/login" className="btn btn-inverse btn-sm">無料で始める</a>
@@ -82,7 +84,7 @@ export default function LandingPage() {
           borderRadius: "var(--radius-xl)", padding: 20, textAlign: "left",
         }}>
           <div className="row" style={{ justifyContent: "space-between", marginBottom: 16, padding: "10px 14px", borderBottom: "1px solid var(--border-on-inverse)" }}>
-            <span style={{ fontWeight: 700, fontSize: 13 }}>ツクリスト</span>
+            <span style={{ fontWeight: 600, fontSize: 13 }}>ツクリスト</span>
             <div className="row" style={{ gap: 16, fontSize: 11, color: "var(--muted-on-inverse)" }}>
               <span>合計 <strong style={{ color: "#fff" }}>5</strong></span>
               <span>進行中 <strong style={{ color: "#fff" }}>3</strong></span>
@@ -99,11 +101,11 @@ export default function LandingPage() {
                 <div className="row" style={{ gap: 8, marginBottom: 4 }}>
                   <span style={{ fontWeight: 600, fontSize: 13 }}>{t.title}</span>
                   <span className="badge badge-neutral" style={{ background: "rgba(255,255,255,0.12)", color: "var(--fg-on-inverse)" }}>{t.status}</span>
-                  {t.urgent && <span style={{ fontSize: 10, color: "#e88", fontWeight: 700 }}>あと3日</span>}
+                  {t.urgent && <span style={{ fontSize: 10, color: "#e88", fontWeight: 600 }}>あと3日</span>}
                 </div>
                 <div style={{ fontSize: 11, color: "var(--muted-on-inverse)" }}>{t.assignee} ・ 納期 {t.deadline}</div>
               </div>
-              <div style={{ fontWeight: 700, fontSize: 14 }}>{t.price}</div>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>{t.price}</div>
             </div>
           ))}
         </div>
@@ -140,20 +142,20 @@ export default function LandingPage() {
                 <div style={{
                   position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)",
                   background: "var(--accent)", color: "#fff", borderRadius: 999, padding: "3px 14px",
-                  fontSize: 11, fontWeight: 700, whiteSpace: "nowrap",
+                  fontSize: 11, fontWeight: 600, whiteSpace: "nowrap",
                 }}>
                   おすすめ
                 </div>
               )}
-              <div className="text-meta" style={{ marginBottom: 10, fontWeight: 700 }}>{p.label}</div>
+              <div className="text-meta" style={{ marginBottom: 10, fontWeight: 600 }}>{p.label}</div>
               <div style={{ marginBottom: 20 }}>
-                <span style={{ fontSize: 32, fontWeight: 700 }}>{p.price}</span>
+                <span style={{ fontSize: 32, fontWeight: 600 }}>{p.price}</span>
                 <span style={{ fontSize: 13, color: "var(--muted)" }}>{p.period}</span>
               </div>
               <ul style={{ listStyle: "none", display: "grid", gap: 10, marginBottom: 26 }}>
                 {p.features.map(f => (
                   <li key={f} style={{ display: "flex", gap: 8, fontSize: 13, color: "var(--fg-2)" }}>
-                    <span style={{ color: "var(--accent)" }}>✓</span>{f}
+                    <span style={{ color: "var(--accent)", display: "inline-flex" }}><Icon name="check" size={16} /></span>{f}
                   </li>
                 ))}
               </ul>
@@ -187,7 +189,7 @@ export default function LandingPage() {
       {/* フッター */}
       <footer style={{ borderTop: "1px solid var(--border-on-inverse)", padding: "32px 24px" }}>
         <div className="container" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
-          <span style={{ fontWeight: 700, fontSize: 14 }}>ツクリスト</span>
+          <span style={{ fontWeight: 600, fontSize: 14 }}>ツクリスト</span>
           <div className="row" style={{ flexWrap: "wrap", gap: "4px 16px" }}>
             {[
               { href: "/lp", label: "サービス紹介" },
@@ -220,7 +222,7 @@ function FaqItem({ q, a }: { q: string; a: string }) {
     <div className="faq-item">
       <button onClick={() => setOpen(v => !v)} className="faq-question">
         <span>{q}</span>
-        <span style={{ color: "var(--accent)", fontSize: 18, transform: open ? "rotate(45deg)" : "none", transition: "transform 0.2s" }}>+</span>
+        <span style={{ color: "var(--accent)", display: "inline-flex", transform: open ? "rotate(45deg)" : "none", transition: "transform 0.2s" }}><Icon name="plus" size={18} /></span>
       </button>
       {open && <div className="faq-answer">{a}</div>}
     </div>

@@ -20,7 +20,7 @@ export default function InstallPromptBanner() {
                     <Icon name="download" size={18} />
                 </div>
                 <div className="grow">
-                    <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>ホーム画面に追加しませんか？</div>
+                    <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>ホーム画面に追加しませんか？</div>
                     {platform === "ios" ? (
                         <div style={{ fontSize: 12.5, color: "var(--muted)", lineHeight: 1.7 }}>
                             Safari下部の共有ボタンから「ホーム画面に追加」を選ぶと、アプリのように使えます。プッシュ通知もこの状態でのみ届きます。

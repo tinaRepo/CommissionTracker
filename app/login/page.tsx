@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { supabase, isValidEmailFormat, DISPLAY_NAME_MAX_LENGTH, PASSWORD_MIN_LENGTH, toJapaneseAuthError } from "@/lib/supabase";
 import dynamic from "next/dynamic";
 import ContactModal from "@/components/ContactModal";
+import { GoogleLogo } from "@/components/TaskShared";
 const DemoApp = dynamic(() => import("@/components/DemoApp"), { ssr: false });
 
 type Mode = "login" | "signup" | "reset";
@@ -22,7 +23,7 @@ export default function LoginPage() {
   const [lastProvider, setLastProvider] = useState<string | null>(null);
 
   const isEmailValid = isValidEmailFormat(email);
-  const isPasswordValid = mode === "reset" || password.length >= PASSWORD_MIN_LENGTH;
+  const isPasswordValid = mode === "reset" || (mode === "login" ? password.length > 0 : password.length >= PASSWORD_MIN_LENGTH);
   const isDisplayNameValid = mode !== "signup" || (displayName.trim().length > 0 && displayName.trim().length <= DISPLAY_NAME_MAX_LENGTH);
 
   const isSubmitDisabled =
@@ -36,6 +37,9 @@ export default function LoginPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("demo") === "1") setDemoMode(true);
+    if (params.get("deleted") === "1") {
+      setMessage({ type: "success", text: "アカウントを削除しました。ご利用ありがとうございました。" });
+    }
 
     if (params.get("error") === "reset_link_invalid") {
       setMessage({
@@ -175,7 +179,7 @@ export default function LoginPage() {
       }}>
         {/* ロゴ */}
         <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{ fontWeight: 700, fontSize: 21, letterSpacing: "-0.01em" }}>ツクリスト</div>
+          <div style={{ fontWeight: 600, fontSize: 21, letterSpacing: "-0.01em" }}>ツクリスト</div>
           <div style={{ color: "var(--muted)", fontSize: 13, marginTop: 4 }}>{titles[mode]}</div>
         </div>
 
@@ -198,7 +202,7 @@ export default function LoginPage() {
                 {lastProvider === "google" && mode === "login" && (
                   <span style={{
                     position: "absolute", top: -8, right: -8,
-                    background: "var(--success)", color: "#fff", fontSize: 9, fontWeight: 700,
+                    background: "var(--success)", color: "#fff", fontSize: 9, fontWeight: 600,
                     borderRadius: 999, padding: "2px 8px", whiteSpace: "nowrap", pointerEvents: "none",
                   }}>
                     前回ログイン
@@ -226,10 +230,10 @@ export default function LoginPage() {
           />
           {mode !== "reset" && (
             <input
-              type="password" placeholder={`パスワード（${PASSWORD_MIN_LENGTH}文字以上）`}
+              type="password" placeholder={mode === "signup" ? `パスワード（${PASSWORD_MIN_LENGTH}文字以上）` : "パスワード"}
               autoComplete="current-password"
               value={password} onChange={e => setPassword(e.target.value)}
-              minLength={PASSWORD_MIN_LENGTH} className="input"
+              minLength={mode === "signup" ? PASSWORD_MIN_LENGTH : undefined} className="input"
             />
           )}
           <button type="submit" style={{ display: "none" }} />
@@ -293,7 +297,7 @@ export default function LoginPage() {
 function OAuthButton({ onClick, disabled, label }: { onClick: () => void; disabled: boolean; label: string }) {
   return (
     <button onClick={onClick} disabled={disabled} className="btn btn-secondary btn-block">
-      <span style={{ fontWeight: 900, fontSize: 15 }}>G</span>
+      <GoogleLogo size={18} />
       {label}
     </button>
   );

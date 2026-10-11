@@ -1,16 +1,18 @@
 "use client";
+
+import { Icon } from "@/components/TaskShared";
 // 使い方ガイド
 export default function GuidePage() {
   return (
     <div style={{ minHeight: "100vh", background: "var(--surface)" }}>
       <header className="doc-header">
-        <button onClick={() => window.history.back()} className="doc-back-btn">← 戻る</button>
+        <button onClick={() => window.history.back()} className="doc-back-btn"><Icon name="arrowLeft" size={14} /> 戻る</button>
         <span className="title">使い方ガイド</span>
       </header>
       <main className="container-narrow" style={{ padding: "32px 24px 80px" }}>
 
         <div style={{ textAlign: "center", marginBottom: 40 }}>
-          <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>ツクリスト</div>
+          <div style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>ツクリスト</div>
           <div className="text-muted" style={{ fontSize: 14 }}>依頼・タスクの納期を一元管理するツールです</div>
         </div>
 
@@ -36,17 +38,26 @@ export default function GuidePage() {
               {[
                 { label: "依頼済み", cls: "badge-pending" },
                 { label: "確認中", cls: "badge-checking" },
-                { label: "制作中", cls: "badge-progress" },
+                { label: "対応中", cls: "badge-progress" },
                 { label: "完成", cls: "badge-done" },
                 { label: "キャンセル", cls: "badge-cancelled" },
               ].map(s => <span key={s.label} className={`badge ${s.cls}`}>{s.label}</span>)}
             </div>
           </Step>
           <Step num={3} title="画像を添付する">
-            タスクの詳細画面から画像を追加できます。確認用・制作中・完成・その他の種類を選んでアップロードしてください。
+            タスクの詳細画面から画像を追加できます。確認用・作業中・完成・その他の種類を選んでアップロードしてください。
           </Step>
           <Step num={4} title="並び替え・フィルタ">
             タスク一覧は依頼日・納期・金額・ステータスで並び替え可能です。ステータスボタンでフィルタリングもできます。
+          </Step>
+        </Section>
+
+        <Section title="タグとカレンダー">
+          <Step num={1} title="タグで分類する">
+            タスクの登録・編集画面の「タグ」欄で、カテゴリや案件名などのタグを付けられます（1タスクに10個まで、全体で100個まで）。一覧の上部のタグのプルダウンで絞り込めます。名前の変更・削除は、ユーザーメニュー →「タグを管理」から行えます。
+          </Step>
+          <Step num={2} title="カレンダーで見る">
+            一覧の右上の「カレンダー」に切り替えると、納期の日にタスクが表示されます。月表示は日付をタップするとその日のタスクが、週表示は1週間ぶんが縦に並びます。ステータスや検索の絞り込みはカレンダーにも反映されます。納期が未設定のタスクは表示されません。
           </Step>
         </Section>
 
@@ -63,7 +74,7 @@ export default function GuidePage() {
         </Section>
 
         <Section title="プッシュ通知">
-          <p>納期が近いタスクを<strong>毎朝8時にプッシュ通知</strong>でお知らせします。</p>
+          <p>納期が近いタスクを<strong>毎朝8時（日本時間）にプッシュ通知</strong>でお知らせします。</p>
           <div style={{ background: "var(--success-soft)", borderRadius: "var(--radius-md)", padding: "14px 16px", margin: "12px 0", fontSize: 13, color: "var(--success)" }}>
             ホーム画面に追加したPWAでも通知が届きます（iOS 16.4以降）
           </div>
@@ -72,7 +83,7 @@ export default function GuidePage() {
             右上のユーザーメニュー →「通知オフ（タップでオン）」をタップして通知を許可してください。
           </Step>
           <Step num={2} title="通知が届くタイミング">
-            納期まで7日以内のタスクがある場合、毎朝8時に通知が届きます。納期当日まで毎日届きます。
+            納期まで7日以内のタスクがある日に、毎朝8時（日本時間）に通知が届きます。納期当日まで毎日届きます。通知は端末ごとにオン・オフできます。
           </Step>
           <Step num={3} title="通知をオフにするには">
             ユーザーメニュー →「通知オン（タップでオフ）」をタップして通知を許可してください。
@@ -91,7 +102,7 @@ export default function GuidePage() {
               { label: "プレミアム", limit: "無制限" },
             ].map(p => (
               <div key={p.label} className="card" style={{ padding: 12, textAlign: "center" }}>
-                <div style={{ fontWeight: 700, fontSize: 13 }}>{p.label}</div>
+                <div style={{ fontWeight: 600, fontSize: 13 }}>{p.label}</div>
                 <div className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>{p.limit}</div>
               </div>
             ))}
@@ -106,7 +117,7 @@ export default function GuidePage() {
         </Section>
 
         <Section title="アカウントを削除したいとき">
-          <p>ユーザーメニュー →「アカウント削除を申請」から削除申請を送信できます。管理者が確認後、アカウントとすべてのデータを削除します。</p>
+          <p>ユーザーメニュー →「アカウントを削除」から、ご自身でいつでも削除できます（メールアドレスとパスワードの入力が必要です）。タスク・タグ・画像などすべてのデータが削除され、元に戻せません。有料プランをご利用中の場合は、削除と同時に即時解約されます（残りの期間分の返金はありません）。期間の終了まで使いたい場合は、先にプランを解約してください。</p>
         </Section>
 
       </main>

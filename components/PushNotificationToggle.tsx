@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 
 // Web Push通知の購読管理コンポーネント
+// 購読は端末（ブラウザ）ごとに (user_id, endpoint) で保存する。
+// オン/オフはこの端末の分だけに作用し、他の端末の購読は変わらない。
 export default function PushNotificationToggle() {
   const [supported, setSupported] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
@@ -36,18 +38,20 @@ export default function PushNotificationToggle() {
 
     const { error } = await supabase
       .from("push_subscriptions")
-      .upsert({ user_id: session.user.id, subscription: sub.toJSON() }, { onConflict: "user_id" });
+      .upsert({ user_id: session.user.id, subscription: sub.toJSON() }, { onConflict: "user_id,endpoint" });
     if (error) throw new Error(error.message || "通知設定を保存できませんでした。");
   }
 
-  async function removeSubscription() {
+  async function removeSubscription(endpoint: string) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) throw new Error("ログイン状態を確認できません。再ログインしてください。");
 
+    // この端末の購読だけを削除する（他の端末は残す）
     const { error } = await supabase
       .from("push_subscriptions")
       .delete()
-      .eq("user_id", session.user.id);
+      .eq("user_id", session.user.id)
+      .eq("endpoint", endpoint);
     if (error) throw new Error(error.message || "通知設定を解除できませんでした。");
   }
 
@@ -62,8 +66,10 @@ export default function PushNotificationToggle() {
       if (subscribed) {
         const reg = await getPushRegistration();
         const sub = await reg.pushManager.getSubscription();
-        await removeSubscription();
-        if (sub) await sub.unsubscribe();
+        if (sub) {
+          await removeSubscription(sub.endpoint);
+          await sub.unsubscribe();
+        }
         setSubscribed(false);
       } else {
         const permission = await Notification.requestPermission();

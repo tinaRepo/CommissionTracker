@@ -86,17 +86,17 @@ export default function NotificationsModal({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-sheet" style={{ maxWidth: 520, maxHeight: "78vh" }} onClick={e => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" className="modal-sheet" style={{ maxWidth: 520, maxHeight: "78vh" }} onClick={e => e.stopPropagation()}>
 
         <div className="modal-header">
           <div className="row" style={{ justifyContent: "space-between" }}>
             <div className="row" style={{ gap: 8 }}>
-              <span style={{ fontWeight: 700, fontSize: 17 }}>お知らせ</span>
+              <span style={{ fontWeight: 600, fontSize: 17 }}>お知らせ</span>
               {totalUnreadCount > 0 && (
                 <span style={{
                   minWidth: 18, height: 18, borderRadius: 999, padding: "0 5px",
                   background: "var(--danger)", color: "#fff",
-                  fontSize: 10, fontWeight: 700, lineHeight: "18px", textAlign: "center",
+                  fontSize: 10, fontWeight: 600, lineHeight: "18px", textAlign: "center",
                 }}>
                   {totalUnreadCount}
                 </span>
@@ -119,7 +119,7 @@ export default function NotificationsModal({
                 className="row"
                 style={{
                   flex: 1, justifyContent: "center", gap: 6, padding: "7px 0", borderRadius: "var(--radius-sm)",
-                  border: "none", fontSize: 13, fontWeight: activeTab === tab.id ? 700 : 500,
+                  border: "none", fontSize: 13, fontWeight: activeTab === tab.id ? 600 : 400,
                   background: activeTab === tab.id ? "var(--bg)" : "transparent",
                   color: activeTab === tab.id ? "var(--fg)" : "var(--muted)",
                   boxShadow: activeTab === tab.id ? "var(--shadow-xs)" : "none",
@@ -129,7 +129,7 @@ export default function NotificationsModal({
                 {tab.badge > 0 && (
                   <span style={{
                     minWidth: 16, height: 16, borderRadius: 999, padding: "0 4px",
-                    background: "var(--danger)", color: "#fff", fontSize: 9, fontWeight: 700, lineHeight: "16px", textAlign: "center",
+                    background: "var(--danger)", color: "#fff", fontSize: 9, fontWeight: 600, lineHeight: "16px", textAlign: "center",
                   }}>
                     {tab.badge}
                   </span>
@@ -196,11 +196,11 @@ function AnnouncementRow({ announcement, isUnread, formatDate, onClick }: {
           <TypeBadge type={announcement.type} />
           <span className="text-meta">{formatDate(announcement.published_at)}</span>
         </div>
-        <p style={{ margin: 0, fontSize: 14, fontWeight: isUnread ? 700 : 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <p style={{ margin: 0, fontSize: 14, fontWeight: isUnread ? 600 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {announcement.title}
         </p>
       </div>
-      <span style={{ color: "var(--meta)", flexShrink: 0 }}>›</span>
+      <span style={{ color: "var(--meta)", flexShrink: 0, display: "inline-flex" }}><Icon name="chevronRight" size={16} /></span>
     </button>
   );
 }
@@ -210,15 +210,15 @@ function AnnouncementDetail({ announcement, formatDate, onBack }: {
 }) {
   return (
     <div>
-      <button onClick={onBack} style={{ background: "none", border: "none", fontSize: 13, color: "var(--accent)", fontWeight: 600, padding: "0 0 16px" }}>
-        ← 一覧に戻る
+      <button onClick={onBack} style={{ background: "none", border: "none", fontSize: 13, color: "var(--accent)", fontWeight: 600, padding: "0 0 16px", display: "inline-flex", alignItems: "center", gap: 4 }}>
+        <Icon name="arrowLeft" size={14} /> 一覧に戻る
       </button>
       <div style={{ padding: 16, borderRadius: "var(--radius-md)", background: "var(--surface)", marginBottom: 16 }}>
         <div className="row" style={{ gap: 8, marginBottom: 8 }}>
           <TypeBadge type={announcement.type} />
           <span className="text-meta">{formatDate(announcement.published_at)}</span>
         </div>
-        <h2 style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.4 }}>{announcement.title}</h2>
+        <h2 style={{ fontSize: 16, fontWeight: 600, lineHeight: 1.4 }}>{announcement.title}</h2>
       </div>
       <p style={{ fontSize: 14, lineHeight: 1.85, color: "var(--fg-2)", whiteSpace: "pre-wrap" }}>{announcement.content}</p>
     </div>
@@ -237,7 +237,7 @@ function ReleaseSection({ release, isLatest, formatDate }: {
   return (
     <div>
       <div className="row" style={{ gap: 8, marginBottom: 10 }}>
-        <span style={{ fontSize: 15, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>v{release.version}</span>
+        <span style={{ fontSize: 15, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>v{release.version}</span>
         {isLatest && <span className="badge badge-accent">LATEST</span>}
         <span className="text-meta" style={{ marginLeft: "auto" }}>{formatDate(release.released_at)}</span>
       </div>

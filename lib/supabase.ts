@@ -14,9 +14,9 @@ export const supabase = createClient();
 
 // ---- 型定義 ----
 export type Plan = "free" | "standard" | "premium";
-// pending: 依頼済み / checking: 確認中（旧ラフ確認中） / progress: 制作中 / done: 完成 / cancelled: キャンセル
+// pending: 依頼済み / checking: 確認中（旧ラフ確認中） / progress: 対応中 / done: 完成 / cancelled: キャンセル
 export type TaskStatus = "pending" | "checking" | "progress" | "done" | "cancelled";
-// preview: 確認用（旧ラフ） / wip: 制作中 / finished: 完成 / other: その他
+// preview: 確認用（旧ラフ） / wip: 作業中 / finished: 完成 / other: その他
 export type ImageType = "preview" | "wip" | "finished" | "other";
 
 // --- ユーザ情報 ---
@@ -28,6 +28,8 @@ export interface UserProfile {
   has_password: boolean;
   last_login_provider?: string;
   last_sign_in_at?: string;
+  stripe_customer_id?: string | null;
+  subscription_status?: string | null; // active / inactive / past_due
   created_at: string;
   updated_at: string;
   email?: string;
@@ -50,6 +52,29 @@ export interface Task {
   created_at: string;
   updated_at: string;
   images?: TaskImage[];
+  tag_ids?: string[]; // 付与されているタグのID（fetchTasks が task_tags から導出）
+}
+
+// --- タスクの作成・更新用の入力（空にした項目は undefined ではなく null で送る） ---
+// ※ supabase-js の update() は undefined のキーを無視するため、項目を「空にする」には null が必要
+export interface TaskInput {
+  title: string;
+  assignee_name: string;
+  contact: string | null;
+  ordered_at: string | null;
+  deadline: string | null;
+  price: number | null;
+  currency: string;
+  status: TaskStatus;
+  submission_date: string | null;
+  notes: string | null;
+}
+
+// --- タグ ---
+export interface Tag {
+  id: string;
+  name: string;
+  created_at: string;
 }
 
 // --- 画像情報 ---
@@ -63,11 +88,17 @@ export interface TaskImage {
 }
 
 // ---- プラン制限 ----
+// ※ 画像枚数の上限は DB のトリガー enforce_task_image_limit() にも同じ値がある。変更時は両方更新すること
 export const PLAN_LIMITS: Record<Plan, { label: string; imageLimit: number | null; color: string; bg: string }> = {
-  free: { label: "無料", imageLimit: 10, color: "#6b7280", bg: "#f3f4f6" },
-  standard: { label: "スタンダード", imageLimit: 50, color: "#3b82f6", bg: "#dbeafe" },
-  premium: { label: "プレミアム", imageLimit: null, color: "#f59e0b", bg: "#fef3c7" },
+  free: { label: "無料", imageLimit: 10, color: "#6e6e73", bg: "#f5f5f7" },
+  standard: { label: "スタンダード", imageLimit: 50, color: "#0066cc", bg: "#e8f1fb" },
+  premium: { label: "プレミアム", imageLimit: null, color: "#ffffff", bg: "#1d1d1f" },
 };
+
+// --- タグの上限（DBのトリガー enforce_tag_limit / enforce_task_tag_limit と同じ値） ---
+export const TAG_NAME_MAX_LENGTH = 30;
+export const TAGS_PER_TASK_LIMIT = 10;
+export const TAGS_PER_USER_LIMIT = 100;
 
 // --- 簡易メールアドレス形式チェック ---
 export function isValidEmailFormat(email: string): boolean {
@@ -75,7 +106,8 @@ export function isValidEmailFormat(email: string): boolean {
 }
 
 export const DISPLAY_NAME_MAX_LENGTH = 30;
-export const PASSWORD_MIN_LENGTH = 6;
+// 新規登録・パスワード変更時の最小長（ログイン時は既存パスワードを弾かないため適用しない）
+export const PASSWORD_MIN_LENGTH = 8;
 
 // --- Supabaseのエラーメッセージを日本語に変換 ---
 export function toJapaneseAuthError(message: string): string {
@@ -229,19 +261,36 @@ export async function canUploadImage(plan: Plan): Promise<{ ok: boolean; current
 }
 
 // ---- タスク情報の取得 ----
+// task_tags の埋め込みを tag_ids（タグIDの配列）に変換して返す
+type TaskRow = Omit<Task, "tag_ids"> & { task_tags?: { tag_id: string }[] | null };
+const TASK_SELECT = "*, images:task_images(*), task_tags(tag_id)";
+
+function toTask(row: TaskRow): Task {
+  const { task_tags, ...rest } = row;
+  return { ...rest, tag_ids: (task_tags ?? []).map(t => t.tag_id) };
+}
+
 export async function fetchTasks(): Promise<Task[]> {
-  const { data, error } = await supabase
-    .from("tasks")
-    .select("*, images:task_images(*)")
-    .order("created_at", { ascending: false });
-  if (error) throw error;
-  return data ?? [];
+  // PostgRESTの1リクエスト上限（max_rows=1000）を超えても全件取得できるようページングする
+  const PAGE = 1000;
+  const all: Task[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from("tasks")
+      .select(TASK_SELECT)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: true }) // 同時刻の行で順序が揺れないようにする
+      .range(from, from + PAGE - 1);
+    if (error) throw error;
+    const rows = (data ?? []) as unknown as TaskRow[];
+    all.push(...rows.map(toTask));
+    if (rows.length < PAGE) break;
+  }
+  return all;
 }
 
 // ---- タスク情報の作成 ----
-export async function createTask(
-  values: Omit<Task, "id" | "user_id" | "created_at" | "updated_at" | "images">
-): Promise<Task> {
+export async function createTask(values: TaskInput): Promise<Task> {
   const { data: { session } } = await supabase.auth.getSession();
   const user = session?.user;
   if (!user) throw new Error("Not authenticated");
@@ -257,18 +306,15 @@ export async function createTask(
 export async function fetchTaskById(id: string): Promise<Task | null> {
   const { data, error } = await supabase
     .from("tasks")
-    .select("*, images:task_images(*)")
+    .select(TASK_SELECT)
     .eq("id", id)
     .single();
   if (error) throw error;
-  return data;
+  return data ? toTask(data as unknown as TaskRow) : null;
 }
 
 // --- IDで特定のタスク情報を更新 ---
-export async function updateTask(
-  id: string,
-  values: Partial<Omit<Task, "id" | "user_id" | "created_at" | "updated_at" | "images">>
-): Promise<Task> {
+export async function updateTask(id: string, values: Partial<TaskInput>): Promise<Task> {
   const { data, error } = await supabase
     .from("tasks").update(values).eq("id", id).select().single();
   if (error) throw error;
@@ -279,6 +325,76 @@ export async function updateTask(
 export async function deleteTask(id: string): Promise<void> {
   const { error } = await supabase.from("tasks").delete().eq("id", id);
   if (error) throw error;
+}
+
+// ---- タグ ----
+// タグ名の正規化（全角/半角のゆれ・前後の空白・連続空白をそろえる）
+export function normalizeTagName(raw: string): string {
+  return raw.normalize("NFKC").trim().replace(/\s+/g, " ").slice(0, TAG_NAME_MAX_LENGTH);
+}
+
+export async function fetchTags(): Promise<Tag[]> {
+  const { data, error } = await supabase.from("tags").select("*").order("name", { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+}
+
+// タグを作成する。同じ名前が既にあれば、そのタグを返す
+export async function createTag(rawName: string): Promise<Tag> {
+  const name = normalizeTagName(rawName);
+  if (!name) throw new Error("タグ名を入力してください");
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user;
+  if (!user) throw new Error("Not authenticated");
+
+  const { data, error } = await supabase.from("tags").insert({ user_id: user.id, name }).select().single();
+  if (!error) return data;
+  if (error.code === "23505") {
+    const { data: existing, error: e2 } = await supabase.from("tags").select("*").eq("name", name).single();
+    if (e2) throw e2;
+    return existing;
+  }
+  if (error.message?.includes("TAG_LIMIT")) throw new Error(`タグは${TAGS_PER_USER_LIMIT}個まで作成できます`);
+  throw error;
+}
+
+export async function renameTag(id: string, rawName: string): Promise<void> {
+  const name = normalizeTagName(rawName);
+  if (!name) throw new Error("タグ名を入力してください");
+  const { error } = await supabase.from("tags").update({ name }).eq("id", id);
+  if (error) {
+    if (error.code === "23505") throw new Error("同じ名前のタグがすでにあります");
+    throw error;
+  }
+}
+
+// タグを削除する（付与済みのタスクからも外れる。タスク自体は残る）
+export async function deleteTag(id: string): Promise<void> {
+  const { error } = await supabase.from("tags").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// タスクのタグを tagIds に置き換える（差分だけ削除・追加する）
+export async function setTaskTags(taskId: string, tagIds: string[]): Promise<void> {
+  const wanted = Array.from(new Set(tagIds));
+  const { data: current, error } = await supabase.from("task_tags").select("tag_id").eq("task_id", taskId);
+  if (error) throw error;
+  const have = new Set((current ?? []).map(r => r.tag_id as string));
+
+  const toRemove = Array.from(have).filter(id => !wanted.includes(id));
+  const toAdd = wanted.filter(id => !have.has(id));
+
+  if (toRemove.length > 0) {
+    const { error: e1 } = await supabase.from("task_tags").delete().eq("task_id", taskId).in("tag_id", toRemove);
+    if (e1) throw e1;
+  }
+  if (toAdd.length > 0) {
+    const { error: e2 } = await supabase.from("task_tags").insert(toAdd.map(tag_id => ({ task_id: taskId, tag_id })));
+    if (e2) {
+      if (e2.message?.includes("TASK_TAG_LIMIT")) throw new Error(`1つのタスクに付けられるタグは${TAGS_PER_TASK_LIMIT}個までです`);
+      throw e2;
+    }
+  }
 }
 
 // ---- Storage操作 ----
@@ -313,7 +429,16 @@ export async function uploadImage(
     .from("task_images")
     .insert({ task_id: taskId, storage_path: path, file_name: file.name, image_type: imageType })
     .select().single();
-  if (error) throw error;
+  if (error) {
+    // DBに登録できなかった場合は孤児ファイルを残さない
+    await supabase.storage.from(BUCKET).remove([path]);
+    if (error.message?.includes("PLAN_LIMIT")) {
+      // DBトリガーによる枚数制限（クライアントの事前チェックをすり抜けた場合）
+      const latest = await canUploadImage(plan);
+      throw new Error(`PLAN_LIMIT:${latest.current}:${latest.limit}`);
+    }
+    throw error;
+  }
   return data;
 }
 
@@ -348,25 +473,34 @@ export async function getSignedImageUrls(storagePaths: string[]): Promise<Record
   return map;
 }
 
-// ---- 管理者用 ----
-// --- ユーザが自分のアカウント削除をリクエスト ---
-export async function requestDeleteAccount(): Promise<void> {
+// ---- 課金 ----
+// --- Stripeのカスタマーポータル（支払い方法の更新・解約）のURLを取得 ---
+export async function openBillingPortal(): Promise<void> {
   const { data: { session } } = await supabase.auth.getSession();
-  const token = session?.access_token ?? "";
-  const res = await fetch("/api/request-delete", {
+  const res = await fetch("/api/stripe/portal", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`,
-    },
+    headers: { Authorization: `Bearer ${session?.access_token ?? ""}` },
   });
-  if (!res.ok) {
-    const { error } = await res.json();
-    throw new Error(error ?? "送信に失敗しました");
-  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.url) throw new Error(data.error ?? "ポータルを開けませんでした");
+  window.location.href = data.url;
 }
 
-// --- 管理者がユーザを削除 ---
+// ---- アカウント ----
+// --- 本人によるアカウント削除（即時）。成功したらサインアウトしてログイン画面へ ---
+export async function deleteMyAccount(params: { confirmEmail: string; password?: string }): Promise<void> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const res = await fetch("/api/account/delete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token ?? ""}` },
+    body: JSON.stringify(params),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error ?? "削除に失敗しました");
+}
+
+// ---- 管理者用 ----
+// --- 管理者がユーザを削除（Stripe解約・画像削除を含む） ---
 export async function adminDeleteUser(userId: string): Promise<void> {
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token ?? "";

@@ -230,7 +230,7 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
       {/* Header */}
       <header className="app-header">
         <div className="brand">
-          <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.01em" }}>ツクリスト</div>
+          <div style={{ fontSize: 18, fontWeight: 600, letterSpacing: "-0.01em" }}>ツクリスト</div>
           <div className="tagline">納期管理</div>
         </div>
         <div className="row" style={{ gap: 16, flexWrap: "wrap" }}>
@@ -260,7 +260,7 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
               }}>
               <div style={{
                 width: 26, height: 26, borderRadius: "50%", background: "var(--accent)",
-                display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700
+                display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 600
               }}>D</div>
               <span>デモユーザー</span>
               <Icon name="chevronDown" size={13} />
@@ -310,11 +310,11 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
       {/* 詳細モーダル */}
       {detailItem && (
         <div className="modal-overlay" style={{ touchAction: "none" }} onClick={() => setDetailId(null)}>
-          <div className="modal-sheet" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" className="modal-sheet" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: 19, marginBottom: 8 }}>{detailItem.title}</div>
+                  <div style={{ fontWeight: 600, fontSize: 19, marginBottom: 8 }}>{detailItem.title}</div>
                   <StatusBadge status={detailItem.status} />
                 </div>
                 <button onClick={() => setDetailId(null)} className="icon-btn"
@@ -360,8 +360,8 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
       {/* 削除確認 */}
       {deleteConfirm && (
         <div className="modal-overlay">
-          <div className="modal-compact" style={{ maxWidth: 340 }}>
-            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>本当に削除しますか？</div>
+          <div role="dialog" aria-modal="true" className="modal-compact" style={{ maxWidth: 340 }}>
+            <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 8 }}>本当に削除しますか？</div>
             <div style={{ color: "var(--muted)", fontSize: 13, marginBottom: 24 }}>この操作は元に戻せません。</div>
             <div className="row" style={{ gap: 10 }}>
               <button onClick={() => setDeleteConfirm(null)} className="btn btn-secondary" style={{ flex: 1 }}>キャンセル</button>
@@ -375,9 +375,9 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
       {showForm && (
         <div className="modal-overlay" style={{ touchAction: "none" }}
           onClick={() => { pendingImages.forEach(pi => URL.revokeObjectURL(pi.objectUrl)); setPendingImages([]); setShowForm(false); setEditId(null); }}>
-          <div className="modal-sheet" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" className="modal-sheet" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <div style={{ fontWeight: 700, fontSize: 19, marginBottom: 12 }}>
+              <div style={{ fontWeight: 600, fontSize: 19, marginBottom: 12 }}>
                 {editId ? "タスクを編集" : "新規タスクを登録"}
               </div>
             </div>

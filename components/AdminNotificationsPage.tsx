@@ -301,7 +301,7 @@ export default function AdminNotificationsPage() {
   if (checking) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <p style={{ color: "var(--accent)", fontWeight: 700 }}>確認中…</p>
+        <p style={{ color: "var(--accent)", fontWeight: 600 }}>確認中…</p>
       </div>
     );
   }
@@ -310,7 +310,7 @@ export default function AdminNotificationsPage() {
     <div style={{ minHeight: "100vh", background: "var(--surface)" }}>
 
       <header className="doc-header">
-        <button onClick={() => router.back()} className="doc-back-btn">← 戻る</button>
+        <button onClick={() => router.back()} className="doc-back-btn"><Icon name="arrowLeft" size={14} /> 戻る</button>
         <div style={{ minWidth: 0 }}>
           <div className="title" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>お知らせ・バージョン管理</div>
           <div className="text-meta" style={{ color: "var(--muted-on-inverse)", marginTop: 2 }}>管理者専用</div>
@@ -329,7 +329,7 @@ export default function AdminNotificationsPage() {
               className="row"
               style={{
                 flex: 1, justifyContent: "center", gap: 6, padding: "8px 10px", borderRadius: "var(--radius-sm)", border: "none",
-                fontSize: 13, fontWeight: 700,
+                fontSize: 13, fontWeight: 600,
                 background: activeTab === tab.id ? "var(--accent)" : "transparent",
                 color: activeTab === tab.id ? "#fff" : "var(--fg-2)",
               }}
@@ -370,7 +370,7 @@ export default function AdminNotificationsPage() {
                         ) : null}
                       </div>
                       <div className="grow">
-                        <div style={{ fontWeight: 700, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.title}</div>
+                        <div style={{ fontWeight: 600, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.title}</div>
                         <div className="text-meta">{fmtDate(a.published_at)}</div>
                       </div>
                     </div>
@@ -398,7 +398,7 @@ export default function AdminNotificationsPage() {
                     <div className="row" style={{ gap: 10, alignItems: "flex-start", minWidth: 0 }}>
                       <div style={{ flexShrink: 0 }}>
                         <div className="row" style={{ gap: 6 }}>
-                          <span style={{ fontWeight: 700, fontSize: 15 }}>v{r.version}</span>
+                          <span style={{ fontWeight: 600, fontSize: 15 }}>v{r.version}</span>
                           {i === 0 && <span className="badge badge-accent">LATEST</span>}
                         </div>
                       </div>
@@ -535,7 +535,7 @@ export default function AdminNotificationsPage() {
           <div style={{ display: "grid", gap: 16 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <Field label="バージョン番号 *">
-                <input value={rForm.version} onChange={e => setRForm({ ...rForm, version: e.target.value })} placeholder="例: 2.1.0" className="input" />
+                <input value={rForm.version} onChange={e => setRForm({ ...rForm, version: e.target.value })} placeholder="例: 2.0.0" className="input" />
               </Field>
               <Field label="リリース日">
                 <input type="date" value={rForm.released_at} onChange={e => setRForm({ ...rForm, released_at: e.target.value })} className="input" />
@@ -547,13 +547,13 @@ export default function AdminNotificationsPage() {
             <div>
               <div className="row" style={{ justifyContent: "space-between", marginBottom: 10 }}>
                 <label className="field-label" style={{ margin: 0 }}>更新内容</label>
-                <button onClick={addItem} className="btn btn-secondary btn-sm">＋ 追加</button>
+                <button onClick={addItem} className="btn btn-secondary btn-sm"><Icon name="plus" size={14} /> 追加</button>
               </div>
               <div style={{ maxHeight: 220, overflowY: "auto", display: "grid", gap: 8 }}>
                 {rItems.map((item, idx) => (
                   <div key={idx} className="row" style={{ gap: 8, flexWrap: "wrap", background: "var(--surface)", borderRadius: "var(--radius-md)", padding: "10px 12px", border: "1px solid var(--border-soft)" }}>
                     <select value={item.category} onChange={e => updateItem(idx, { category: e.target.value as ItemCategory })}
-                      className="select" style={{ width: "auto", padding: "7px 10px", fontWeight: 700 }}>
+                      className="select" style={{ width: "auto", padding: "7px 10px", fontWeight: 600 }}>
                       {ITEM_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                     <input value={item.content} onChange={e => updateItem(idx, { content: e.target.value })}
@@ -580,7 +580,7 @@ export default function AdminNotificationsPage() {
 // ─── 共通サブコンポーネント ─────────────────────────────────────
 
 function LoadingState() {
-  return <div style={{ textAlign: "center", padding: "48px 0", color: "var(--accent)", fontWeight: 700 }}>読み込み中…</div>;
+  return <div style={{ textAlign: "center", padding: "48px 0", color: "var(--accent)", fontWeight: 600 }}>読み込み中…</div>;
 }
 
 function EmptyState({ label }: { label: string }) {
@@ -618,9 +618,9 @@ function Modal({ title, footer, children, onClose }: {
   }, []);
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-sheet" style={{ maxWidth: 540 }} onClick={e => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" className="modal-sheet" style={{ maxWidth: 540 }} onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 12 }}>{title}</div>
+          <div style={{ fontWeight: 600, fontSize: 18, marginBottom: 12 }}>{title}</div>
         </div>
         <div className="modal-body" style={{ padding: "4px 24px 0" }}>{children}</div>
         <div className="modal-footer">{footer}</div>
@@ -645,8 +645,8 @@ function ModalActions({ onCancel, onSubmit, disabled, saving, submitLabel }: {
 function DeleteConfirmModal({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void }) {
   return (
     <div className="modal-overlay">
-      <div className="modal-compact" style={{ maxWidth: 340 }}>
-        <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 10 }}>本当に削除しますか？</div>
+      <div role="dialog" aria-modal="true" className="modal-compact" style={{ maxWidth: 340 }}>
+        <div style={{ fontWeight: 600, fontSize: 17, marginBottom: 10 }}>本当に削除しますか？</div>
         <div className="text-muted" style={{ fontSize: 13, lineHeight: 1.7, marginBottom: 24 }}>この操作は元に戻せません。</div>
         <div className="row" style={{ gap: 10 }}>
           <button onClick={onCancel} className="btn btn-secondary" style={{ flex: 1 }}>キャンセル</button>

@@ -1,11 +1,29 @@
-// Web Push通知のService Worker
-const OFFLINE_CACHE = 'tsukurist-offline-v1';
+// Web Push通知・オフライン表示のService Worker
+// offline.html を変更したら OFFLINE_CACHE のバージョンを必ず上げること
+// （上げないと既存ユーザーは古いキャッシュを使い続ける）
+const OFFLINE_CACHE = 'tsukurist-offline-v2';
 
 self.addEventListener('install', function (event) {
   event.waitUntil(
-    caches.open(OFFLINE_CACHE).then(function (cache) {
-      return cache.add('/offline.html');
-    })
+    caches.open(OFFLINE_CACHE)
+      .then(function (cache) { return cache.add('/offline.html'); })
+      .then(function () { return self.skipWaiting(); })
+  );
+});
+
+// 古いバージョンのキャッシュを削除して、新しいSWを即座に有効化する。
+// （削除しないと caches.match() が古い offline.html を返してしまう）
+self.addEventListener('activate', function (event) {
+  event.waitUntil(
+    caches.keys()
+      .then(function (keys) {
+        return Promise.all(
+          keys
+            .filter(function (key) { return key !== OFFLINE_CACHE; })
+            .map(function (key) { return caches.delete(key); })
+        );
+      })
+      .then(function () { return self.clients.claim(); })
   );
 });
 
@@ -14,7 +32,8 @@ self.addEventListener('fetch', function (event) {
 
   event.respondWith(
     fetch(event.request).catch(async function () {
-      return await caches.match('/offline.html') || Response.error();
+      const cache = await caches.open(OFFLINE_CACHE);
+      return (await cache.match('/offline.html')) || Response.error();
     })
   );
 });

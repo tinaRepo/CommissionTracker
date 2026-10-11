@@ -1,10 +1,12 @@
 "use client";
+
+import { Icon } from "@/components/TaskShared";
 // ページメタデータ
 export default function TokushoPage() {
   return (
     <div style={{ minHeight: "100vh", background: "var(--surface)" }}>
       <header className="doc-header">
-        <button onClick={() => window.history.back()} className="doc-back-btn">← 戻る</button>
+        <button onClick={() => window.history.back()} className="doc-back-btn"><Icon name="arrowLeft" size={14} /> 戻る</button>
         <span className="title">特定商取引法に基づく表記</span>
       </header>
       <main className="container-narrow" style={{ padding: "32px 24px 80px" }}>
@@ -34,7 +36,7 @@ export default function TokushoPage() {
               ["個人情報の取り扱い", "プライバシーポリシー（https://commission-tracker-nine.vercel.app/privacy）に従い適切に管理します。"],
             ].map(([label, value]) => (
               <tr key={label} style={{ borderBottom: "1px solid var(--border-soft)" }}>
-                <td style={{ padding: "14px 12px", fontWeight: 700, color: "var(--muted)", width: 200, verticalAlign: "top", background: "var(--bg)", fontSize: 13, whiteSpace: "nowrap" }}>{label}</td>
+                <td style={{ padding: "14px 12px", fontWeight: 600, color: "var(--muted)", width: 200, verticalAlign: "top", background: "var(--bg)", fontSize: 13, whiteSpace: "nowrap" }}>{label}</td>
                 <td style={{ padding: "14px 12px", color: "var(--fg-2)", lineHeight: 1.8, whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{value}</td>
               </tr>
             ))}

@@ -27,9 +27,9 @@ export default async function MaintenancePage() {
                 width: "min(100%, 560px)", padding: "clamp(28px, 6vw, 48px)", background: "var(--bg)",
                 borderRadius: "var(--radius-xl)", boxShadow: "var(--shadow-lg)",
             }}>
-                <div className="text-meta" style={{ fontWeight: 700, marginBottom: 40 }}>ツクリスト</div>
+                <div className="text-meta" style={{ fontWeight: 600, marginBottom: 40 }}>ツクリスト</div>
                 <span className="badge badge-warn" style={{ marginBottom: 16, display: "inline-flex" }}>メンテナンスのお知らせ</span>
-                <h1 style={{ fontSize: "clamp(22px, 5vw, 30px)", lineHeight: 1.4, margin: "0 0 16px", fontWeight: 700 }}>
+                <h1 style={{ fontSize: "clamp(22px, 5vw, 30px)", lineHeight: 1.4, margin: "0 0 16px", fontWeight: 600 }}>
                     ただいまメンテナンス中です
                 </h1>
                 <p style={{ color: "var(--muted)", fontSize: 14, lineHeight: 1.9, margin: "0 0 28px", whiteSpace: "pre-wrap" }}>
