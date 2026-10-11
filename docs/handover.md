@@ -98,7 +98,8 @@ lib/
     └── delete-account.ts       #   アカウント完全削除（Stripe解約→画像削除→auth削除）
 
 scripts/
-└── migrate-storage.mjs         # commission-images → task-images のStorage移行（冪等・--dry-run / --cleanup）
+├── migrate-v2.0.0.mjs          # 修正ロジックを内包したv2.0.0統合移行スクリプト（--dry-run / --apply）
+└── migrate-storage.mjs         # commission-images → task-images のStorage移行（独立実行）
 
 public/                         # ads.txt, manifest.json, sw.js, offline.html, アイコン類, robots.txt
 
@@ -107,8 +108,8 @@ supabase/migrations/
 ├── 20260927000000_V1.2.0_announcements_targeting.sql
 ├── 20260927000001_V1.2.0_add_maintenance_mode.sql
 ├── 20260928000000_V2.0.0_rebrand_to_tasks.sql   # commissions→tasks 等の名称変更
-├── 20261005000000_V2.0.1_hardening.sql          # 特権カラム保護・画像枚数トリガー・レート制限・複数端末通知
-└── 20261006000000_V2.1.0_features.sql           # タグ・通知時刻・監視テーブル・Stripe冪等・search_path・RLS/インデックス
+├── 20261005000000_V2.0.0_hardening.sql          # 特権カラム保護・画像枚数トリガー・レート制限・複数端末通知
+└── 20261006000000_V2.0.0_features.sql           # タグ・通知時刻・監視テーブル・Stripe冪等・search_path・RLS/インデックス
 
 DESIGN.md                       # デザインシステム定義（Apple系）。globals.css/components.cssの元になる
 .env.example                    # 環境変数の雛形（CRON_SECRETの生成・登録方法をコメントで記載）
@@ -272,7 +273,7 @@ curl -i https://<本番ドメイン>/api/cron/deadline-notify
 | file_name    | text | 元ファイル名                                                   |               |
 | image_type   | text | preview(確認用) / wip(作業中) / finished(完成) / other(その他) | rough→preview |
 
-### `tags` / `task_tags`（v2.1.0）
+### `tags` / `task_tags`（v2.0.0）
 タグ（ユーザーごと。名前はユーザー内で一意・30文字まで）とタスクの多対多。RLSは本人のみ。`task_tags` の付与は「自分のタスクに自分のタグ」だけ。
 上限は1ユーザー100個・1タスク10個（DBトリガー `enforce_tag_limit` / `enforce_task_tag_limit` と、`lib/supabase.ts` の `TAGS_*` 定数。**変更時は両方更新**）。
 `fetchTasks()` は `task_tags` を `tag_ids` に変換して返す。
@@ -390,6 +391,24 @@ RLS・カラムの詳細は各マイグレーションSQLを参照。
    Search Console／AdSense／Google OAuth／Supabase Redirect URLsを更新。
 7. `CRON_SECRET`を再発行して Vercel に登録・Redeploy（旧`vercel.json`に平文でコミットされていた値の無効化）。
 
+### v2.0.0 統合移行（セキュリティ強化・機能追加）
+
+セキュリティ強化・機能追加を含む全変更を v2.0.0 に含める。
+DBマイグレーションは `20261005000000_V2.0.0_hardening.sql` → `20261006000000_V2.0.0_features.sql` の順に適用する。
+検証DBで `--dry-run` と適用を行い、動作確認後に同じ順序で本番DBへ適用する。
+
+コード側の全面差し替えを配置した後、部分修正は統合エントリーポイントだけを使う。
+
+```bash
+node scripts/migrate-v2.0.0.mjs --dry-run
+node scripts/migrate-v2.0.0.mjs --apply
+```
+
+修正ロジックはすべて `migrate-v2.0.0.mjs` に集約している。
+適用後は `git diff` を確認し、`package.json` が変更された場合は `npm install` でlockfileを更新する。
+Storage画像のコピー・旧バケット削除は不可逆操作を含むため、この統合処理には含めず、
+上記「名称変更（v2.0.0）の適用手順」にある `migrate-storage.mjs` を個別に使う。
+
 ---
 
 ## RLSポリシー
@@ -468,7 +487,7 @@ update user_profiles set is_admin = true where id = 'UUID';
 
 ---
 
-## セキュリティ・サーバー側検証（v2.0.1）
+## セキュリティ・サーバー側検証（v2.0.0）
 
 | 対策 | 実装 |
 | --- | --- |
@@ -496,7 +515,7 @@ update user_profiles set is_admin = true where id = 'UUID';
 
 ---
 
-## 機能メモ（v2.1.0）
+## 機能メモ（v2.0.0）
 
 | 項目 | 実装 |
 | --- | --- |
@@ -524,7 +543,7 @@ update user_profiles set is_admin = true where id = 'UUID';
   送信元には認証済みの独自ドメインが必要。設定後は Authentication の Rate Limits も見直す。
 - 実ドメイン確定に伴うURL差し替え（上記「名称変更の適用手順」6）。
 - `CRON_SECRET`の再発行・登録（上記「ローテーション」）。
-- バージョン履歴への2.0.0〜2.1.0登録は管理画面（`/mgmt-c7f2a91e/notifications`）から行う。
+- バージョン履歴には2.0.0として登録する（`/mgmt-c7f2a91e/notifications`）。
 - 任意の強化: Sentry等のエラー監視（クライアント側の例外）、OG画像（1200×630）、FAQのJSON-LD、画像のリサイズ・圧縮、CSVエクスポート、繰り返しタスク、LP/ガイドのサーバーコンポーネント化（`BackButton`のみクライアント）。
 - 利用規約の見直し（反社条項・ユーザーコンテンツの権利・サービス終了時の扱い・返金条項）、インボイス対応方針の確認（要専門家レビュー）。
 - `supabase/migrations/20260501000000_V1.1.0_add_version_releases copy.sql`（ファイル名に空白と`copy`）は
@@ -543,9 +562,7 @@ update user_profiles set is_admin = true where id = 'UUID';
 | 1.0.3      | Google認証                                                                              |
 | 1.1.0      | お知らせ・リリースノート統合管理・未読バッジ通知                                        |
 | 1.2.0      | 配信対象指定・プッシュ通知、PWA/メンテナンス対応、SEO強化、認証・通知・エラー画面の改善 |
-| 2.0.0      | 「ツクリスト」へ改称。汎用タスク管理向けに用語・テーブル・カラム・バケット名を変更。DESIGN.md準拠のデザイン刷新、Cron認証をBearerヘッダーへ変更。ステータス「制作中」を「対応中」へ汎用化（表示ラベルのみ） |
-| 2.0.1      | セキュリティ強化（権限昇格防止・サーバー側検証・レート制限・Stripe/画像のユーザー削除連動・複数端末通知・セキュリティヘッダー）、Next.js 14.2.35、プライバシーポリシー更新 |
-| 2.1.0      | タグ・カレンダー・通知時刻の設定、本人による即時アカウント削除、Cron拡張（毎時・並列・重複防止・実行記録）、監視（ヘルスチェック・アラート）、Stripe冪等化と支払い失敗対応、DB性能改善、AdSenseを公開ページに限定 |
+| 2.0.0      | 「ツクリスト」へ改称。汎用タスク管理向けに用語・テーブル・カラム・バケット名を変更。デザイン刷新、Cron認証のBearer化。セキュリティ強化（権限昇格防止・サーバー側検証・レート制限・Stripe/画像のユーザー削除連動・複数端末通知・セキュリティヘッダー）、Next.js 14.2.35。タグ・カレンダー・通知時刻、本人による即時アカウント削除、Cron拡張、監視、Stripe冪等化・支払い失敗対応、DB性能改善、AdSenseを公開ページに限定 |
 
 リリース履歴（`version_releases`）への2.0.0登録は管理画面（`/mgmt-c7f2a91e/notifications`）から行う。
 
@@ -567,7 +584,7 @@ update user_profiles set is_admin = true where id = 'UUID';
   （Admin API・`updateUser`ではemail identityが正規リンクされない）。`/auth/confirm`は`token_hash`+`type`と`code`（PKCE）の両方に対応。
 - パスワード未設定かつGoogleのみのユーザーは`unlinkIdentity()`が仕様上失敗するため、UIでパスワード設定/削除申請へ誘導する。
 - 新規ユーザー作成トリガー`handle_new_user`は`display_name`初期値も設定（メール登録は`options.data.display_name`、Googleは`full_name`/`name`）。
-- メール形式チェック・表示名上限（30）・パスワード最小長（6）は`lib/supabase.ts`の共通定義を参照する。
+- メール形式チェック・表示名上限（30）・パスワード最小長（8）は`lib/supabase.ts`の共通定義を参照する。
 - 新規のマイグレーションは必ずファイル化してから適用し、適用済みファイルは編集しない（`docs/supabase-migration-guide.md`）。
 - シークレットや内部エラーの詳細をAPIレスポンスに含めない（ログにだけ出す）。ユーザー入力をメールHTMLに入れる場合は必ずエスケープする。
 - 公開しない関数・テーブルは `revoke` して必要なロールにだけ `grant` する（`check_rate_limit` が実装例）。

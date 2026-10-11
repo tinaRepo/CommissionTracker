@@ -1,10 +1,12 @@
 "use client";
+
+import { Icon } from "@/components/TaskShared";
 // ページメタデータ
 export default function TermsPage() {
   return (
     <div style={{ minHeight: "100vh", background: "var(--surface)" }}>
       <header className="doc-header">
-        <button onClick={() => window.history.back()} className="doc-back-btn">← 戻る</button>
+        <button onClick={() => window.history.back()} className="doc-back-btn"><Icon name="arrowLeft" size={14} /> 戻る</button>
         <span className="title">利用規約</span>
       </header>
       <main className="container-narrow" style={{ padding: "32px 24px 80px" }}>

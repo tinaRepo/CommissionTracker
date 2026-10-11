@@ -2,37 +2,42 @@
 
 import { useState, useEffect, useMemo } from "react";
 import {
-  supabase, requestDeleteAccount, fetchTasks, createTask, updateTask,
+  supabase, fetchTasks, createTask, updateTask,
   deleteTask, uploadImage, deleteImage, getSignedImageUrls,
   fetchMyProfile, canUploadImage,
   PLAN_LIMITS,
   type Task, type TaskStatus, type TaskImage,
-  type ImageType, type UserProfile, type Plan,
+  type ImageType, type UserProfile, type Plan, type Tag,
   fetchTaskById,
   changeMyPassword, requestSetPasswordEmail, toJapaneseAuthError,
   linkGoogleAccount, unlinkGoogleAccount, hasGoogleIdentity,
+  fetchTags, createTag, renameTag, deleteTag, setTaskTags, openBillingPortal,
   PASSWORD_MIN_LENGTH,
 } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
-import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useTaskSearch } from "@/hooks/useTaskSearch";
 import {
   STATUSES, IMAGE_TYPES, fmtDate, fmtPrice,
-  Field, DateField, StatusBadge, TaskListCard, Icon, cx,
+  Field, DateField, StatusBadge, TaskListCard, Icon, GoogleLogo, cx,
 } from "./TaskShared";
 import { TaskSearchBar } from "./TaskSearchBar";
+import { TagPicker, TagManagerModal } from "./TagPicker";
 import PushNotificationToggle from "./PushNotificationToggle";
 const NotificationsModal = dynamic(() => import("./NotificationsModal"), { ssr: false });
 const ContactModal = dynamic(() => import("./ContactModal"), { ssr: false });
 const InstallPromptBanner = dynamic(() => import("./InstallPromptBanner"), { ssr: false });
+// 開くまで使わないUIはコード分割する
+const TaskCalendar = dynamic(() => import("./TaskCalendar"), { ssr: false });
+const DeleteAccountModal = dynamic(() => import("./DeleteAccountModal"), { ssr: false });
+const NotifySettingsModal = dynamic(() => import("./NotifySettingsModal"), { ssr: false });
 
-// --- 画像アップロード前のプラン制限チェック ---
 type FormValues = {
   title: string; assigneeName: string; contact: string; ordered_at: string;
   deadline: string; price: string; currency: string;
   status: TaskStatus; submission_date: string; notes: string;
+  tagIds: string[];
 };
 
 // 新規登録時に仮保持する画像キュー
@@ -46,7 +51,11 @@ type PendingImage = {
 const EMPTY_FORM: FormValues = {
   title: "", assigneeName: "", contact: "", ordered_at: "", deadline: "",
   price: "", currency: "JPY", status: "pending", submission_date: "", notes: "",
+  tagIds: [],
 };
+
+type ViewMode = "list" | "calendar";
+const VIEW_STORAGE_KEY = "ct_view";
 
 // --- プランバッジ ---
 function PlanBadge({ plan }: { plan: Plan }) {
@@ -74,7 +83,7 @@ function ImageUsageBar({ plan, imageCount }: { plan: Plan; imageCount: number })
     <div style={{ minWidth: 130 }}>
       <div className="row" style={{ justifyContent: "space-between", fontSize: 11, color: "var(--muted-on-inverse)", marginBottom: 4 }}>
         <span>画像 {imageCount} / {limit}枚</span>
-        <span style={{ color, fontWeight: 700 }}>{Math.round(pct)}%</span>
+        <span style={{ color, fontWeight: 600 }}>{Math.round(pct)}%</span>
       </div>
       <div style={{ height: 4, background: "rgba(255,255,255,0.14)", borderRadius: 99, overflow: "hidden" }}>
         <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 99, transition: "width 0.4s" }} />
@@ -93,6 +102,7 @@ function ImageSection({ task, plan, onUpdated }: {
   useEffect(() => {
     setPrevCount(task.images?.length ?? 0);
   }, [task.id]);
+  // 枚数の増減を検知して、トーストを1か所だけで出す（成功したときだけ表示される）
   useEffect(() => {
     const currentCount = task.images?.length ?? 0;
     if (prevCount !== currentCount) {
@@ -159,10 +169,6 @@ function ImageSection({ task, plan, onUpdated }: {
       setUploading(false);
       e.target.value = "";
       onUpdated();
-      setTimeout(() => {
-        setToast(`画像をアップロードしました（最新枚数: ${(task.images?.length ?? 0) + 1}枚）`);
-        setTimeout(() => setToast(null), 3000);
-      }, 500);
     }
   }
 
@@ -170,10 +176,6 @@ function ImageSection({ task, plan, onUpdated }: {
     if (!confirm(`「${img.file_name}」を削除しますか？`)) return;
     await deleteImage(img);
     onUpdated();
-    setTimeout(() => {
-      setToast(`画像を削除しました（最新枚数: ${(task.images?.length ?? 0) - 1}枚）`);
-      setTimeout(() => setToast(null), 3000);
-    }, 500);
   }
 
   const images = task.images ?? [];
@@ -190,7 +192,7 @@ function ImageSection({ task, plan, onUpdated }: {
           borderRadius: "var(--radius-md)", fontSize: 12, color: "var(--danger)", gap: 6,
         }}>
           {limitError}
-          <span style={{ color: "var(--accent)", fontWeight: 700 }}>プランをアップグレードすると追加できます</span>
+          <span style={{ color: "var(--accent)", fontWeight: 600 }}>プランをアップグレードすると追加できます</span>
         </div>
       )}
 
@@ -211,7 +213,7 @@ function ImageSection({ task, plan, onUpdated }: {
                   <div style={{ width: "100%", aspectRatio: "1" }} />
                 )}
                 <div className="tag" style={{ position: "absolute", top: 4, left: 4 }}>{typeLabel}</div>
-                <button onClick={() => handleDelete(img)}
+                <button onClick={() => handleDelete(img)} aria-label={`${img.file_name}を削除`}
                   className="icon-btn" style={{
                     position: "absolute", top: 4, right: 4, width: 22, height: 22,
                     background: "rgba(0,0,0,0.55)", border: "none",
@@ -220,7 +222,7 @@ function ImageSection({ task, plan, onUpdated }: {
                 </button>
                 {url && (
                   <button onClick={e => { e.stopPropagation(); handleDownload(url, img.file_name); }}
-                    title="ダウンロード"
+                    title="ダウンロード" aria-label={`${img.file_name}をダウンロード`}
                     className="icon-btn" style={{
                       position: "absolute", bottom: 4, right: 4, width: 22, height: 22,
                       background: "rgba(0,0,0,0.55)", border: "none",
@@ -271,12 +273,13 @@ function ImageSection({ task, plan, onUpdated }: {
 
 // ---- メインアプリ ----
 export default function TaskApp() {
-  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [imageCount, setImageCount] = useState(0);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const search = useTaskSearch(tasks);
+  const [view, setView] = useState<ViewMode>("list");
   const [thumbnailUrls, setThumbnailUrls] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -291,9 +294,9 @@ export default function TaskApp() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNameEdit, setShowNameEdit] = useState(false);
   const [nameInput, setNameInput] = useState("");
-  const [showDeleteRequest, setShowDeleteRequest] = useState(false);
-  const [deleteRequesting, setDeleteRequesting] = useState(false);
-  const [deleteRequestDone, setDeleteRequestDone] = useState(false);
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+  const [showNotifySettings, setShowNotifySettings] = useState(false);
+  const [showTagManager, setShowTagManager] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showContact, setShowContact] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -326,11 +329,25 @@ export default function TaskApp() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // 表示形式（リスト/カレンダー）の記憶
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(VIEW_STORAGE_KEY);
+      if (saved === "list" || saved === "calendar") setView(saved);
+    } catch { /* localStorageが使えない環境では既定のまま */ }
+  }, []);
+
+  function changeView(next: ViewMode) {
+    setView(next);
+    try { localStorage.setItem(VIEW_STORAGE_KEY, next); } catch { /* 無視 */ }
+  }
+
   async function load() {
     try {
-      const [data, prof] = await Promise.all([fetchTasks(), fetchMyProfile()]);
+      const [data, prof, tagList] = await Promise.all([fetchTasks(), fetchMyProfile(), fetchTags()]);
       setTasks(data);
       setProfile(prof);
+      setTags(tagList);
       const total = data.reduce((sum, t) => sum + (t.images?.length ?? 0), 0);
       setImageCount(total);
 
@@ -361,6 +378,10 @@ export default function TaskApp() {
 
   const notifications = useNotifications(user?.id ?? null, profile?.created_at ?? null, profile?.plan ?? null);
 
+  const tagById = useMemo(() => new Map(tags.map(t => [t.id, t])), [tags]);
+  const tagsOf = (t: Task) =>
+    (t.tag_ids ?? []).map(id => tagById.get(id)).filter((x): x is Tag => !!x);
+
   async function handleSaveName() {
     if (!nameInput.trim()) return;
     const { data: { session } } = await supabase.auth.getSession();
@@ -372,15 +393,28 @@ export default function TaskApp() {
     setShowUserMenu(false);
   }
 
-  async function handleDeleteRequest() {
-    setDeleteRequesting(true);
+  async function handleCreateTag(name: string): Promise<Tag> {
+    const tag = await createTag(name);
+    setTags(prev => (prev.some(t => t.id === tag.id) ? prev : [...prev, tag].sort((a, b) => a.name.localeCompare(b.name, "ja"))));
+    return tag;
+  }
+
+  async function handleRenameTag(id: string, name: string) {
+    await renameTag(id, name);
+    await load();
+  }
+
+  async function handleDeleteTag(id: string) {
+    await deleteTag(id);
+    if (search.filterTag === id) search.setFilterTag("all");
+    await load();
+  }
+
+  async function handlePortal() {
     try {
-      await requestDeleteAccount();
-      setDeleteRequestDone(true);
+      await openBillingPortal();
     } catch (e: any) {
-      alert(e.message ?? "送信に失敗しました");
-    } finally {
-      setDeleteRequesting(false);
+      alert(e.message ?? "エラーが発生しました");
     }
   }
 
@@ -459,6 +493,12 @@ export default function TaskApp() {
     window.location.href = "/login";
   }
 
+  // アカウント削除が完了した後: セッションを破棄してログイン画面へ
+  async function handleAccountDeleted() {
+    await supabase.auth.signOut();
+    window.location.href = "/login?deleted=1";
+  }
+
   const filtered = search.filtered;
 
   const stats = useMemo(() => ({
@@ -472,7 +512,8 @@ export default function TaskApp() {
     setForm({
       title: t.title, assigneeName: t.assignee_name, contact: t.contact ?? "", ordered_at: t.ordered_at ?? "",
       deadline: t.deadline ?? "", price: t.price?.toString() ?? "", currency: t.currency,
-      status: t.status, submission_date: t.submission_date ?? "", notes: t.notes ?? ""
+      status: t.status, submission_date: t.submission_date ?? "", notes: t.notes ?? "",
+      tagIds: t.tag_ids ?? [],
     });
     setEditId(t.id); setShowForm(true); setDetailId(null);
   }
@@ -481,16 +522,19 @@ export default function TaskApp() {
     if (!form.title || !form.assigneeName) return;
     setSaving(true);
     try {
+      // 空にした項目は null で送る（undefined だと更新時に無視され、消せない）
       const payload = {
-        title: form.title, assignee_name: form.assigneeName, contact: form.contact || undefined,
-        ordered_at: form.ordered_at || undefined, deadline: form.deadline || undefined,
-        price: form.price ? Number(form.price) : undefined, currency: form.currency,
-        status: form.status, submission_date: form.submission_date || undefined, notes: form.notes || undefined,
+        title: form.title, assignee_name: form.assigneeName, contact: form.contact || null,
+        ordered_at: form.ordered_at || null, deadline: form.deadline || null,
+        price: form.price ? Number(form.price) : null, currency: form.currency,
+        status: form.status, submission_date: form.submission_date || null, notes: form.notes || null,
       };
       if (editId) {
         await updateTask(editId, payload);
+        await setTaskTags(editId, form.tagIds);
       } else {
         const newTask = await createTask(payload);
+        await setTaskTags(newTask.id, form.tagIds);
         if (pendingImages.length > 0) {
           for (const pi of pendingImages) {
             try {
@@ -506,7 +550,9 @@ export default function TaskApp() {
         fetchTaskById(detailId).then(setDetailItem).catch(() => setDetailItem(null));
       }
       setShowForm(false); setEditId(null);
-    } catch { alert("保存に失敗しました"); }
+    } catch (e: any) {
+      alert(e instanceof Error && /タグ/.test(e.message) ? e.message : "保存に失敗しました");
+    }
     finally { setSaving(false); }
   }
 
@@ -546,6 +592,7 @@ export default function TaskApp() {
   const displayName = profile?.display_name;
   const userLabel = displayName ?? user?.user_metadata?.full_name ?? (user?.email?.split("@")[0]) ?? "ユーザー";
   const userAvatar = user?.user_metadata?.avatar_url as string | undefined;
+  const paymentIssue = profile?.subscription_status === "past_due" && plan !== "free";
 
   if (loading) return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -559,7 +606,7 @@ export default function TaskApp() {
       {/* Header */}
       <header className="app-header">
         <div className="brand">
-          <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.01em" }}>ツクリスト</div>
+          <div style={{ fontSize: 18, fontWeight: 600, letterSpacing: "-0.01em" }}>ツクリスト</div>
           <div className="tagline">納期管理</div>
         </div>
 
@@ -581,12 +628,12 @@ export default function TaskApp() {
             </div>
           )}
 
-          <button onClick={() => setShowContact(true)} className="icon-btn" title="お問い合わせ">
+          <button onClick={() => setShowContact(true)} className="icon-btn" title="お問い合わせ" aria-label="お問い合わせ">
             <Icon name="mail" size={17} />
           </button>
 
           <div style={{ position: "relative" }}>
-            <button onClick={() => setShowNotifications(true)} className="icon-btn" title="お知らせ">
+            <button onClick={() => setShowNotifications(true)} className="icon-btn" title="お知らせ" aria-label="お知らせ">
               <Icon name="bell" size={17} />
             </button>
             {notifications.unreadCount > 0 && (
@@ -594,7 +641,7 @@ export default function TaskApp() {
                 position: "absolute", top: -3, right: -3,
                 minWidth: 16, height: 16, borderRadius: 999,
                 background: "var(--danger)", color: "#fff",
-                fontSize: 9, fontWeight: 700, lineHeight: "16px",
+                fontSize: 9, fontWeight: 600, lineHeight: "16px",
                 textAlign: "center", padding: "0 3px", pointerEvents: "none",
               }}>
                 {notifications.unreadCount > 99 ? "99+" : notifications.unreadCount}
@@ -619,8 +666,8 @@ export default function TaskApp() {
                   <img src={userAvatar} alt="avatar" style={{ width: 26, height: 26, borderRadius: "50%", objectFit: "cover" }} />
                 ) : (
                   <div style={{
-                    width: 26, height: 26, borderRadius: "50%", background: "var(--accent)",
-                    display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700
+                    width: 26, height: 26, borderRadius: "50%", background: "var(--accent-fill)",
+                    display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 600
                   }}>
                     {userLabel.charAt(0).toUpperCase()}
                   </div>
@@ -631,8 +678,7 @@ export default function TaskApp() {
                     width: 13, height: 13, borderRadius: "50%",
                     background: "#fff", border: "1px solid var(--border)",
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 8, fontWeight: 900, color: "#4285f4",
-                  }}>G</span>
+                  }}><GoogleLogo size={9} /></span>
                 )}
               </span>
               <span style={{ maxWidth: 100, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{userLabel}</span>
@@ -640,7 +686,7 @@ export default function TaskApp() {
             </button>
             {showUserMenu && (
               <div className="user-menu">
-                <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-soft)" }}>
+                <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--divider)" }}>
                   <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user?.email}</div>
                   {profile && <PlanBadge plan={profile.plan} />}
                 </div>
@@ -648,6 +694,12 @@ export default function TaskApp() {
                   プランをアップグレード
                 </button>
                 <PushNotificationToggle />
+                <button onClick={() => { setShowNotifySettings(true); setShowUserMenu(false); }} className="user-menu-item">
+                  通知時刻を設定
+                </button>
+                <button onClick={() => { setShowTagManager(true); setShowUserMenu(false); }} className="user-menu-item">
+                  タグを管理
+                </button>
                 <button onClick={() => { setNameInput(profile?.display_name ?? ""); setShowNameEdit(true); setShowUserMenu(false); }}
                   className="user-menu-item">
                   名前を変更
@@ -670,12 +722,12 @@ export default function TaskApp() {
                   </button>
                 )}
                 {!profile?.is_admin && (
-                  <button onClick={() => { setShowDeleteRequest(true); setShowUserMenu(false); }}
+                  <button onClick={() => { setShowDeleteAccount(true); setShowUserMenu(false); }}
                     className="user-menu-item danger">
-                    アカウント削除を申請
+                    アカウントを削除
                   </button>
                 )}
-                <button onClick={requestLogout} className="user-menu-item danger" style={{ fontWeight: 700 }}>
+                <button onClick={requestLogout} className="user-menu-item danger" style={{ fontWeight: 600 }}>
                   ログアウト
                 </button>
               </div>
@@ -684,43 +736,74 @@ export default function TaskApp() {
         </div>
       </header>
 
-      {/* フィルタ＋ソート＋詳細検索パネル（TaskApp/DemoApp共通コンポーネント） */}
-      <TaskSearchBar search={search} />
-
-      {/* リスト */}
-      <main className="container" style={{ paddingTop: 20, paddingBottom: 60, maxWidth: 900 }}>
-        {filtered.length === 0 && (
-          <div style={{ textAlign: "center", color: "var(--meta)", marginTop: 60, fontSize: 14 }}>タスクがありません</div>
-        )}
-        <div style={{ display: "grid", gap: 10 }}>
-          {filtered.map(t => (
-            <TaskListCard
-              key={t.id}
-              title={t.title}
-              assigneeName={t.assignee_name}
-              contact={t.contact}
-              status={t.status}
-              deadline={t.deadline}
-              price={t.price}
-              imageCount={t.images?.length ?? 0}
-              thumbnailUrl={thumbnailUrls[t.id]}
-              onClick={() => setDetailId(t.id)}
-            />
-          ))}
+      {/* 支払い失敗の警告（Stripeの再試行中） */}
+      {paymentIssue && (
+        <div className="container" style={{ paddingTop: 12 }}>
+          <div className="row" style={{
+            gap: 12, padding: "12px 16px", borderRadius: "var(--radius-md)", justifyContent: "space-between", flexWrap: "wrap",
+            background: "var(--warn-soft)", color: "var(--warn)", fontSize: 13,
+          }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+              <Icon name="alert" size={16} />
+              有料プランのお支払いを確認できませんでした。支払い方法を更新してください。
+            </span>
+            <button onClick={handlePortal} className="btn btn-primary btn-sm">支払い方法を更新</button>
+          </div>
         </div>
+      )}
+
+      {/* フィルタ＋ソート＋詳細検索パネル（TaskApp/DemoApp共通コンポーネント） */}
+      <TaskSearchBar search={search} tags={tags} />
+
+      {/* 表示切替（リスト / カレンダー） */}
+      <div className="container row" style={{ justifyContent: "flex-end", paddingTop: 12 }}>
+        <div className="seg" role="group" aria-label="表示形式">
+          <button className={view === "list" ? "on" : ""} aria-pressed={view === "list"} onClick={() => changeView("list")}>リスト</button>
+          <button className={view === "calendar" ? "on" : ""} aria-pressed={view === "calendar"} onClick={() => changeView("calendar")}>カレンダー</button>
+        </div>
+      </div>
+
+      {/* リスト / カレンダー */}
+      <main className="container" style={{ paddingTop: 16, paddingBottom: 60, maxWidth: 900 }}>
+        {view === "calendar" ? (
+          <TaskCalendar tasks={filtered} onSelect={id => setDetailId(id)} />
+        ) : (
+          <>
+            {filtered.length === 0 && (
+              <div style={{ textAlign: "center", color: "var(--meta)", marginTop: 60, fontSize: 14 }}>タスクがありません</div>
+            )}
+            <div style={{ display: "grid", gap: 10 }}>
+              {filtered.map(t => (
+                <TaskListCard
+                  key={t.id}
+                  title={t.title}
+                  assigneeName={t.assignee_name}
+                  contact={t.contact}
+                  status={t.status}
+                  deadline={t.deadline}
+                  price={t.price}
+                  imageCount={t.images?.length ?? 0}
+                  thumbnailUrl={thumbnailUrls[t.id]}
+                  tags={tagsOf(t)}
+                  onClick={() => setDetailId(t.id)}
+                />
+              ))}
+            </div>
+          </>
+        )}
       </main>
 
       {/* 詳細モーダル */}
       {detailItem && (
         <div className="modal-overlay" style={{ touchAction: "none" }} onClick={() => setDetailId(null)}>
-          <div className="modal-sheet" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" className="modal-sheet" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: 19, marginBottom: 8 }}>{detailItem.title}</div>
+                  <div style={{ fontWeight: 600, fontSize: 19, marginBottom: 8 }}>{detailItem.title}</div>
                   <StatusBadge status={detailItem.status} />
                 </div>
-                <button onClick={() => setDetailId(null)} className="icon-btn"
+                <button onClick={() => setDetailId(null)} className="icon-btn" aria-label="閉じる"
                   style={{ background: "var(--surface)", border: "1px solid var(--border-soft)", color: "var(--fg)" }}>
                   <Icon name="close" size={14} />
                 </button>
@@ -729,15 +812,18 @@ export default function TaskApp() {
             <div className="modal-body">
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
                 <tbody>
-                  {[
+                  {([
                     ["依頼先名", detailItem.assignee_name],
                     ["SNS/連絡先", detailItem.contact || "—"],
                     ["依頼日", fmtDate(detailItem.ordered_at)],
                     ["納期", fmtDate(detailItem.deadline)],
                     ["提出日", fmtDate(detailItem.submission_date)],
                     ["金額", fmtPrice(detailItem.price, detailItem.currency)],
+                    ["タグ", tagsOf(detailItem).length > 0
+                      ? <span className="row" style={{ gap: 4, flexWrap: "wrap" }}>{tagsOf(detailItem).map(t => <span key={t.id} className="tag-pill">{t.name}</span>)}</span>
+                      : "—"],
                     ["メモ", detailItem.notes || "—"],
-                  ].map(([label, val]) => (
+                  ] as [string, React.ReactNode][]).map(([label, val]) => (
                     <tr key={label}>
                       <td style={{ padding: "8px 0", color: "var(--muted)", fontWeight: 600, width: 120, verticalAlign: "top" }}>{label}</td>
                       <td style={{ padding: "8px 0", color: "var(--fg)", wordBreak: "break-all" }}>{val}</td>
@@ -757,47 +843,33 @@ export default function TaskApp() {
         </div>
       )}
 
-      {/* アカウント削除申請モーダル */}
-      {showDeleteRequest && (
-        <div className="modal-overlay" onClick={() => { if (!deleteRequesting) { setShowDeleteRequest(false); setDeleteRequestDone(false); } }}>
-          <div className="modal-compact" onClick={e => e.stopPropagation()}>
-            {deleteRequestDone ? (
-              <>
-                <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 12 }}>申請を送信しました</div>
-                <div style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.7, marginBottom: 24 }}>
-                  管理者にメールで通知しました。<br />
-                  削除が完了するまで少しお待ちください。
-                </div>
-                <button onClick={() => { setShowDeleteRequest(false); setDeleteRequestDone(false); }} className="btn btn-primary btn-block">
-                  閉じる
-                </button>
-              </>
-            ) : (
-              <>
-                <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 12 }}>アカウント削除を申請する</div>
-                <div style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.7, marginBottom: 24 }}>
-                  管理者にメールで削除申請を送ります。<br />
-                  削除されると<strong style={{ color: "var(--fg)" }}>すべてのデータが失われます。</strong>
-                </div>
-                <div className="row" style={{ gap: 10 }}>
-                  <button onClick={() => setShowDeleteRequest(false)} disabled={deleteRequesting} className="btn btn-secondary" style={{ flex: 1 }}>
-                    キャンセル
-                  </button>
-                  <button onClick={handleDeleteRequest} disabled={deleteRequesting} className="btn btn-danger-solid" style={{ flex: 1 }}>
-                    {deleteRequesting ? "送信中…" : "申請する"}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+      {/* アカウント削除（本人による即時削除） */}
+      <DeleteAccountModal
+        open={showDeleteAccount}
+        onClose={() => setShowDeleteAccount(false)}
+        email={user?.email ?? ""}
+        hasPassword={hasPassword}
+        plan={plan}
+        onDeleted={handleAccountDeleted}
+      />
+
+      {/* 通知時刻の設定 */}
+      <NotifySettingsModal open={showNotifySettings} onClose={() => setShowNotifySettings(false)} />
+
+      {/* タグの管理 */}
+      <TagManagerModal
+        open={showTagManager}
+        tags={tags}
+        onClose={() => setShowTagManager(false)}
+        onRename={handleRenameTag}
+        onDelete={handleDeleteTag}
+      />
 
       {/* 名前編集モーダル */}
       {showNameEdit && (
         <div className="modal-overlay" onClick={() => setShowNameEdit(false)}>
-          <div className="modal-compact" style={{ maxWidth: 360, textAlign: "left" }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 20 }}>表示名を変更</div>
+          <div role="dialog" aria-modal="true" className="modal-compact" style={{ maxWidth: 360, textAlign: "left" }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontWeight: 600, fontSize: 17, marginBottom: 20 }}>表示名を変更</div>
             <input
               value={nameInput}
               onChange={e => setNameInput(e.target.value)}
@@ -822,23 +894,23 @@ export default function TaskApp() {
       {/* 連携解除の警告モーダル */}
       {showUnlinkWarning && (
         <div className="modal-overlay" onClick={() => !unlinking && setShowUnlinkWarning(false)}>
-          <div className="modal-compact" style={{ maxWidth: 400, textAlign: "left" }} onClick={e => e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" className="modal-compact" style={{ maxWidth: 400, textAlign: "left" }} onClick={e => e.stopPropagation()}>
             {!hasPassword ? (
               <>
-                <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 12, textAlign: "center" }}>
+                <div style={{ fontWeight: 600, fontSize: 17, marginBottom: 12, textAlign: "center" }}>
                   現在Googleアカウントが唯一のログイン手段です
                 </div>
                 <div style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.8, marginBottom: 22 }}>
                   他のログイン手段が無いため、このままではGoogle連携を解除できません。
                   解除するには、先に<strong style={{ color: "var(--fg)" }}>パスワードを設定</strong>していただくか、
-                  利用をやめる場合は<strong style={{ color: "var(--fg)" }}>アカウント削除を申請</strong>してください。
+                  利用をやめる場合は<strong style={{ color: "var(--fg)" }}>アカウントを削除</strong>してください。
                 </div>
                 <div className="stack" style={{ gap: 10 }}>
                   <button onClick={() => { setShowUnlinkWarning(false); openPasswordModal(); }} className="btn btn-primary btn-block">
                     パスワードを設定する
                   </button>
-                  <button onClick={() => { setShowUnlinkWarning(false); setShowDeleteRequest(true); }} className="btn btn-danger btn-block">
-                    アカウント削除を申請する
+                  <button onClick={() => { setShowUnlinkWarning(false); setShowDeleteAccount(true); }} className="btn btn-danger btn-block">
+                    アカウントを削除する
                   </button>
                   <button onClick={() => setShowUnlinkWarning(false)} className="btn btn-secondary btn-block">
                     キャンセル
@@ -847,7 +919,7 @@ export default function TaskApp() {
               </>
             ) : (
               <>
-                <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 12, textAlign: "center" }}>
+                <div style={{ fontWeight: 600, fontSize: 17, marginBottom: 12, textAlign: "center" }}>
                   Google連携を解除しますか？
                 </div>
                 <div style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.7, marginBottom: 20, textAlign: "center" }}>
@@ -878,10 +950,10 @@ export default function TaskApp() {
       {/* パスワード設定/変更モーダル */}
       {showPasswordModal && (
         <div className="modal-overlay" onClick={() => !pwSaving && setShowPasswordModal(false)}>
-          <div className="modal-compact" style={{ maxWidth: 380, textAlign: "left" }} onClick={e => e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" className="modal-compact" style={{ maxWidth: 380, textAlign: "left" }} onClick={e => e.stopPropagation()}>
             {pwDone ? (
               <>
-                <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 10, textAlign: "center" }}>
+                <div style={{ fontWeight: 600, fontSize: 17, marginBottom: 10, textAlign: "center" }}>
                   {hasPassword ? "パスワードを変更しました" : "設定用メールを送信しました"}
                 </div>
                 {!hasPassword && (
@@ -896,7 +968,7 @@ export default function TaskApp() {
               </>
             ) : hasPassword ? (
               <>
-                <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>パスワードを変更</div>
+                <div style={{ fontWeight: 600, fontSize: 18, marginBottom: 8 }}>パスワードを変更</div>
                 {pwError && (
                   <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: "var(--radius-md)", fontSize: 13, background: "var(--danger-soft)", color: "var(--danger)" }}>
                     {pwError}
@@ -924,7 +996,7 @@ export default function TaskApp() {
               </>
             ) : (
               <>
-                <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>パスワードを設定</div>
+                <div style={{ fontWeight: 600, fontSize: 18, marginBottom: 8 }}>パスワードを設定</div>
                 <p style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.7, marginBottom: 16 }}>
                   現在Googleアカウントでログインしています。設定用のメールを送信しますので、
                   メール内のリンクから新しいパスワードを設定してください。
@@ -952,8 +1024,8 @@ export default function TaskApp() {
       {/* 削除確認 */}
       {deleteConfirm && (
         <div className="modal-overlay">
-          <div className="modal-compact" style={{ maxWidth: 340 }}>
-            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>本当に削除しますか？</div>
+          <div role="dialog" aria-modal="true" className="modal-compact" style={{ maxWidth: 340 }}>
+            <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 8 }}>本当に削除しますか？</div>
             <div style={{ color: "var(--muted)", fontSize: 13, marginBottom: 24 }}>この操作は元に戻せません。</div>
             <div className="row" style={{ gap: 10 }}>
               <button onClick={() => setDeleteConfirm(null)} className="btn btn-secondary" style={{ flex: 1 }}>キャンセル</button>
@@ -966,8 +1038,8 @@ export default function TaskApp() {
       {/* ログアウトの警告モーダル */}
       {showLogoutWarning && (
         <div className="modal-overlay" onClick={() => setShowLogoutWarning(false)}>
-          <div className="modal-compact" style={{ maxWidth: 400, textAlign: "left" }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 12, textAlign: "center" }}>
+          <div role="dialog" aria-modal="true" className="modal-compact" style={{ maxWidth: 400, textAlign: "left" }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontWeight: 600, fontSize: 17, marginBottom: 12, textAlign: "center" }}>
               ログアウトしますか？
             </div>
             <div style={{
@@ -994,9 +1066,9 @@ export default function TaskApp() {
       {showForm && (
         <div className="modal-overlay" style={{ touchAction: "none" }}
           onClick={() => { pendingImages.forEach(pi => URL.revokeObjectURL(pi.previewUrl)); setPendingImages([]); setShowForm(false); setEditId(null); }}>
-          <div className="modal-sheet" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" className="modal-sheet" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <div style={{ fontWeight: 700, fontSize: 19, marginBottom: 12 }}>
+              <div style={{ fontWeight: 600, fontSize: 19, marginBottom: 12 }}>
                 {editId ? "タスクを編集" : "新規タスクを登録"}
               </div>
             </div>
@@ -1029,6 +1101,14 @@ export default function TaskApp() {
                     {STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
                   </select>
                 </Field>
+                <Field label="タグ（カテゴリ・案件名など）">
+                  <TagPicker
+                    tags={tags}
+                    selectedIds={form.tagIds}
+                    onChange={ids => setForm({ ...form, tagIds: ids })}
+                    onCreate={handleCreateTag}
+                  />
+                </Field>
                 <Field label="メモ">
                   <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
                     placeholder="仕様の指定や注意点など" className="textarea" style={{ minHeight: 70 }} />
@@ -1051,7 +1131,7 @@ export default function TaskApp() {
                               <div className="tag" style={{ position: "absolute", top: 3, left: 3 }}>
                                 {IMAGE_TYPES.find(t => t.key === pi.imageType)?.label}
                               </div>
-                              <button type="button"
+                              <button type="button" aria-label={`${pi.file.name}を取り除く`}
                                 onClick={() => {
                                   URL.revokeObjectURL(pi.previewUrl);
                                   setPendingImages(prev => prev.filter(x => x.id !== pi.id));

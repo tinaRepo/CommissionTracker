@@ -11,7 +11,7 @@ export type DeleteResult =
 async function listUserFiles(admin: SupabaseClient, prefix: string): Promise<string[]> {
   const out: string[] = [];
   let offset = 0;
-  for (;;) {
+  for (; ;) {
     const { data, error } = await admin.storage.from(BUCKET).list(prefix, {
       limit: 100, offset, sortBy: { column: "name", order: "asc" },
     });

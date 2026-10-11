@@ -92,10 +92,10 @@ export default function ContactModal({ open, onClose }: Props) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-sheet" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" className="modal-sheet" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <div className="row" style={{ justifyContent: "space-between", marginBottom: 4 }}>
-            <span style={{ fontWeight: 700, fontSize: 17 }}>お問い合わせ</span>
+            <span style={{ fontWeight: 600, fontSize: 17 }}>お問い合わせ</span>
             <button onClick={onClose} className="icon-btn"
               style={{ background: "var(--surface)", border: "1px solid var(--border-soft)", color: "var(--fg)", width: 32, height: 32 }}>
               <Icon name="close" size={14} />
@@ -107,10 +107,10 @@ export default function ContactModal({ open, onClose }: Props) {
         <div className="modal-body">
           {done ? (
             <div style={{ textAlign: "center", padding: "32px 0" }}>
-              <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 10 }}>送信しました</div>
+              <div style={{ fontWeight: 600, fontSize: 17, marginBottom: 10 }}>送信しました</div>
               <div style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.8 }}>
                 お問い合わせを受け付けました。<br />
-                {email && <>確認メールをお送りしました。<br /></>}
+                {isLoggedIn && email && <>確認メールをお送りしました。<br /></>}
                 内容を確認次第、ご連絡いたします。
               </div>
             </div>

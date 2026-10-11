@@ -1,6 +1,6 @@
 -- ============================================================
 -- Migration: セキュリティ強化・サーバー側検証・複数端末プッシュ通知
--- version: 2.0.1
+-- version: 2.0.0
 -- 目的:
 --   1. user_profiles の特権カラム（plan / is_admin / stripe_*）をクライアントから書き換えられないようにする
 --      （RLSの profiles_update_own は列を制限できず、本人が plan='premium' や is_admin=true に

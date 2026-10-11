@@ -27,7 +27,7 @@
 ## AdSense
 
 - AdSense publisher ID: `pub-4461599437148086`。
-- AdSense loaderは`app/layout.tsx`の`<head>`内に通常の`<script async>`として配置している。`next/script`を使うとNext.jsが`data-nscript`属性を付与し、AdSenseから警告が出る環境があるため、このloaderはNext.js Scriptに戻さない。
+- AdSenseの広告スクリプトは、公開コンテンツページ（`/lp`・`/guide`・`/terms`・`/privacy`・`/tokusho`）だけで読み込む（`components/AdSenseLoader.tsx`）。ログイン後のアプリ・ログイン画面・料金ページ・エラー/メンテナンス画面など、公開コンテンツのない画面に広告を出すとポリシー違反になるおそれがあるため。所有確認用の`<meta name="google-adsense-account">`は`app/layout.tsx`で全ページに出している（広告は読み込まない）。`next/script`を使うとNext.jsが`data-nscript`属性を付与しAdSenseから警告が出るため、スクリプトは`AdSenseLoader`が手動で挿入する。広告を表示するページを増やす場合は`AD_ALLOWED_PATHS`に追加する。
 - 所有サイトの確認と広告配信の状態はAdSense管理画面で確認する。
 - `public/ads.txt`には次の認定販売者レコードを置いている。publisher IDをAdSense側で変更した場合は必ず同期する。
 

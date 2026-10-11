@@ -221,3 +221,33 @@ npx supabase migration repair --status reverted <timestamp> --project-ref <produ
 > v2.0.0の`20260928000000_V2.0.0_rebrand_to_tasks.sql`は、テーブル・カラム名の変更に加えて
 > Storageバケットの新設（`task-images`）を伴う。本番適用時は `docs/handover.md` の
 > 「名称変更（v2.0.0）の適用手順」に従い、DB適用とコードデプロイを同時期に行うこと。
+
+---
+
+# 新規テーブルのGRANT
+
+Supabase（クラウド）は、`public` スキーマに新規作成したテーブル・ビュー・関数を、
+データAPIのロール（`anon` / `authenticated` / `service_role`）へ**自動公開しない**方針に移行している
+（`supabase/config.toml` の `auto_expose_new_tables` のコメント参照。ローカルは未設定なら従来どおり公開される）。
+新しいテーブルを作るマイグレーションでは、RLSの有効化に加えて、必要なロールへ**明示的にGRANT**すること。
+
+```sql
+create table public.example (...);
+alter table public.example enable row level security;
+
+-- ブラウザ（ログインユーザー）から読み書きするテーブル: 必要な操作だけ authenticated に付与し、RLSポリシーで絞る
+grant select, insert, update, delete on public.example to authenticated;
+-- ログイン前にも読ませるテーブルだけ anon にも付与する（例: app_settings の select）
+-- grant select on public.example to anon;
+
+-- サーバー（service_role）専用のテーブル: anon / authenticated には何も付与しない
+revoke all on public.example from anon, authenticated;
+grant select, insert, update, delete on public.example to service_role;
+```
+
+- 付与を忘れると、データAPIから `permission denied for table ...`（42501）になる。
+- 関数（RPC）は既定で PUBLIC に実行権限が付く。公開したくない関数は
+  `revoke all on function ... from public, anon, authenticated;` してから、必要なロールにだけ `grant execute` する。
+- テーブルの rename（v2.0.0の commissions→tasks）では既存のGRANTが引き継がれるため、再付与は不要。
+- 実装例: `20260927000001_V1.2.0_add_maintenance_mode.sql`（anon / authenticated への select）、
+  `20261005000000_V2.0.0_hardening.sql`（`api_rate_limits` と `check_rate_limit()` は service_role 専用）。

@@ -12,18 +12,31 @@
 
 ## 目次
 
-1. [Supabase セットアップ](#1-supabase-セットアップ)
-2. [ローカル動作確認（任意）](#2-ローカル動作確認任意)
-3. [Vercel デプロイ](#3-vercel-デプロイ)
-4. [外部サービス設定](#4-外部サービス設定)
-5. [管理者設定](#5-管理者設定)
-6. [機能一覧](#6-機能一覧)
-7. [プラン制限](#7-プラン制限)
-8. [パフォーマンスに関する実装方針](#8-パフォーマンスに関する実装方針)
-9. [SEO・広告運用](#9-seo広告運用)
-10. [デザイン方針](#10-デザイン方針)
-11. [v2.0.0 への移行（Storage 画像のコピー）](#11-v200-への移行storage-画像のコピー)
-12. [v2.0.1 / v2.1.0 の適用手順](#12-v201--v210-の適用手順)
+- [📋 ツクリスト](#-ツクリスト)
+  - [目次](#目次)
+  - [1. Supabase セットアップ](#1-supabase-セットアップ)
+    - [1-1. プロジェクト作成](#1-1-プロジェクト作成)
+    - [1-2. DB・RLS・Storage の構築](#1-2-dbrlsstorage-の構築)
+    - [1-3. 認証プロバイダーの設定](#1-3-認証プロバイダーの設定)
+    - [1-4. URL Configuration](#1-4-url-configuration)
+    - [1-5. API キーの確認](#1-5-api-キーの確認)
+  - [2. ローカル動作確認（任意）](#2-ローカル動作確認任意)
+    - [初回セットアップ（1 回だけ）](#初回セットアップ1-回だけ)
+    - [起動](#起動)
+  - [3. Vercel デプロイ](#3-vercel-デプロイ)
+  - [4. 外部サービス設定](#4-外部サービス設定)
+    - [Resend（メール送信）](#resendメール送信)
+    - [Stripe（サブスクリプション）](#stripeサブスクリプション)
+    - [Web Push（プッシュ通知）](#web-pushプッシュ通知)
+    - [Cron Jobの認証（CRON\_SECRET）](#cron-jobの認証cron_secret)
+  - [5. 管理者設定](#5-管理者設定)
+  - [6. 機能一覧](#6-機能一覧)
+  - [7. プラン制限](#7-プラン制限)
+  - [8. パフォーマンスに関する実装方針](#8-パフォーマンスに関する実装方針)
+  - [9. SEO・広告運用](#9-seo広告運用)
+  - [10. デザイン方針](#10-デザイン方針)
+  - [11. v2.0.0 への移行（Storage 画像のコピー）](#11-v200-への移行storage-画像のコピー)
+  - [12. v2.0.0 セキュリティ強化・機能追加の適用手順](#12-v200-セキュリティ強化機能追加の適用手順)
 
 ---
 
@@ -114,26 +127,26 @@ vercel dev
 2. [Vercel](https://vercel.com) → **Add New Project** → リポジトリを選択
 3. **Environment Variables** に以下を追加してデプロイ（雛形は `.env.example`）
 
-| 環境変数                               | 値                            | 備考                                                                   |
-| -------------------------------------- | ----------------------------- | ---------------------------------------------------------------------- |
-| `NEXT_PUBLIC_SUPABASE_URL`             | Supabase の Project URL       |                                                                        |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY`        | Supabase の anon key          |                                                                        |
-| `SUPABASE_SERVICE_ROLE_KEY`            | Supabase の service_role key  | ⚠️ サーバーサイド専用                                                   |
-| `RESEND_API_KEY`                       | Resend の API キー            |                                                                        |
-| `ADMIN_EMAIL`                          | 削除申請メールの受信アドレス  |                                                                        |
-| `NEXT_PUBLIC_APP_URL`                  | Vercel のデプロイ URL         | 例: `https://your-app.vercel.app`（パスなし。通知のリンク先に使用）    |
-| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`   | Stripe の公開鍵               |                                                                        |
-| `STRIPE_SECRET_KEY`                    | Stripe の秘密鍵               | ⚠️ サーバーサイド専用                                                   |
-| `STRIPE_WEBHOOK_SECRET`                | Stripe Webhook のシークレット |                                                                        |
-| `STRIPE_STANDARD_PRICE_ID`             | スタンダードプランの Price ID | サーバーサイド用                                                       |
-| `STRIPE_PREMIUM_PRICE_ID`              | プレミアムプランの Price ID   | サーバーサイド用                                                       |
-| `NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID` | スタンダードプランの Price ID | フロント用                                                             |
-| `NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID`  | プレミアムプランの Price ID   | フロント用                                                             |
-| `NEXT_PUBLIC_VAPID_PUBLIC_KEY`         | Web Push の公開鍵             |                                                                        |
-| `VAPID_PRIVATE_KEY`                    | Web Push の秘密鍵             |                                                                        |
-| `VAPID_EMAIL`                          | Web Push 送信元メール         | 例: `mailto:xxx@example.com`                                           |
+| 環境変数                               | 値                            | 備考                                                                                  |
+| -------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`             | Supabase の Project URL       |                                                                                       |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY`        | Supabase の anon key          |                                                                                       |
+| `SUPABASE_SERVICE_ROLE_KEY`            | Supabase の service_role key  | ⚠️ サーバーサイド専用                                                                  |
+| `RESEND_API_KEY`                       | Resend の API キー            |                                                                                       |
+| `ADMIN_EMAIL`                          | 削除申請メールの受信アドレス  |                                                                                       |
+| `NEXT_PUBLIC_APP_URL`                  | Vercel のデプロイ URL         | 例: `https://your-app.vercel.app`（パスなし。通知のリンク先に使用）                   |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`   | Stripe の公開鍵               |                                                                                       |
+| `STRIPE_SECRET_KEY`                    | Stripe の秘密鍵               | ⚠️ サーバーサイド専用                                                                  |
+| `STRIPE_WEBHOOK_SECRET`                | Stripe Webhook のシークレット |                                                                                       |
+| `STRIPE_STANDARD_PRICE_ID`             | スタンダードプランの Price ID | サーバーサイド用                                                                      |
+| `STRIPE_PREMIUM_PRICE_ID`              | プレミアムプランの Price ID   | サーバーサイド用                                                                      |
+| `NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID` | スタンダードプランの Price ID | フロント用                                                                            |
+| `NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID`  | プレミアムプランの Price ID   | フロント用                                                                            |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY`         | Web Push の公開鍵             |                                                                                       |
+| `VAPID_PRIVATE_KEY`                    | Web Push の秘密鍵             |                                                                                       |
+| `VAPID_EMAIL`                          | Web Push 送信元メール         | 例: `mailto:xxx@example.com`                                                          |
 | `CRON_SECRET`                          | Cron Job 認証用シークレット   | ⚠️ 16文字以上。自分で生成する（[4. 外部サービス設定](#cron-jobの認証cron_secret)参照） |
-| `HEALTHCHECKS_PING_URL`                | 死活監視の ping URL（任意）   | Healthchecks.io 等で作成。Cron 成功のたびに ping し、途切れると通知される |
+| `HEALTHCHECKS_PING_URL`                | 死活監視の ping URL（任意）   | Healthchecks.io 等で作成。Cron 成功のたびに ping し、途切れると通知される             |
 
 > ⚠️ 環境変数を追加・変更した後は必ず **Redeploy** すること
 
@@ -436,34 +449,26 @@ node --env-file=.env.local scripts/migrate-storage.mjs --cleanup   # 検証OKな
 
 ---
 
-## 12. v2.0.1 / v2.1.0 の適用手順
+## 12. v2.0.0 セキュリティ強化・機能追加の適用手順
 
-**v2.0.1**: 権限昇格の防止、サーバー側の検証、レート制限、オープンリダイレクト対策、ユーザー削除時のStripe解約・画像削除、
-複数端末のプッシュ通知、セキュリティヘッダー、Next.js 14.2.35。
-**v2.1.0**: タグ、カレンダー、通知時刻の設定、本人による即時アカウント削除、Cronの拡張（毎時・並列・重複防止）、
-監視、Stripe対応、DB性能（`search_path`・RLS・インデックス）、AdSenseを公開ページに限定。
+セキュリティ強化・機能追加を含む全変更を、この v2.0.0 移行に含めます。
+Storage画像のコピー・旧バケット削除はデータ操作のため、[11章](#11-v200-への移行storage-画像のコピー)の専用スクリプトで別に実行してください。
 
-> 全体の順序が重要です。**①DB → ②スクリプト → ③ファイルの上書きコピー → ④確認** の順に行ってください。
-> （最終版の `lib/supabase.ts` などを先にコピーしてからスクリプトを実行すると、型定義が二重になります）
+適用順は **①DB → ②ファイル配置 → ③統合スクリプト → ④確認・デプロイ** です。
+検証DBで一通り確認してから本番DB・本番コードへ進めてください。
 
 **① DB（コードのデプロイ前）**
 
-検証DB → 本番DBの順に、2つを順番に `--dry-run` → 適用する（`docs/supabase-migration-guide.md` 参照）。
+検証DB → 本番DBの順に、次のマイグレーションを順番に `--dry-run` → 適用します
+（`docs/supabase-migration-guide.md` 参照）。
 
-- `20261005000000_V2.0.1_hardening.sql`
-- `20261006000000_V2.1.0_features.sql`
+- `20260928000000_V2.0.0_rebrand_to_tasks.sql`（未適用の場合）
+- `20261005000000_V2.0.0_hardening.sql`
+- `20261006000000_V2.0.0_features.sql`
 
 未適用でデプロイすると、お問い合わせ・アカウント削除は503、タグ・通知時刻の保存は失敗します。
 
-**② 部分修正のスクリプト（git commit してから。それぞれ `--dry-run` → 実行 → `git diff` で確認）**
-
-```bash
-node scripts/apply-v2-polish.mjs      # ステータス「対応中」への汎用化・記号のアイコン化・fontWeight統一 等
-node scripts/apply-hardening.mjs      # 空更新(null)・Stripeの価格検証・Analytics・パスワード長・next 14.2.35 等
-node scripts/apply-features.mjs       # ガイド・料金・ログイン・SEO資料・typecheckスクリプト
-```
-
-**③ 全面差し替えのファイルを上書きコピー**
+**② 全面差し替えのファイルを配置**
 
 - `app/`: `layout.tsx` `privacy/page.tsx` `components.css` `globals.css` `auth/callback/route.ts` と
   `api/{contact,health,account/delete,request-delete,admin/delete-user,admin/notify-push,push/subscribe,cron/deadline-notify,stripe/checkout,stripe/webhook}/route.ts`
@@ -471,10 +476,21 @@ node scripts/apply-features.mjs       # ガイド・料金・ログイン・SEO�
 - `hooks/useTaskSearch.ts`、`lib/supabase.ts`、`lib/calendar.ts`、`lib/server/{admin,monitor,delete-account}.ts`
 - `middleware.ts`、`next.config.js`、`vercel.json`、`.env.example`、`.github/workflows/ci.yml`
 - `public/`: `sw.js` `robots.txt` `offline.html` `manifest.json` `icon0.svg` 各PNG `favicon.ico`
-- `supabase/migrations/`、`scripts/migrate-storage.mjs`、`README.md`、`docs/handover.md`
+- `supabase/migrations/`、`scripts/migrate-v2.0.0.mjs`、`README.md`、`docs/handover.md`
+
+**③ 統合スクリプトを実行**
+
+部分修正のロジックもすべて1つのファイルに集約しています。
 
 ```bash
-npm install            # next / eslint-config-next を 14.2.35 に更新し、lockfile を再生成
+node scripts/migrate-v2.0.0.mjs --dry-run
+node scripts/migrate-v2.0.0.mjs --apply
+```
+
+スクリプトは仕上げ・セキュリティ強化・機能追加の修正を順番に実行し、失敗時は後続処理を中止します。
+適用後は `git diff` を確認してください。`package.json` が変わった場合は `npm install` でlockfileを更新します。
+
+```bash
 npm run typecheck && npm run lint && npm run build
 ```
 
@@ -500,4 +516,5 @@ npm run typecheck && npm run lint && npm run build
 - 監視：UptimeRobot 等で `/api/health` を監視。Healthchecks.io で作成したURLを `HEALTHCHECKS_PING_URL` に設定
 - AdSense：Privacy & messaging で同意メッセージ（EEA向け）を設定
 
-**⑥ 後片付け**: `scripts/apply-*.mjs` を削除する。
+**⑥ 後片付け**: 移行と検証が完了したら、`scripts/migrate-v2.0.0.mjs` は一回限りの作業用ファイルとして削除できます。
+Storage移行が完了するまでは `scripts/migrate-storage.mjs` を残してください。

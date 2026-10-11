@@ -1,6 +1,6 @@
 -- ============================================================
 -- Migration: タグ・通知時刻・監視・Stripe冪等性・DB性能
--- version: 2.1.0
+-- version: 2.0.0
 -- 内容:
 --   1. SECURITY DEFINER 関数の search_path 固定（Supabase Advisorsの警告対応）
 --   2. 通知時刻の設定（user_settings.notify_hour）
@@ -9,7 +9,7 @@
 --   5. Stripe Webhookの冪等性（stripe_events）
 --   6. 通知の重複送信防止（notification_log）
 --   7. 性能: 部分インデックス・FKインデックス・RLSの (select auth.uid()) 化
--- 前提: 20261005000000_V2.0.1_hardening.sql が適用済みであること
+-- 前提: 20261005000000_V2.0.0_hardening.sql が適用済みであること
 -- 備考: 新規テーブルは「データAPIへ自動公開されない」前提で、必要な権限を明示的にGRANTしている
 -- ============================================================
 

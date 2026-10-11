@@ -1,5 +1,7 @@
 "use client";
 
+import { Icon } from "@/components/TaskShared";
+
 export const dynamic = "force-dynamic";
 
 import { useState, useEffect } from "react";
@@ -51,7 +53,7 @@ export default function PricingPage() {
         .single();
       if (data) {
         setCurrentPlan(data.plan ?? "free");
-        setHasSubscription(!!data.stripe_customer_id && data.subscription_status === "active");
+        setHasSubscription(!!data.stripe_customer_id && ["active", "past_due"].includes(data.subscription_status ?? ""));
       }
     });
   }, []);
@@ -103,7 +105,7 @@ export default function PricingPage() {
   return (
     <div style={{ minHeight: "100vh", background: "var(--surface)" }}>
       <header className="doc-header">
-        <button onClick={() => window.location.href = "/"} className="doc-back-btn">← 戻る</button>
+        <button onClick={() => window.location.href = "/"} className="doc-back-btn"><Icon name="arrowLeft" size={14} /> 戻る</button>
         <span className="title">プランを選択</span>
       </header>
 
@@ -124,7 +126,7 @@ export default function PricingPage() {
           <div className="text-muted" style={{ fontSize: 14, marginBottom: 8 }}>現在のプラン：
             <strong style={{ color: "var(--fg)" }}> {PLANS.find(p => p.key === currentPlan)?.label ?? "無料"}</strong>
           </div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>プランを選択してください</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 8 }}>プランを選択してください</h1>
           <p className="text-muted" style={{ fontSize: 14 }}>いつでもキャンセル可能・月額制</p>
         </div>
 
@@ -138,24 +140,24 @@ export default function PricingPage() {
                 boxShadow: isCurrent ? "0 0 0 1px var(--accent)" : undefined,
               }}>
                 {isCurrent && (
-                  <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: "var(--accent)", color: "#fff", borderRadius: 999, padding: "3px 14px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
+                  <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: "var(--accent)", color: "#fff", borderRadius: 999, padding: "3px 14px", fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>
                     現在のプラン
                   </div>
                 )}
                 {plan.key === "premium" && !isCurrent && (
-                  <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: "var(--fg)", color: "var(--bg)", borderRadius: 999, padding: "3px 14px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
+                  <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: "var(--fg)", color: "var(--bg)", borderRadius: 999, padding: "3px 14px", fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>
                     おすすめ
                   </div>
                 )}
 
-                <div className="text-meta" style={{ marginBottom: 10, fontWeight: 700 }}>{plan.label}</div>
+                <div className="text-meta" style={{ marginBottom: 10, fontWeight: 600 }}>{plan.label}</div>
 
                 <div style={{ marginBottom: 20 }}>
                   {plan.price === 0 ? (
-                    <span style={{ fontSize: 30, fontWeight: 700 }}>無料</span>
+                    <span style={{ fontSize: 30, fontWeight: 600 }}>無料</span>
                   ) : (
                     <>
-                      <span style={{ fontSize: 30, fontWeight: 700 }}>¥{plan.price.toLocaleString()}</span>
+                      <span style={{ fontSize: 30, fontWeight: 600 }}>¥{plan.price.toLocaleString()}</span>
                       <span className="text-muted" style={{ fontSize: 13, marginLeft: 4 }}>/月</span>
                     </>
                   )}
@@ -164,7 +166,7 @@ export default function PricingPage() {
                 <ul style={{ listStyle: "none", margin: "0 0 24px", display: "grid", gap: 8 }}>
                   {plan.features.map(f => (
                     <li key={f} style={{ display: "flex", gap: 8, fontSize: 13, color: "var(--fg-2)" }}>
-                      <span style={{ color: "var(--accent)" }}>✓</span>{f}
+                      <span style={{ color: "var(--accent)", display: "inline-flex" }}><Icon name="check" size={16} /></span>{f}
                     </li>
                   ))}
                 </ul>
