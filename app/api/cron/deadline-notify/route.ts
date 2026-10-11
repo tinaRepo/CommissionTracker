@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     const settings = await fetchAll<{ user_id: string; notify_hour: number }>(range => admin
       .from("user_settings").select("user_id, notify_hour").order("user_id").range(range[0], range[1]));
     const hourOf = new Map(settings.map(s => [s.user_id, s.notify_hour]));
-    const targets = new Set([...subsByUser.keys()].filter(u => (hourOf.get(u) ?? DEFAULT_NOTIFY_HOUR) === hour));
+    const targets = new Set(Array.from(subsByUser.keys()).filter(u => (hourOf.get(u) ?? DEFAULT_NOTIFY_HOUR) === hour));
 
     // 3) 納期が近い未完了タスク（部分インデックス idx_tasks_active_deadline を利用）
     const tasks = targets.size === 0 ? [] : await fetchAll<TaskRow>(range => admin.from("tasks")
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 4) 同じ日の重複送信を防ぐ（先に記録できたユーザーだけ送る）
-    const userIds = [...byUser.keys()];
+    const userIds = Array.from(byUser.keys());
     const claimedIds = new Set<string>();
     for (let i = 0; i < userIds.length; i += 500) {
       const { data, error } = await admin.from("notification_log")
@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
     // 5) 送信（並列10・時間予算あり）
     const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
     const jobs: { sub: Sub; payload: string }[] = [];
-    for (const uid of claimedIds) {
+    for (const uid of Array.from(claimedIds)) {
       const list = (byUser.get(uid) ?? []).sort((a, b) => a.deadline.localeCompare(b.deadline));
       const days = Math.round((Date.parse(list[0].deadline) - Date.parse(today)) / 86400_000);
       const when = days === 0 ? "本日" : `あと${days}日`;

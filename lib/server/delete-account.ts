@@ -39,7 +39,7 @@ async function cancelSubscriptions(stripe: Stripe, customerId: string | null, su
       list.data.forEach(s => ids.add(s.id));
     }
   }
-  for (const id of ids) {
+  for (const id of Array.from(ids)) {
     try {
       await stripe.subscriptions.cancel(id);
     } catch (e: any) {

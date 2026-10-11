@@ -381,7 +381,7 @@ export async function setTaskTags(taskId: string, tagIds: string[]): Promise<voi
   if (error) throw error;
   const have = new Set((current ?? []).map(r => r.tag_id as string));
 
-  const toRemove = [...have].filter(id => !wanted.includes(id));
+  const toRemove = Array.from(have).filter(id => !wanted.includes(id));
   const toAdd = wanted.filter(id => !have.has(id));
 
   if (toRemove.length > 0) {
