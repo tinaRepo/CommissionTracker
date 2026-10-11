@@ -3,9 +3,6 @@
 依頼・タスクの納期、金額、確認用画像をまとめて管理できる Web アプリです。
 イラスト依頼に限らず、デザイン・動画・執筆・開発など外注・制作物の依頼全般で使えます。
 
-> 旧名称: Commission Tracker（絵師向け依頼管理）。v2.0.0 で汎用納期管理サービス「ツクリスト」に改称しました。
-> 用語・DB 名称の変更詳細は [docs/rebrand-plan.md](docs/rebrand-plan.md) を参照してください。
-
 **技術構成:** Next.js 14 (App Router) + Supabase + Vercel
 
 ---
@@ -35,8 +32,7 @@
   - [8. パフォーマンスに関する実装方針](#8-パフォーマンスに関する実装方針)
   - [9. SEO・広告運用](#9-seo広告運用)
   - [10. デザイン方針](#10-デザイン方針)
-  - [11. v2.0.0 への移行（Storage 画像のコピー）](#11-v200-への移行storage-画像のコピー)
-  - [12. v2.0.0 セキュリティ強化・機能追加の適用手順](#12-v200-セキュリティ強化機能追加の適用手順)
+  - [開発者向け資料](#開発者向け資料)
 
 ---
 
@@ -48,7 +44,7 @@
 
 ### 1-2. DB・RLS・Storage の構築
 
-**docs/supabase-migration-guide.md** を参照して、マイグレーションを実施してください。
+DBの変更・反映方法は [docs/database-operations.md](docs/database-operations.md) を参照してください。
 
 ### 1-3. 認証プロバイダーの設定
 
@@ -63,7 +59,7 @@
 2. Client ID / Secret を Supabase の Google プロバイダー設定に入力
 3. Redirect URL: `https://your-project.supabase.co/auth/v1/callback`
 
-> 📄 詳細な設定手順（Manual Linkingの有効化を含む）は `docs/google-login-setup.md` を参照してください。
+> 📄 詳細は [docs/google-login.md](docs/google-login.md) を参照してください。
 
 ### 1-4. URL Configuration
 
@@ -165,17 +161,7 @@ vercel dev
 
 > 無料プランは `onboarding@resend.dev` からの送信のみ。独自ドメインで送信したい場合は DNS 設定が必要です。
 
-> 📌 **TODO（今後対応予定）**: 現在 Supabase Auth（確認メール・パスワードリセットメール等）は
-> Supabase 標準のメール送信機能を利用していますが、送信元ドメインの独自化・到達率向上のため、
-> 今後 Resend を使ったカスタム SMTP を **Supabase Dashboard → Authentication → Emails →
-> SMTP Settings** に設定する予定です。設定には `RESEND_API_KEY` とは別に、Resend が発行する
-> SMTP 用の認証情報（ホスト・ポート・ユーザー名・パスワード）が必要です。実施後は
-> `docs/handover.md` の該当セクションを更新してください。
->
-> **優先度は高めです。** Supabase 標準のメール送信は送信数の上限がかなり低く、ユーザーが増えると確認メール・
-> パスワードリセットメールが届かなくなります。Resend で独自ドメインを認証したうえで、
-> Supabase Dashboard → Authentication → Emails → SMTP Settings に次を設定してください（ホスト: `smtp.resend.com` /
-> ポート: `465`（または `587`）/ ユーザー名: `resend` / パスワード: Resend の API キー）。設定後は同画面の Rate Limits も見直すこと。
+> Supabase Authのメール送信元を独自ドメインにする場合は、Resend SMTPを設定してください。
 
 ### Stripe（サブスクリプション）
 
@@ -350,8 +336,7 @@ where id = 'ここに UUID を貼る';
 ## 8. パフォーマンスに関する実装方針
 
 ログイン直後の表示速度や、お知らせモーダルの表示速度の改善のために取り入れている
-実装方針です。今後コードを追加・変更する際もこの方針に沿ってください（詳細な経緯は
-`docs/handover.md` の「パフォーマンス方針」セクションを参照）。
+実装方針です。今後コードを追加・変更する際もこの方針に沿ってください。
 
 - **画像の署名付きURLはまとめて取得する**：画像を複数枚扱う場面（一覧のサムネイル・
   詳細モーダルなど）では、`lib/supabase.ts` の `getSignedImageUrl()`（1枚用）を
@@ -403,7 +388,7 @@ where id = 'ここに UUID を貼る';
 
 ## 9. SEO・広告運用
 
-Google Search Console・Google AdSenseの初期設定と定期確認は、[docs/seo-and-ads.md](docs/seo-and-ads.md) を参照してください。
+Google Search Console・Google AdSenseの設定は、[docs/seo-ads-guide.md](docs/seo-ads-guide.md) を参照してください。
 
 ---
 
@@ -424,97 +409,9 @@ Google Search Console・Google AdSenseの初期設定と定期確認は、[docs/
 
 ---
 
-## 11. v2.0.0 への移行（Storage 画像のコピー）
+## 開発者向け資料
 
-Supabase Storage はバケット名を変更できないため、マイグレーション SQL は新バケット `task-images` を作るだけで、
-旧バケット `commission-images` のファイルは自動では移行されません。
-`scripts/migrate-storage.mjs` でコピーします（冪等。パス構造は変わらないので DB の `storage_path` 更新は不要）。
-
-```bash
-# 接続先は環境変数で切り替える（検証DB → 本番DBの順に実施）
-node --env-file=.env.local scripts/migrate-storage.mjs --dry-run   # 確認のみ
-node --env-file=.env.local scripts/migrate-storage.mjs             # コピー実行（task-images が無ければ作成）
-node --env-file=.env.local scripts/migrate-storage.mjs --cleanup   # 検証OKなら旧バケットを空にして削除
-```
-
-推奨手順は次のとおりです。
-
-1. 検証 DB・本番 DB の順に、DB 適用前に事前コピーする（`task-images` が無ければスクリプトが作成する）
-2. マイグレーション SQL を適用し、直ちにコードをデプロイする（DB 適用とデプロイは同時期に行う）
-3. 事前コピー後に旧バケットへ追加された分を拾うため、もう一度スクリプトを実行する
-4. 画像の表示・アップロード・削除を確認する
-5. `--cleanup` で旧バケットを削除する（DB が参照する全パスが `task-images` にあり、未コピーが 0 件の場合のみ削除される）
-
-> `--cleanup` は不可逆です。先に `--cleanup --dry-run` で対象を確認してください。
-
----
-
-## 12. v2.0.0 セキュリティ強化・機能追加の適用手順
-
-セキュリティ強化・機能追加を含む全変更を、この v2.0.0 移行に含めます。
-Storage画像のコピー・旧バケット削除はデータ操作のため、[11章](#11-v200-への移行storage-画像のコピー)の専用スクリプトで別に実行してください。
-
-適用順は **①DB → ②ファイル配置 → ③統合スクリプト → ④確認・デプロイ** です。
-検証DBで一通り確認してから本番DB・本番コードへ進めてください。
-
-**① DB（コードのデプロイ前）**
-
-検証DB → 本番DBの順に、次のマイグレーションを順番に `--dry-run` → 適用します
-（`docs/supabase-migration-guide.md` 参照）。
-
-- `20260928000000_V2.0.0_rebrand_to_tasks.sql`（未適用の場合）
-- `20261005000000_V2.0.0_hardening.sql`
-- `20261006000000_V2.0.0_features.sql`
-
-未適用でデプロイすると、お問い合わせ・アカウント削除は503、タグ・通知時刻の保存は失敗します。
-
-**② 全面差し替えのファイルを配置**
-
-- `app/`: `layout.tsx` `privacy/page.tsx` `components.css` `globals.css` `auth/callback/route.ts` と
-  `api/{contact,health,account/delete,request-delete,admin/delete-user,admin/notify-push,push/subscribe,cron/deadline-notify,stripe/checkout,stripe/webhook}/route.ts`
-- `components/`: `TaskApp` `TaskShared` `TaskSearchBar` `TaskCalendar` `TagPicker` `DeleteAccountModal` `NotifySettingsModal` `AdSenseLoader` `PushNotificationToggle`（`.tsx`）
-- `hooks/useTaskSearch.ts`、`lib/supabase.ts`、`lib/calendar.ts`、`lib/server/{admin,monitor,delete-account}.ts`
-- `middleware.ts`、`next.config.js`、`vercel.json`、`.env.example`、`.github/workflows/ci.yml`
-- `public/`: `sw.js` `robots.txt` `offline.html` `manifest.json` `icon0.svg` 各PNG `favicon.ico`
-- `supabase/migrations/`、`scripts/migrate-v2.0.0.mjs`、`README.md`、`docs/handover.md`
-
-**③ 統合スクリプトを実行**
-
-部分修正のロジックもすべて1つのファイルに集約しています。
-
-```bash
-node scripts/migrate-v2.0.0.mjs --dry-run
-node scripts/migrate-v2.0.0.mjs --apply
-```
-
-スクリプトは仕上げ・セキュリティ強化・機能追加の修正を順番に実行し、失敗時は後続処理を中止します。
-適用後は `git diff` を確認してください。`package.json` が変わった場合は `npm install` でlockfileを更新します。
-
-```bash
-npm run typecheck && npm run lint && npm run build
-```
-
-> `app/api/request-delete/route.ts` は、本人による即時削除（`/api/account/delete`）に置き換わったため、画面からは呼ばれなくなりました。不要なら削除してください。
-
-**④ 検証環境での確認 → 本番へ（DB適用とコードのデプロイは同時期に）**
-
-- 一般ユーザーで `plan` / `is_admin` の更新が拒否される（42501）
-- 画像が上限を超える・画像以外のファイルを送るとエラーになる
-- タスクの日付・金額・メモを空にして保存できる
-- タグを作成・付与・絞り込み・名前変更・削除できる（他ユーザーのタグは見えない）
-- カレンダーの月・週表示で、納期の日にタスクが出る。タスクを開ける
-- 通知時刻を変更でき、複数端末で通知をオンにしても片方をオフにすれば他方は残る
-- お問い合わせ：未ログインは自動返信されず、連投すると429
-- アカウント削除：誤ったメール・パスワードで拒否される。テストアカウントで完了までできる（有料なら解約も）
-- Stripe（テストモード）：支払い失敗の再現（`4000 0000 0000 0341`）で `past_due` → 警告表示・メール、成功で復帰
-- `/api/health` が200、`/api/health?deep=1`（Bearer付き）が Cron 実行後に200
-
-**⑤ ダッシュボード側の設定**
-
-- Vercel：**Pro プラン**（毎時Cron）／ Analytics を有効化 ／ Stripe Webhook のイベント追加（「4. 外部サービス設定」）
-- Supabase：Authentication → Password の最小長を8に ／ Advisors（Security・Performance）を実行
-- 監視：UptimeRobot 等で `/api/health` を監視。Healthchecks.io で作成したURLを `HEALTHCHECKS_PING_URL` に設定
-- AdSense：Privacy & messaging で同意メッセージ（EEA向け）を設定
-
-**⑥ 後片付け**: 移行と検証が完了したら、`scripts/migrate-v2.0.0.mjs` は一回限りの作業用ファイルとして削除できます。
-Storage移行が完了するまでは `scripts/migrate-storage.mjs` を残してください。
+- [開発・運用ガイド](docs/development-guide.md)：構成、実装ルール、検証・リリース手順
+- [DB運用ガイド](docs/database-operations.md)：マイグレーション、RLS、権限付与
+- [Googleログイン設定](docs/google-login.md)：OAuth・リダイレクトURL設定
+- [SEO・広告ガイド](docs/seo-ads-guide.md)：Search Console・AdSense運用

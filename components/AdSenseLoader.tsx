@@ -11,7 +11,7 @@ import { usePathname } from "next/navigation";
 // - 所有確認用の <meta name="google-adsense-account"> は app/layout.tsx で全ページに出している
 //   （広告は読み込まない。サイト所有の確認専用）
 // - スクリプトは next/script ではなく手動で挿入する（next/script は data-nscript 属性を付与し、
-//   AdSense側から警告が出るため。docs/seo-and-ads.md 参照）
+//   AdSense側から警告が出るため。docs/seo-ads-guide.md 参照）
 // - 公開ページからアプリへは通常のリンク（フルページ遷移）なので、読み込んだスクリプトがアプリ内に残らない
 // ============================================================
 
