@@ -9,7 +9,6 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const JOB = "deadline-notify";
-const DEFAULT_NOTIFY_HOUR = 8;   // user_settings が無いユーザーの既定（JST）
 const DAYS_AHEAD = 7;            // 納期までこの日数以内のタスクを通知
 const CONCURRENCY = 10;
 const TIME_BUDGET_MS = 50_000;   // maxDuration(60秒)より手前で打ち切る
@@ -18,7 +17,7 @@ const PAGE = 1000;
 type Sub = { user_id: string; endpoint: string; subscription: any };
 type TaskRow = { user_id: string; title: string; deadline: string };
 
-// 毎時0分に実行される。通知時刻(JST)が現在の時と一致するユーザーにだけ、全端末へWeb Pushを送る。
+// 毎日JST 8時に実行され、対象タスクがある通知購読ユーザーの全端末へWeb Pushを送る。
 //   Authorization: Bearer <CRON_SECRET> 必須。詳細はレスポンスに含めない（ログ・job_runsのみ）
 export async function GET(request: NextRequest) {
   if (!isCronAuthorized(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -30,13 +29,11 @@ export async function GET(request: NextRequest) {
   // JSTの現在日時
   const jst = new Date(Date.now() + 9 * 3600_000);
   const today = jst.toISOString().slice(0, 10);
-  const hour = jst.getUTCHours();
   const limitDate = new Date(Date.UTC(jst.getUTCFullYear(), jst.getUTCMonth(), jst.getUTCDate() + DAYS_AHEAD))
     .toISOString().slice(0, 10);
 
   try {
-    // JST 3時台: 古い記録を削除
-    if (hour === 3) await cleanup(admin);
+    await cleanup(admin);
 
     webpush.setVapidDetails(
       process.env.VAPID_EMAIL!, process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!, process.env.VAPID_PRIVATE_KEY!
@@ -48,11 +45,8 @@ export async function GET(request: NextRequest) {
     const subsByUser = new Map<string, Sub[]>();
     for (const s of subs) subsByUser.set(s.user_id, [...(subsByUser.get(s.user_id) ?? []), s]);
 
-    // 2) 通知時刻が今の時のユーザー（user_settings が無ければ既定）
-    const settings = await fetchAll<{ user_id: string; notify_hour: number }>(range => admin
-      .from("user_settings").select("user_id, notify_hour").order("user_id").range(range[0], range[1]));
-    const hourOf = new Map(settings.map(s => [s.user_id, s.notify_hour]));
-    const targets = new Set(Array.from(subsByUser.keys()).filter(u => (hourOf.get(u) ?? DEFAULT_NOTIFY_HOUR) === hour));
+    // 2) 通知を有効にしている全ユーザーを対象にする
+    const targets = new Set(subsByUser.keys());
 
     // 3) 納期が近い未完了タスク（部分インデックス idx_tasks_active_deadline を利用）
     const tasks = targets.size === 0 ? [] : await fetchAll<TaskRow>(range => admin.from("tasks")
@@ -120,7 +114,7 @@ export async function GET(request: NextRequest) {
     const total = sent + failed;
     const bad = truncated || (total > 0 && (sent === 0 || failed / total >= 0.5));
     const status = bad ? "partial" : "success";
-    const detail = `hour=${hour} targets=${targets.size} users=${claimedIds.size} sent=${sent} failed=${failed}${truncated ? " truncated" : ""}`;
+    const detail = `targets=${targets.size} users=${claimedIds.size} sent=${sent} failed=${failed}${truncated ? " truncated" : ""}`;
     await finishJobRun(admin, runId, { status, sent, failed, detail });
 
     if (bad) {

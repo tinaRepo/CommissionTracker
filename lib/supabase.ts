@@ -397,29 +397,6 @@ export async function setTaskTags(taskId: string, tagIds: string[]): Promise<voi
   }
 }
 
-// ---- 通知時刻（JSTの「時」。user_settings.notify_hour。既定は8） ----
-export const DEFAULT_NOTIFY_HOUR = 8;
-
-export async function fetchNotifyHour(): Promise<number> {
-  const { data: { session } } = await supabase.auth.getSession();
-  const userId = session?.user?.id;
-  if (!userId) return DEFAULT_NOTIFY_HOUR;
-  const { data, error } = await supabase
-    .from("user_settings").select("notify_hour").eq("user_id", userId).maybeSingle();
-  if (error) throw error;
-  return data?.notify_hour ?? DEFAULT_NOTIFY_HOUR;
-}
-
-export async function saveNotifyHour(hour: number): Promise<void> {
-  if (!Number.isInteger(hour) || hour < 0 || hour > 23) throw new Error("通知時刻が不正です");
-  const { data: { session } } = await supabase.auth.getSession();
-  const userId = session?.user?.id;
-  if (!userId) throw new Error("Not authenticated");
-  const { error } = await supabase
-    .from("user_settings").upsert({ user_id: userId, notify_hour: hour }, { onConflict: "user_id" });
-  if (error) throw error;
-}
-
 // ---- Storage操作 ----
 const BUCKET = "task-images";
 

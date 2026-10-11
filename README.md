@@ -179,7 +179,7 @@ vercel dev
 
 ### Web Push（プッシュ通知）
 
-納期リマインダー通知（既定は毎朝 8 時。ユーザーごとに時刻を設定できます）に使用します。
+納期リマインダー通知（毎朝 8 時・日本時間）に使用します。
 
 ```bash
 # VAPID キーペアの生成
@@ -192,8 +192,9 @@ npx web-push generate-vapid-keys
 
 ### Cron Jobの認証（CRON_SECRET）
 
-納期通知は `vercel.json` の Cron（**毎時0分**に実行）が `/api/cron/deadline-notify` を呼び出して実行します。
-ユーザーごとの通知時刻（既定 JST 8:00）が現在の時と一致する人にだけ送信します。
+納期通知は `vercel.json` の Cron（**毎日 8:00・日本時間**に実行）が `/api/cron/deadline-notify` を呼び出して実行します。
+納期が7日以内の未完了タスクがあるユーザーのうち、プッシュ通知を有効にしている端末へ送信します。
+VercelのCron式はUTC基準で、`0 23 * * *` が毎日8:00（日本時間）に相当します。Healthchecks.ioもCron式 `0 23 * * *`、タイムゾーン `UTC`、Grace Time `15 minutes` に設定してください。
 このルートは **`Authorization: Bearer <CRON_SECRET>` ヘッダーが一致しないリクエストを 401 で拒否**します
 （`CRON_SECRET` が未設定・16 文字未満の場合も常に拒否）。
 
@@ -224,9 +225,7 @@ curl -i https://your-app.vercel.app/api/cron/deadline-notify
 >
 > Cron は **Production デプロイ（main ブランチ）でのみ**実行されます。
 >
-> ⚠️ 毎時実行（`0 * * * *`）は **Vercel Pro 以上**が必要です（Hobby は1日1回まで。デプロイ自体が失敗します）。
-> また Hobby は非商用利用向けのため、課金・広告のある本サービスは Pro が前提です。
-> Hobby のまま運用する場合は、Supabase の `pg_cron` + `pg_net` から毎時このURLを `Authorization: Bearer <CRON_SECRET>` 付きで呼ぶ構成にしてください。
+> HobbyプランのCron実行回数制限に合わせ、毎日1回のスケジュールにしています。なお、Hobbyは非商用利用向けのため、課金・広告のある本サービスで利用するプランはVercelの最新の利用条件を確認してください。
 
 ---
 
@@ -284,8 +283,7 @@ where id = 'ここに UUID を貼る';
 - ✅ 最終ログイン日時の記録
 
 **通知**
-- ✅ 通知時刻の設定（ユーザーメニュー →「通知時刻を設定」。日本時間の0〜23時、既定8時）
-- ✅ プッシュ通知（設定した時刻・納期 7 日以内。同じ日の重複送信防止。Cron は `CRON_SECRET` のBearer認証で保護。複数端末で購読可能）
+- ✅ 毎朝8時（日本時間）のプッシュ通知（納期 7 日以内。同じ日の重複送信防止。Cron は `CRON_SECRET` のBearer認証で保護。複数端末で購読可能）
 - ✅ 管理者がお知らせを新規作成した時、配信対象ユーザーへプッシュ通知
 - ✅ 管理者が新しいバージョン情報を登録した時、購読中の全ユーザーへプッシュ通知
 - ✅ お知らせ・リリースノート（未読バッジ通知・モーダル表示。取得・未読判定は`hooks/useNotifications.ts`に一本化）

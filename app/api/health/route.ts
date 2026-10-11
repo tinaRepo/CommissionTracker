@@ -6,8 +6,8 @@ import { createAdminClient, isCronAuthorized } from "@/lib/server/admin";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-// Cronが正常に動いているとみなす最大間隔（毎時実行 + 余裕）
-const CRON_MAX_AGE_MINUTES = 150;
+// Cronが正常に動いているとみなす最大間隔（毎日実行 + 2時間の余裕）
+const CRON_MAX_AGE_MINUTES = 1560;
 
 // 死活監視用エンドポイント（UptimeRobot / Better Stack / Healthchecks 等から呼ぶ）
 //   GET /api/health            : アプリとDBに到達できれば200（認証不要。詳細は返さない）

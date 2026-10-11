@@ -31,7 +31,6 @@ const InstallPromptBanner = dynamic(() => import("./InstallPromptBanner"), { ssr
 // 開くまで使わないUIはコード分割する
 const TaskCalendar = dynamic(() => import("./TaskCalendar"), { ssr: false });
 const DeleteAccountModal = dynamic(() => import("./DeleteAccountModal"), { ssr: false });
-const NotifySettingsModal = dynamic(() => import("./NotifySettingsModal"), { ssr: false });
 
 type FormValues = {
   title: string; assigneeName: string; contact: string; ordered_at: string;
@@ -295,7 +294,6 @@ export default function TaskApp() {
   const [showNameEdit, setShowNameEdit] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
-  const [showNotifySettings, setShowNotifySettings] = useState(false);
   const [showTagManager, setShowTagManager] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showContact, setShowContact] = useState(false);
@@ -694,9 +692,6 @@ export default function TaskApp() {
                   プランをアップグレード
                 </button>
                 <PushNotificationToggle />
-                <button onClick={() => { setShowNotifySettings(true); setShowUserMenu(false); }} className="user-menu-item">
-                  通知時刻を設定
-                </button>
                 <button onClick={() => { setShowTagManager(true); setShowUserMenu(false); }} className="user-menu-item">
                   タグを管理
                 </button>
@@ -852,9 +847,6 @@ export default function TaskApp() {
         plan={plan}
         onDeleted={handleAccountDeleted}
       />
-
-      {/* 通知時刻の設定 */}
-      <NotifySettingsModal open={showNotifySettings} onClose={() => setShowNotifySettings(false)} />
 
       {/* タグの管理 */}
       <TagManagerModal

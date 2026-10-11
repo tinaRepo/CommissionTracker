@@ -74,7 +74,7 @@ export default function GuidePage() {
         </Section>
 
         <Section title="プッシュ通知">
-          <p>納期が近いタスクを<strong>毎朝8時（既定）にプッシュ通知</strong>でお知らせします。通知する時刻は、ユーザーメニュー →「通知時刻を設定」で変更できます。</p>
+          <p>納期が近いタスクを<strong>毎朝8時（日本時間）にプッシュ通知</strong>でお知らせします。</p>
           <div style={{ background: "var(--success-soft)", borderRadius: "var(--radius-md)", padding: "14px 16px", margin: "12px 0", fontSize: 13, color: "var(--success)" }}>
             ホーム画面に追加したPWAでも通知が届きます（iOS 16.4以降）
           </div>
@@ -83,7 +83,7 @@ export default function GuidePage() {
             右上のユーザーメニュー →「通知オフ（タップでオン）」をタップして通知を許可してください。
           </Step>
           <Step num={2} title="通知が届くタイミング">
-            納期まで7日以内のタスクがある場合、設定した時刻（既定は毎朝8時）に通知が届きます。納期当日まで毎日届きます。通知は端末ごとにオン・オフできます。
+            納期まで7日以内のタスクがある日に、毎朝8時（日本時間）に通知が届きます。納期当日まで毎日届きます。通知は端末ごとにオン・オフできます。
           </Step>
           <Step num={3} title="通知をオフにするには">
             ユーザーメニュー →「通知オン（タップでオフ）」をタップして通知を許可してください。
