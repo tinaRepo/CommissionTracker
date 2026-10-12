@@ -47,10 +47,11 @@ export async function POST(request: NextRequest) {
         metadata: { supabase_user_id: user.id },
       });
       customerId = customer.id;
-      await admin
+      const { error: customerLinkError } = await admin
         .from("user_profiles")
         .update({ stripe_customer_id: customerId })
         .eq("id", user.id);
+      if (customerLinkError) throw customerLinkError;
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL!;

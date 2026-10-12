@@ -29,6 +29,36 @@ async function mustUpdate(q: PromiseLike<{ error: { message: string } | null }>)
   if (error) throw new Error(`profile update failed: ${error.message}`);
 }
 
+async function updateSubscriptionProfile(
+  admin: SupabaseClient,
+  sub: Stripe.Subscription,
+  customerId: string,
+  values: { plan?: string; stripe_subscription_id: string | null; subscription_status: string },
+  onlyIfCurrentSubscription = false,
+) {
+  const { data: profile, error: lookupError } = await admin
+    .from("user_profiles")
+    .select("id")
+    .eq("stripe_customer_id", customerId)
+    .maybeSingle();
+  if (lookupError) throw new Error(`profile lookup failed: ${lookupError.message}`);
+
+  const userId = profile?.id ?? sub.metadata?.supabase_user_id;
+  if (!userId) throw new Error(`No user profile found for Stripe customer ${customerId}`);
+
+  let query = admin.from("user_profiles")
+    .update({ ...values, ...(!profile ? { stripe_customer_id: customerId } : {}) })
+    .eq("id", userId);
+  if (onlyIfCurrentSubscription) {
+    query = query.or(`stripe_subscription_id.eq.${sub.id},stripe_subscription_id.is.null`);
+  }
+  const { data, error } = await query.select("id");
+  if (error) throw new Error(`profile update failed: ${error.message}`);
+  if (!data?.length && !onlyIfCurrentSubscription) {
+    throw new Error(`No user profile updated for Stripe customer ${customerId}`);
+  }
+}
+
 // サブスクリプションの「最新の状態」をプロフィールへ反映する。
 // どのイベントから呼ばれても同じ結果になる（イベントの到着順に依存しない）。
 async function applySubscription(admin: SupabaseClient, sub: Stripe.Subscription) {
@@ -45,25 +75,21 @@ async function applySubscription(admin: SupabaseClient, sub: Stripe.Subscription
           `priceId=${priceId} subscription=${sub.id} customer=${customerId}\nSTRIPE_*_PRICE_ID の環境変数を確認してください。`);
         throw new Error(`Unknown priceId: ${priceId}`); // 500を返してStripeに再送させる（環境変数の修正後に回復する）
       }
-      await mustUpdate(admin.from("user_profiles")
-        .update({ plan, stripe_subscription_id: sub.id, subscription_status: "active" })
-        .eq("stripe_customer_id", customerId));
+      await updateSubscriptionProfile(admin, sub, customerId,
+        { plan, stripe_subscription_id: sub.id, subscription_status: "active" });
       break;
     }
     case "past_due":
       // 支払い失敗の再試行中。プランは維持し、状態だけ記録する（画面で支払い方法の更新を促す）
-      await mustUpdate(admin.from("user_profiles")
-        .update({ stripe_subscription_id: sub.id, subscription_status: "past_due" })
-        .eq("stripe_customer_id", customerId));
+      await updateSubscriptionProfile(admin, sub, customerId,
+        { stripe_subscription_id: sub.id, subscription_status: "past_due" });
       break;
     case "canceled":
     case "unpaid":
     case "incomplete_expired":
       // 解約・失効。ただし、別のサブスクリプションに乗り換え済みなら無料に戻さない
-      await mustUpdate(admin.from("user_profiles")
-        .update({ plan: "free", stripe_subscription_id: null, subscription_status: "inactive" })
-        .eq("stripe_customer_id", customerId)
-        .or(`stripe_subscription_id.eq.${sub.id},stripe_subscription_id.is.null`));
+      await updateSubscriptionProfile(admin, sub, customerId,
+        { plan: "free", stripe_subscription_id: null, subscription_status: "inactive" }, true);
       break;
     default:
       break; // incomplete / paused などは何もしない
@@ -134,7 +160,8 @@ export async function POST(request: NextRequest) {
   try {
     switch (event.type) {
       // 決済完了 → プランをアップグレード
-      case "checkout.session.completed": {
+      case "checkout.session.completed":
+      case "checkout.session.async_payment_succeeded": {
         const session = event.data.object as Stripe.Checkout.Session;
         if (session.mode !== "subscription" || !session.subscription) break;
         const subId = typeof session.subscription === "string" ? session.subscription : session.subscription.id;
@@ -186,7 +213,8 @@ export async function POST(request: NextRequest) {
   } catch (e: any) {
     console.error(`Webhook handler error (${event.type}):`, e);
     // 再送で再処理できるよう、処理済みの記録を取り消す
-    await admin.from("stripe_events").delete().eq("id", event.id);
+    const { error: releaseError } = await admin.from("stripe_events").delete().eq("id", event.id);
+    if (releaseError) console.error("Stripe webhook event claim could not be released:", releaseError);
     await alertAdmin(admin, `stripe-webhook-${event.type}`, `Stripe Webhookの処理に失敗しました（${event.type}）`,
       `event=${event.id}\n${String(e?.stack ?? e)}`);
     return NextResponse.json({ error: "handler error" }, { status: 500 });

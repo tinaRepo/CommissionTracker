@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { Icon } from "./TaskShared";
 
 // Web Push通知の購読管理コンポーネント
 // 購読は端末（ブラウザ）ごとに (user_id, endpoint) で保存する。
@@ -104,7 +105,8 @@ export default function PushNotificationToggle() {
     <div>
       <button onClick={handleToggle} disabled={loading} className="user-menu-item"
         style={{ color: subscribed ? "var(--success)" : "var(--fg)" }}>
-        {loading ? "処理中…" : subscribed ? "通知オン（タップでオフ）" : "通知オフ（タップでオン）"}
+        <span className="user-menu-item-icon"><Icon name="bell" size={17} /></span>
+        <span>{loading ? "処理中…" : subscribed ? "通知オン（タップでオフ）" : "通知オフ（タップでオン）"}</span>
       </button>
       {errorMessage && (
         <div role="alert" style={{ padding: "0 16px 10px", color: "var(--danger)", fontSize: 11, lineHeight: 1.5 }}>

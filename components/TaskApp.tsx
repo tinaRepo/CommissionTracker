@@ -301,9 +301,13 @@ export default function TaskApp() {
   const [pwCurrent, setPwCurrent] = useState("");
   const [pwNew, setPwNew] = useState("");
   const [pwConfirm, setPwConfirm] = useState("");
+  const [showPwCurrent, setShowPwCurrent] = useState(false);
+  const [showPwNew, setShowPwNew] = useState(false);
+  const [showPwConfirm, setShowPwConfirm] = useState(false);
   const [pwSaving, setPwSaving] = useState(false);
   const [pwError, setPwError] = useState<string | null>(null);
   const [pwDone, setPwDone] = useState(false);
+  const [checkoutSync, setCheckoutSync] = useState<"checking" | "updated" | "pending" | null>(null);
   const [showUnlinkWarning, setShowUnlinkWarning] = useState(false);
   const [unlinking, setUnlinking] = useState(false);
   const [linking, setLinking] = useState(false);
@@ -374,6 +378,31 @@ export default function TaskApp() {
 
   useEffect(() => { if (user) load(); }, [user]);
 
+  useEffect(() => {
+    if (!user || new URLSearchParams(window.location.search).get("checkout") !== "success") return;
+    let cancelled = false;
+    setCheckoutSync("checking");
+
+    async function confirmSubscription() {
+      for (let attempt = 0; attempt < 15; attempt++) {
+        if (cancelled) return;
+        const latest = await fetchMyProfile();
+        if (cancelled) return;
+        if (latest && latest.plan !== "free" && ["active", "past_due"].includes(latest.subscription_status ?? "")) {
+          setProfile(latest);
+          setCheckoutSync("updated");
+          window.history.replaceState({}, "", window.location.pathname);
+          return;
+        }
+        await new Promise(resolve => window.setTimeout(resolve, 2000));
+      }
+      if (!cancelled) setCheckoutSync("pending");
+    }
+
+    void confirmSubscription();
+    return () => { cancelled = true; };
+  }, [user]);
+
   const notifications = useNotifications(user?.id ?? null, profile?.created_at ?? null, profile?.plan ?? null);
 
   const tagById = useMemo(() => new Map(tags.map(t => [t.id, t])), [tags]);
@@ -418,6 +447,7 @@ export default function TaskApp() {
 
   function openPasswordModal() {
     setPwCurrent(""); setPwNew(""); setPwConfirm("");
+    setShowPwCurrent(false); setShowPwNew(false); setShowPwConfirm(false);
     setPwError(null); setPwDone(false);
     setShowPasswordModal(true); setShowUserMenu(false);
   }
@@ -591,6 +621,7 @@ export default function TaskApp() {
   const userLabel = displayName ?? user?.user_metadata?.full_name ?? (user?.email?.split("@")[0]) ?? "ユーザー";
   const userAvatar = user?.user_metadata?.avatar_url as string | undefined;
   const paymentIssue = profile?.subscription_status === "past_due" && plan !== "free";
+  const canChangePassword = !!pwCurrent && pwNew.length >= PASSWORD_MIN_LENGTH && pwNew === pwConfirm;
 
   if (loading) return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -689,47 +720,70 @@ export default function TaskApp() {
                   {profile && <PlanBadge plan={profile.plan} />}
                 </div>
                 <button onClick={() => window.location.href = "/pricing"} className="user-menu-item accent">
-                  プランをアップグレード
+                  <span className="user-menu-item-icon"><Icon name="creditCard" size={17} /></span>
+                  <span>プランをアップグレード</span>
                 </button>
                 <PushNotificationToggle />
                 <button onClick={() => { setShowTagManager(true); setShowUserMenu(false); }} className="user-menu-item">
-                  タグを管理
+                  <span className="user-menu-item-icon"><Icon name="tag" size={17} /></span>
+                  <span>タグを管理</span>
                 </button>
                 <button onClick={() => { setNameInput(profile?.display_name ?? ""); setShowNameEdit(true); setShowUserMenu(false); }}
                   className="user-menu-item">
-                  名前を変更
+                  <span className="user-menu-item-icon"><Icon name="user" size={17} /></span>
+                  <span>名前を変更</span>
                 </button>
                 <button onClick={openPasswordModal} className="user-menu-item">
-                  {hasPassword ? "パスワードを変更" : "パスワードを設定"}
+                  <span className="user-menu-item-icon"><Icon name="lock" size={17} /></span>
+                  <span>{hasPassword ? "パスワードを変更" : "パスワードを設定"}</span>
                 </button>
                 {isGoogleLinked ? (
                   <button onClick={requestUnlinkGoogle} className="user-menu-item">
-                    Google連携を解除
+                    <span className="user-menu-item-icon"><Icon name="link" size={17} /></span>
+                    <span>Google連携を解除</span>
                   </button>
                 ) : (
                   <button onClick={handleLinkGoogle} disabled={linking} className="user-menu-item">
-                    {linking ? "連携中…" : "Googleと連携する"}
+                    <span className="user-menu-item-icon"><Icon name="link" size={17} /></span>
+                    <span>{linking ? "連携中…" : "Googleと連携する"}</span>
                   </button>
                 )}
                 {profile?.is_admin && (
                   <button onClick={() => window.location.href = "/mgmt-c7f2a91e"} className="user-menu-item accent">
-                    管理者ページ
+                    <span className="user-menu-item-icon"><Icon name="users" size={17} /></span>
+                    <span>管理者ページ</span>
                   </button>
                 )}
                 {!profile?.is_admin && (
                   <button onClick={() => { setShowDeleteAccount(true); setShowUserMenu(false); }}
                     className="user-menu-item danger">
-                    アカウントを削除
+                    <span className="user-menu-item-icon"><Icon name="trash" size={17} /></span>
+                    <span>アカウントを削除</span>
                   </button>
                 )}
                 <button onClick={requestLogout} className="user-menu-item danger" style={{ fontWeight: 600 }}>
-                  ログアウト
+                  <span className="user-menu-item-icon"><Icon name="logout" size={17} /></span>
+                  <span>ログアウト</span>
                 </button>
               </div>
             )}
           </div>
         </div>
       </header>
+
+      {checkoutSync && (
+        <div className="container" style={{ paddingTop: 12 }}>
+          <div role="status" style={{
+            padding: "12px 16px", borderRadius: "var(--radius-md)", fontSize: 13, lineHeight: 1.6,
+            background: checkoutSync === "updated" ? "var(--success-soft)" : "var(--accent-soft)",
+            color: checkoutSync === "updated" ? "var(--success)" : "var(--accent)",
+          }}>
+            {checkoutSync === "checking" && "決済を確認しています。プラン情報が反映されるまで少しお待ちください。"}
+            {checkoutSync === "updated" && "プランの更新が完了しました。"}
+            {checkoutSync === "pending" && "決済は完了していますが、プラン情報の反映を確認できませんでした。画面を再読み込みしてください。解決しない場合はサポートへお問い合わせください。"}
+          </div>
+        </div>
+      )}
 
       {/* 支払い失敗の警告（Stripeの再試行中） */}
       {paymentIssue && (
@@ -966,13 +1020,53 @@ export default function TaskApp() {
                     {pwError}
                   </div>
                 )}
-                <div style={{ display: "grid", gap: 12, marginBottom: 18 }}>
-                  <input type="password" placeholder="現在のパスワード" value={pwCurrent}
-                    onChange={e => setPwCurrent(e.target.value)} autoComplete="current-password" className="input" />
-                  <input type="password" placeholder={`新しいパスワード（${PASSWORD_MIN_LENGTH}文字以上）`} value={pwNew}
-                    onChange={e => setPwNew(e.target.value)} minLength={PASSWORD_MIN_LENGTH} className="input" />
-                  <input type="password" placeholder="新しいパスワード（確認）" value={pwConfirm}
-                    onChange={e => setPwConfirm(e.target.value)} className="input" />
+                <div style={{ display: "grid", gap: 12, marginBottom: 12 }}>
+                  <div style={{ position: "relative" }}>
+                    <input type={showPwCurrent ? "text" : "password"} placeholder="現在のパスワード" value={pwCurrent}
+                      onChange={e => setPwCurrent(e.target.value)} autoComplete="current-password" className="input" style={{ paddingRight: 48 }} />
+                    <button type="button" onClick={() => setShowPwCurrent(!showPwCurrent)}
+                      aria-label={showPwCurrent ? "現在のパスワードを隠す" : "現在のパスワードを表示"}
+                      className="icon-btn" style={{ position: "absolute", right: 6, top: 5, color: "var(--muted)" }}>
+                      <Icon name={showPwCurrent ? "eyeOff" : "eye"} size={18} />
+                    </button>
+                  </div>
+                  <div style={{ position: "relative" }}>
+                    <input type={showPwNew ? "text" : "password"} placeholder={`新しいパスワード（${PASSWORD_MIN_LENGTH}文字以上）`} value={pwNew}
+                      onChange={e => setPwNew(e.target.value)} minLength={PASSWORD_MIN_LENGTH} autoComplete="new-password" className="input" style={{ paddingRight: 48 }} />
+                    <button type="button" onClick={() => setShowPwNew(!showPwNew)}
+                      aria-label={showPwNew ? "新しいパスワードを隠す" : "新しいパスワードを表示"}
+                      className="icon-btn" style={{ position: "absolute", right: 6, top: 5, color: "var(--muted)" }}>
+                      <Icon name={showPwNew ? "eyeOff" : "eye"} size={18} />
+                    </button>
+                  </div>
+                  <div style={{ position: "relative" }}>
+                    <input type={showPwConfirm ? "text" : "password"} placeholder="新しいパスワード（確認）" value={pwConfirm}
+                      onChange={e => setPwConfirm(e.target.value)} autoComplete="new-password" className="input" style={{ paddingRight: 48 }} />
+                    <button type="button" onClick={() => setShowPwConfirm(!showPwConfirm)}
+                      aria-label={showPwConfirm ? "確認用パスワードを隠す" : "確認用パスワードを表示"}
+                      className="icon-btn" style={{ position: "absolute", right: 6, top: 5, color: "var(--muted)" }}>
+                      <Icon name={showPwConfirm ? "eyeOff" : "eye"} size={18} />
+                    </button>
+                  </div>
+                </div>
+                <div aria-live="polite" style={{
+                  display: "grid", gap: 5, marginBottom: 18, padding: "10px 12px",
+                  borderRadius: "var(--radius-md)", background: "var(--surface)", fontSize: 12,
+                }}>
+                  <div style={{ fontWeight: 600, color: "var(--fg-2)", marginBottom: 2 }}>変更ボタンが有効になる条件</div>
+                  {[
+                    { label: "現在のパスワードを入力", met: !!pwCurrent },
+                    { label: `新しいパスワードが${PASSWORD_MIN_LENGTH}文字以上`, met: pwNew.length >= PASSWORD_MIN_LENGTH },
+                    { label: "新しいパスワードと確認用が一致", met: !!pwConfirm && pwNew === pwConfirm },
+                  ].map(condition => (
+                    <div key={condition.label} className="row" style={{ gap: 6, color: condition.met ? "var(--success)" : "var(--muted)" }}>
+                      <Icon name={condition.met ? "check" : "close"} size={14} />
+                      <span>{condition.label}</span>
+                    </div>
+                  ))}
+                  <div style={{ color: "var(--muted)", marginTop: 2 }}>
+                    現在のパスワードが正しいことも必要です（変更時に確認します）。
+                  </div>
                 </div>
                 <div className="row" style={{ gap: 10 }}>
                   <button onClick={() => setShowPasswordModal(false)} disabled={pwSaving} className="btn btn-secondary" style={{ flex: 1 }}>
@@ -980,7 +1074,7 @@ export default function TaskApp() {
                   </button>
                   <button
                     onClick={handleSavePassword}
-                    disabled={pwSaving || pwNew.length < PASSWORD_MIN_LENGTH || pwNew !== pwConfirm || !pwCurrent}
+                    disabled={pwSaving || !canChangePassword}
                     className="btn btn-primary" style={{ flex: 2 }}>
                     {pwSaving ? "処理中…" : "変更する"}
                   </button>
