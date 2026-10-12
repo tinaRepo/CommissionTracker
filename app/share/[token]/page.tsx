@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 type PublicShare = {
+  state?: "unpublished";
   acceptingRequests?: boolean;
   activeCount?: number;
   availableSlots?: number;
@@ -10,11 +11,13 @@ type PublicShare = {
   displayName?: string;
   bio?: string;
   socialLink?: string;
+  galleryImages?: { id: string; url: string }[];
 };
 
 export default function PublicSharePage({ params }: { params: { token: string } }) {
   const [data, setData] = useState<PublicShare | null>(null);
   const [unavailable, setUnavailable] = useState(false);
+  const [unpublished, setUnpublished] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -23,10 +26,27 @@ export default function PublicSharePage({ params }: { params: { token: string } 
         if (!response.ok) throw new Error("共有ページを表示できません");
         return response.json() as Promise<PublicShare>;
       })
-      .then(result => { if (!cancelled) setData(result); })
+      .then(result => {
+        if (cancelled) return;
+        if (result.state === "unpublished") setUnpublished(true);
+        else setData(result);
+      })
       .catch(() => { if (!cancelled) setUnavailable(true); });
     return () => { cancelled = true; };
   }, [params.token]);
+
+  if (unpublished) {
+    return (
+      <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 24, background: "var(--surface)" }}>
+        <section className="card" style={{ maxWidth: 480, width: "100%", padding: 28, textAlign: "center" }}>
+          <h1 style={{ fontSize: 20, marginBottom: 10 }}>現在は非公開設定です</h1>
+          <p className="text-muted" style={{ fontSize: 14, lineHeight: 1.7 }}>
+            この共有ページは現在公開されていません。
+          </p>
+        </section>
+      </main>
+    );
+  }
 
   if (unavailable) {
     return (
@@ -72,6 +92,17 @@ export default function PublicSharePage({ params }: { params: { token: string } 
               SNS・プロフィールを見る
             </a>
           </p>
+        )}
+        {data.galleryImages && data.galleryImages.length > 0 && (
+          <section style={{ marginTop: 28 }}>
+            <h2 style={{ fontSize: 18, marginBottom: 12 }}>実績</h2>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
+              {data.galleryImages.map(image => (
+                <img key={image.id} src={image.url} alt="制作実績" loading="lazy"
+                  style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: "var(--radius-md)" }} />
+              ))}
+            </div>
+          </section>
         )}
         <footer className="text-meta" style={{ marginTop: 32, textAlign: "center" }}>
           Powered by ツクリスト
