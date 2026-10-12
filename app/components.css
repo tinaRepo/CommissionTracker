@@ -21,7 +21,8 @@
   border: 1px solid transparent;
   border-radius: var(--radius-pill);
   padding: 10px 22px;
-  min-height: 44px;                 /* タッチターゲット44px */
+  min-height: 44px;
+  /* タッチターゲット44px */
   font-size: 15px;
   font-weight: 400;
   line-height: 1.2;
@@ -199,9 +200,20 @@
   border-radius: 0;
 }
 
-.tile-light { background: var(--bg); color: var(--fg); }
-.tile-parchment { background: var(--surface); color: var(--fg); }
-.tile-dark { background: var(--surface-inverse); color: var(--fg-on-inverse); }
+.tile-light {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.tile-parchment {
+  background: var(--surface);
+  color: var(--fg);
+}
+
+.tile-dark {
+  background: var(--surface-inverse);
+  color: var(--fg-on-inverse);
+}
 
 /* ---------------- Badges & tags ---------------- */
 
@@ -215,19 +227,61 @@
   white-space: nowrap;
 }
 
-.badge-neutral { background: var(--neutral-soft); color: var(--neutral); }
-.badge-info { background: var(--info-soft); color: var(--info); }
-.badge-warn { background: var(--warn-soft); color: var(--warn); }
-.badge-success { background: var(--success-soft); color: var(--success); }
-.badge-danger { background: var(--danger-soft); color: var(--danger); }
-.badge-accent { background: var(--accent-soft); color: var(--accent); }
+.badge-neutral {
+  background: var(--neutral-soft);
+  color: var(--neutral);
+}
+
+.badge-info {
+  background: var(--info-soft);
+  color: var(--info);
+}
+
+.badge-warn {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.badge-success {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.badge-danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.badge-accent {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
 
 /* タスクステータス（TaskShared.STATUSES.badgeClass から参照） */
-.badge-pending { background: var(--warn-soft); color: var(--warn); }
-.badge-checking { background: var(--info-soft); color: var(--info); }
-.badge-progress { background: var(--accent-soft); color: var(--accent); }
-.badge-done { background: var(--success-soft); color: var(--success); }
-.badge-cancelled { background: var(--neutral-soft); color: var(--neutral); }
+.badge-pending {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.badge-checking {
+  background: var(--info-soft);
+  color: var(--info);
+}
+
+.badge-progress {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.badge-done {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.badge-cancelled {
+  background: var(--neutral-soft);
+  color: var(--neutral);
+}
 
 .tag {
   display: inline-flex;
@@ -263,15 +317,16 @@
 }
 
 .date-range-input-wrap {
-  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   min-width: 0;
 }
 
 .date-range-input {
-  display: block;
-  width: 100%;
+  flex: 1 1 0%;
+  width: auto;
   min-width: 0;
-  padding-right: 72px;
 }
 
 .date-range-clear {
@@ -340,7 +395,8 @@
   min-height: 44px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  font-size: 16px;                  /* iOSの自動ズーム抑制のため16px以上を維持 */
+  font-size: 16px;
+  /* iOSの自動ズーム抑制のため16px以上を維持 */
   background: var(--bg);
   color: var(--fg);
   outline: none;
@@ -368,6 +424,18 @@
 
 .input-date {
   min-width: 0;
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  height: 44px;
+  min-height: 44px;
+  line-height: 1.2;
+}
+
+.input-date::-webkit-date-and-time-value {
+  text-align: left;
+  min-height: 1.2em;
+  margin: 0;
 }
 
 .checkbox-row {
@@ -476,7 +544,8 @@
   background: var(--bg);
   border-radius: var(--radius-md);
   border: 1px solid var(--border-soft);
-  box-shadow: var(--shadow-lg);     /* 浮遊メニューのみ影を許容 */
+  box-shadow: var(--shadow-lg);
+  /* 浮遊メニューのみ影を許容 */
   min-width: 220px;
   overflow: hidden;
   z-index: 99;
@@ -922,8 +991,15 @@
   color: var(--muted);
 }
 
-.cal-dow.sun, .cal-cell.sun .cal-num { color: var(--danger); }
-.cal-dow.sat, .cal-cell.sat .cal-num { color: var(--info); }
+.cal-dow.sun,
+.cal-cell.sun .cal-num {
+  color: var(--danger);
+}
+
+.cal-dow.sat,
+.cal-cell.sat .cal-num {
+  color: var(--info);
+}
 
 .cal-cell {
   background: var(--bg);
@@ -938,9 +1014,17 @@
   text-align: center;
 }
 
-.cal-cell.out { background: var(--surface); }
-.cal-cell.out .cal-num { opacity: 0.45; }
-.cal-cell.selected { box-shadow: inset 0 0 0 2px var(--accent); }
+.cal-cell.out {
+  background: var(--surface);
+}
+
+.cal-cell.out .cal-num {
+  opacity: 0.45;
+}
+
+.cal-cell.selected {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
 
 .cal-num {
   width: 24px;
@@ -974,13 +1058,33 @@
   background: var(--neutral);
 }
 
-.cal-dot.dim { opacity: 0.35; }
-.cal-dot-pending { background: var(--warn); }
-.cal-dot-checking { background: var(--info); }
-.cal-dot-progress { background: var(--accent); }
-.cal-dot-done { background: var(--success); }
-.cal-dot-cancelled { background: var(--neutral); }
-.cal-dot.overdue { background: var(--danger); }
+.cal-dot.dim {
+  opacity: 0.35;
+}
+
+.cal-dot-pending {
+  background: var(--warn);
+}
+
+.cal-dot-checking {
+  background: var(--info);
+}
+
+.cal-dot-progress {
+  background: var(--accent);
+}
+
+.cal-dot-done {
+  background: var(--success);
+}
+
+.cal-dot-cancelled {
+  background: var(--neutral);
+}
+
+.cal-dot.overdue {
+  background: var(--danger);
+}
 
 .cal-more {
   font-size: 10px;
@@ -1007,12 +1111,22 @@
   color: var(--fg);
 }
 
-.cal-item:active { transform: scale(0.99); }
-.cal-item.dim { opacity: 0.55; }
-.cal-item.overdue { border-color: var(--danger); }
+.cal-item:active {
+  transform: scale(0.99);
+}
+
+.cal-item.dim {
+  opacity: 0.55;
+}
+
+.cal-item.overdue {
+  border-color: var(--danger);
+}
 
 .cal-week-day {
   margin-bottom: 14px;
 }
 
-.cal-week-day.today .cal-day-title { color: var(--accent); }
+.cal-week-day.today .cal-day-title {
+  color: var(--accent);
+}
