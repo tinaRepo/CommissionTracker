@@ -107,8 +107,8 @@ export function DateRangeField({ label, from, to, onFromChange, onToChange }: {
         <input type="date" value={value} onChange={e => onChange(e.target.value)}
           className="input input-date date-range-input" />
         {value && (
-          <button type="button" onClick={() => onChange("")} className="btn btn-secondary btn-sm"
-            style={{ flexShrink: 0, padding: "9px 12px" }} aria-label={`${label}の${endpoint}をクリア`}>
+          <button type="button" onClick={() => onChange("")} className="date-range-clear"
+            aria-label={`${label}の${endpoint}をクリア`}>
             <Icon name="close" size={14} />
           </button>
         )}
