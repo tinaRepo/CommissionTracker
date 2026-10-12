@@ -240,6 +240,79 @@
   color: #fff;
 }
 
+.task-search-controls .task-search-select {
+  height: 34px;
+  min-height: 34px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.date-range-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: end;
+  gap: 6px;
+}
+
+.date-range-control {
+  min-width: 0;
+}
+
+.date-range-endpoint {
+  display: none;
+}
+
+.date-range-input-wrap {
+  position: relative;
+  min-width: 0;
+}
+
+.date-range-input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding-right: 72px;
+}
+
+.date-range-clear {
+  position: absolute;
+  top: 50%;
+  right: 36px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.date-range-clear:active {
+  background: var(--surface-2);
+}
+
+@media (max-width: 760px) {
+  .date-range-fields {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .date-range-endpoint {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .date-range-separator {
+    display: none;
+  }
+}
+
 /* ---------------- Forms ---------------- */
 
 .field {

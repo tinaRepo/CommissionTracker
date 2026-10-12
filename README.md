@@ -171,9 +171,11 @@ vercel dev
 2. **Products** でスタンダード（¥300/月）・プレミアム（¥800/月）の商品を作成
 3. 各 Price ID を環境変数に設定
 4. **Webhooks** に `https://your-app.vercel.app/api/stripe/webhook` を登録し、次のイベントを有効化：
-   `checkout.session.completed` / `customer.subscription.created` / `customer.subscription.updated` / `customer.subscription.deleted` /
+   `checkout.session.completed` / `checkout.session.async_payment_succeeded` /
+   `customer.subscription.created` / `customer.subscription.updated` / `customer.subscription.deleted` /
    `invoice.payment_failed` / `invoice.paid`
-   （同じイベントが再送されても1回しか処理しません。処理に失敗した場合は管理者へメールが届きます）
+   （同じイベントが再送されても1回しか処理しません。処理に失敗した場合は管理者へメールが届きます。
+   `stripe_events` を含むSupabase migrationも適用してください。）
 
 > テストキー（`sk_test_`）と本番キー（`sk_live_`）を混在させないこと。
 
