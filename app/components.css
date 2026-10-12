@@ -312,6 +312,12 @@
   min-width: 0;
 }
 
+.date-range-separator {
+  align-self: end;
+  margin-bottom: 16px;
+  line-height: 1;
+}
+
 .date-range-endpoint {
   display: block;
   margin-bottom: 4px;

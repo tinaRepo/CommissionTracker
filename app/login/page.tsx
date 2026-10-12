@@ -56,6 +56,11 @@ export default function LoginPage() {
 
   // ログイン画面にアクセスした際に、前回のログインプロバイダを取得して表示する
   useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("deleted") === "1") {
+      setLastProvider(null);
+      return;
+    }
+
     fetch("/api/auth/last-login-provider")
       .then(res => res.json())
       .then(data => setLastProvider(data.provider ?? null))

@@ -79,7 +79,15 @@ export async function POST(request: NextRequest) {
       console.error("goodbye email failed:", e);
     }
 
-    return NextResponse.json({ success: true });
+    const response = NextResponse.json({ success: true });
+    response.cookies.set("ct_last_login_provider", "", {
+      httpOnly: true,
+      secure: request.nextUrl.protocol === "https:",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
+    });
+    return response;
   } catch (e: any) {
     console.error("account delete error:", e);
     return NextResponse.json({ error: "削除に失敗しました" }, { status: 500 });
