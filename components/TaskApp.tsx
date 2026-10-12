@@ -661,6 +661,10 @@ export default function TaskApp() {
             <Icon name="mail" size={17} />
           </button>
 
+          <button onClick={() => window.location.reload()} className="icon-btn" title="画面を更新" aria-label="画面を更新">
+            <Icon name="refresh" size={17} />
+          </button>
+
           <div style={{ position: "relative" }}>
             <button onClick={() => setShowNotifications(true)} className="icon-btn" title="お知らせ" aria-label="お知らせ">
               <Icon name="bell" size={17} />
