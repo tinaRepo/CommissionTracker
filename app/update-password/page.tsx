@@ -60,7 +60,7 @@ export default function UpdatePasswordPage() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--surface-inverse)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+    <div style={{ minHeight: "100vh", background: "var(--surface-sky)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <div style={{ background: "var(--bg)", borderRadius: "var(--radius-xl)", padding: "44px 36px", width: "100%", maxWidth: 400, boxShadow: "var(--shadow-lg)" }}>
         <div style={{ textAlign: "center", marginBottom: 28 }}>
           <div style={{ fontWeight: 600, fontSize: 19 }}>新しいパスワードを設定</div>

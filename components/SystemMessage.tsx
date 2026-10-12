@@ -16,7 +16,7 @@ export default function SystemMessage({ code, title, description, onRetry }: Pro
     return (
         <main style={{
             minHeight: "100vh", padding: 24, display: "grid", placeItems: "center",
-            background: "var(--surface-inverse)",
+            background: "var(--surface-sky)",
         }}>
             <section style={{
                 width: "min(100%, 480px)", padding: "clamp(28px, 6vw, 44px)",

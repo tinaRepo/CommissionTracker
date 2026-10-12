@@ -22,7 +22,7 @@ export default async function MaintenancePage() {
     }
 
     return (
-        <main style={{ minHeight: "100vh", padding: "24px 18px", display: "grid", placeItems: "center", background: "var(--surface-inverse)" }}>
+        <main style={{ minHeight: "100vh", padding: "24px 18px", display: "grid", placeItems: "center", background: "var(--surface-sky)" }}>
             <section style={{
                 width: "min(100%, 560px)", padding: "clamp(28px, 6vw, 48px)", background: "var(--bg)",
                 borderRadius: "var(--radius-xl)", boxShadow: "var(--shadow-lg)",
