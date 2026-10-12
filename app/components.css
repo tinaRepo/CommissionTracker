@@ -313,32 +313,36 @@
 }
 
 .date-range-endpoint {
-  display: none;
+  display: block;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 11px;
 }
 
 .date-range-input-wrap {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  position: relative;
   min-width: 0;
 }
 
 .date-range-input {
-  flex: 1 1 0%;
-  width: auto;
+  display: block;
+  width: 100%;
   min-width: 0;
+  padding-left: 10px;
+  padding-right: 34px;
+  font-size: 16px;
 }
 
 .date-range-clear {
   position: absolute;
   top: 50%;
-  right: 36px;
+  right: 6px;
   transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   padding: 0;
   border: 0;
   border-radius: 50%;
