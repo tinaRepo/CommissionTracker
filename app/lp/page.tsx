@@ -47,18 +47,19 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div style={{ background: "var(--surface-inverse)", color: "var(--fg-on-inverse)" }}>
+    <div style={{ background: "var(--surface-sky)", color: "var(--fg)" }}>
 
       {/* ナビ */}
       <nav className="nav-public" style={{
-        background: scrolled ? "rgba(0,0,0,0.8)" : "transparent",
+        background: scrolled ? "color-mix(in srgb, var(--surface-sky) 80%, transparent)" : "transparent",
         backdropFilter: scrolled ? "saturate(180%) blur(20px)" : "none",
-        borderBottom: scrolled ? "1px solid var(--border-on-inverse)" : "1px solid transparent",
+        WebkitBackdropFilter: scrolled ? "saturate(180%) blur(20px)" : "none",
+        borderBottom: scrolled ? "1px solid var(--border-soft)" : "1px solid transparent",
       }}>
         <span style={{ fontWeight: 600, fontSize: 16, letterSpacing: "-0.01em" }}>ツクリスト</span>
         <div className="row" style={{ gap: 16 }}>
-          <a href="/login" style={{ color: "var(--muted-on-inverse)", fontSize: 13, textDecoration: "none", fontWeight: 600 }}>ログイン</a>
-          <a href="/login" className="btn btn-inverse btn-sm">無料で始める</a>
+          <a href="/login" style={{ color: "var(--fg-2)", fontSize: 13, textDecoration: "none", fontWeight: 600 }}>ログイン</a>
+          <a href="/login" className="btn btn-primary btn-sm" style={{ textDecoration: "none" }}>無料で始める</a>
         </div>
       </nav>
 
@@ -72,38 +73,36 @@ export default function LandingPage() {
         </p>
 
         <div className="row" style={{ gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-          <a href="/login" className="btn btn-inverse">無料で始める →</a>
-          <a href="/login?demo=1" className="btn btn-inverse-outline">デモを試す</a>
+          <a href="/login" className="btn btn-primary" style={{ textDecoration: "none" }}>無料で始める →</a>
+          <a href="/login?demo=1" className="btn btn-secondary" style={{ textDecoration: "none" }}>デモを試す</a>
         </div>
         <p style={{ fontSize: 12, color: "var(--meta)", marginTop: 20 }}>クレジットカード不要・登録1分</p>
 
         {/* モックUI */}
-        <div style={{
-          marginTop: 72, width: "100%", maxWidth: 640,
-          background: "var(--surface-inverse-2)", border: "1px solid var(--border-on-inverse)",
-          borderRadius: "var(--radius-xl)", padding: 20, textAlign: "left",
+        <div className="card" style={{
+          marginTop: 72, width: "100%", maxWidth: 640, padding: 20, textAlign: "left",
         }}>
-          <div className="row" style={{ justifyContent: "space-between", marginBottom: 16, padding: "10px 14px", borderBottom: "1px solid var(--border-on-inverse)" }}>
+          <div className="row" style={{ justifyContent: "space-between", marginBottom: 16, padding: "10px 14px", borderBottom: "1px solid var(--border-soft)" }}>
             <span style={{ fontWeight: 600, fontSize: 13 }}>ツクリスト</span>
-            <div className="row" style={{ gap: 16, fontSize: 11, color: "var(--muted-on-inverse)" }}>
-              <span>合計 <strong style={{ color: "#fff" }}>5</strong></span>
-              <span>進行中 <strong style={{ color: "#fff" }}>3</strong></span>
-              <span>完成 <strong style={{ color: "#fff" }}>2</strong></span>
+            <div className="row" style={{ gap: 16, fontSize: 11, color: "var(--muted)" }}>
+              <span>合計 <strong style={{ color: "var(--fg)" }}>5</strong></span>
+              <span>進行中 <strong style={{ color: "var(--fg)" }}>3</strong></span>
+              <span>完成 <strong style={{ color: "var(--fg)" }}>2</strong></span>
             </div>
           </div>
           {MOCK_TASKS.map((t, i) => (
             <div key={i} className="row" style={{
               justifyContent: "space-between", padding: "12px 14px", marginBottom: 6,
               borderRadius: "var(--radius-md)",
-              background: t.urgent ? "rgba(197,48,48,0.12)" : "rgba(255,255,255,0.03)",
+              background: t.urgent ? "var(--danger-soft)" : "var(--surface)",
             }}>
               <div>
                 <div className="row" style={{ gap: 8, marginBottom: 4 }}>
                   <span style={{ fontWeight: 600, fontSize: 13 }}>{t.title}</span>
-                  <span className="badge badge-neutral" style={{ background: "rgba(255,255,255,0.12)", color: "var(--fg-on-inverse)" }}>{t.status}</span>
-                  {t.urgent && <span style={{ fontSize: 10, color: "#e88", fontWeight: 600 }}>あと3日</span>}
+                  <span className="badge badge-neutral">{t.status}</span>
+                  {t.urgent && <span style={{ fontSize: 10, color: "var(--danger)", fontWeight: 600 }}>あと3日</span>}
                 </div>
-                <div style={{ fontSize: 11, color: "var(--muted-on-inverse)" }}>{t.assignee} ・ 納期 {t.deadline}</div>
+                <div style={{ fontSize: 11, color: "var(--muted)" }}>{t.assignee} ・ 納期 {t.deadline}</div>
               </div>
               <div style={{ fontWeight: 600, fontSize: 14 }}>{t.price}</div>
             </div>
@@ -159,7 +158,7 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <a href="/login" className={cxBtn(p.featured)}>{p.cta}</a>
+              <a href="/login" className={cxBtn(p.featured)} style={{ textDecoration: "none" }}>{p.cta}</a>
             </div>
           ))}
         </div>
@@ -178,16 +177,16 @@ export default function LandingPage() {
 
       {/* CTA */}
       <section className="section" style={{ textAlign: "center" }}>
-        <h2 className="section-title" style={{ color: "var(--fg-on-inverse)" }}>今すぐ無料で始めよう</h2>
-        <p style={{ color: "var(--muted-on-inverse)", fontSize: 14, marginBottom: 32 }}>登録1分・クレジットカード不要</p>
+        <h2 className="section-title">今すぐ無料で始めよう</h2>
+        <p style={{ color: "var(--muted)", fontSize: 14, marginBottom: 32 }}>登録1分・クレジットカード不要</p>
         <div className="row" style={{ gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-          <a href="/login" className="btn btn-inverse">無料アカウントを作成 →</a>
-          <a href="/login?demo=1" className="btn btn-inverse-outline">デモを試す</a>
+          <a href="/login" className="btn btn-primary" style={{ textDecoration: "none" }}>無料アカウントを作成 →</a>
+          <a href="/login?demo=1" className="btn btn-secondary" style={{ textDecoration: "none" }}>デモを試す</a>
         </div>
       </section>
 
       {/* フッター */}
-      <footer style={{ borderTop: "1px solid var(--border-on-inverse)", padding: "32px 24px" }}>
+      <footer style={{ borderTop: "1px solid var(--border-soft)", padding: "32px 24px" }}>
         <div className="container" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
           <span style={{ fontWeight: 600, fontSize: 14 }}>ツクリスト</span>
           <div className="row" style={{ flexWrap: "wrap", gap: "4px 16px" }}>
@@ -198,7 +197,7 @@ export default function LandingPage() {
               { href: "/privacy", label: "プライバシー" },
               { href: "/tokusho", label: "特定商取引法" },
             ].map(link => (
-              <a key={link.href} href={link.href} style={{ fontSize: 12, color: "var(--meta)", textDecoration: "none" }}>
+              <a key={link.href} href={link.href} style={{ fontSize: 12, color: "var(--muted)", textDecoration: "none" }}>
                 {link.label}
               </a>
             ))}

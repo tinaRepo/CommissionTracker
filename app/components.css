@@ -646,12 +646,12 @@
 
 .hero-eyebrow {
   display: inline-block;
-  border: 1px solid var(--border-on-inverse);
+  border: 1px solid var(--border);
   border-radius: var(--radius-pill);
   padding: 6px 18px;
   font-size: 12px;
   font-weight: 400;
-  color: var(--muted-on-inverse);
+  color: var(--muted);
   margin-bottom: 28px;
 }
 
@@ -663,13 +663,13 @@
   line-height: 1.12;
   letter-spacing: -0.01em;
   margin-bottom: 22px;
-  color: var(--fg-on-inverse);
+  color: var(--fg);
 }
 
 .hero-subtitle {
   font-size: clamp(15px, 1.8vw, 21px);
   font-weight: 400;
-  color: var(--muted-on-inverse);
+  color: var(--muted);
   max-width: 520px;
   margin: 0 auto 40px;
   line-height: 1.7;

@@ -1,7 +1,7 @@
 // Web Push通知・オフライン表示のService Worker
 // offline.html を変更したら OFFLINE_CACHE のバージョンを必ず上げること
 // （上げないと既存ユーザーは古いキャッシュを使い続ける）
-const OFFLINE_CACHE = 'tsukurist-offline-v2';
+const OFFLINE_CACHE = 'tsukurist-offline-v3';
 
 self.addEventListener('install', function (event) {
   event.waitUntil(
