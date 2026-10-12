@@ -351,9 +351,13 @@ export default function TaskApp() {
   useEffect(() => {
     try {
       const saved = localStorage.getItem(VIEW_STORAGE_KEY);
-      if (saved === "list" || saved === "calendar") setView(saved);
+      if (saved === "list" || (saved === "calendar" && profile && profile.plan !== "free")) {
+        setView(saved);
+      } else {
+        setView("list");
+      }
     } catch { /* localStorageが使えない環境では既定のまま */ }
-  }, []);
+  }, [profile]);
 
   function changeView(next: ViewMode) {
     setView(next);
@@ -817,6 +821,7 @@ export default function TaskApp() {
     return () => { document.body.style.overflow = ""; };
   }, [showForm, detailId]);
   const plan = (profile?.plan ?? "free") as Plan;
+  const hasCalendarAccess = !!profile && profile.plan !== "free";
   const lastProvider = profile?.last_login_provider ?? null;
   const hasPassword = profile?.has_password ?? true;
   const isGoogleLinked = hasGoogleIdentity(user);
@@ -1035,13 +1040,22 @@ export default function TaskApp() {
       <div className="container row" style={{ justifyContent: "flex-end", paddingTop: 12 }}>
         <div className="seg" role="group" aria-label="表示形式">
           <button className={view === "list" ? "on" : ""} aria-pressed={view === "list"} onClick={() => changeView("list")}>リスト</button>
-          <button className={view === "calendar" ? "on" : ""} aria-pressed={view === "calendar"} onClick={() => changeView("calendar")}>カレンダー</button>
+          <button
+            className={view === "calendar" && hasCalendarAccess ? "on" : ""}
+            aria-pressed={view === "calendar" && hasCalendarAccess}
+            aria-label={hasCalendarAccess ? "カレンダー表示" : "カレンダー表示（有料プラン限定）"}
+            title={hasCalendarAccess ? "カレンダー表示" : "カレンダー表示は有料プラン限定です"}
+            onClick={() => hasCalendarAccess ? changeView("calendar") : window.location.assign("/pricing")}
+          >
+            {!hasCalendarAccess && <Icon name="lock" size={12} />}
+            カレンダー{!hasCalendarAccess && "（有料）"}
+          </button>
         </div>
       </div>
 
       {/* リスト / カレンダー */}
       <main className="container" style={{ paddingTop: 16, paddingBottom: 60, maxWidth: 900 }}>
-        {view === "calendar" ? (
+        {view === "calendar" && hasCalendarAccess ? (
           <TaskCalendar tasks={filtered} onSelect={id => setDetailId(id)} />
         ) : (
           <>
