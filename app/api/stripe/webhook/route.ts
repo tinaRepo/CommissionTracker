@@ -150,7 +150,14 @@ export async function POST(request: NextRequest) {
     .upsert({ id: event.id, type: event.type }, { onConflict: "id", ignoreDuplicates: true })
     .select("id");
   if (claimError) {
-    console.error("stripe_events claim failed:", claimError);
+    console.error("stripe_events claim failed:", {
+      eventId: event.id,
+      eventType: event.type,
+      code: claimError.code,
+      message: claimError.message,
+      details: claimError.details,
+      hint: claimError.hint,
+    });
     return NextResponse.json({ error: "temporary error" }, { status: 500 }); // Stripeが再送する
   }
   if (!claimed || claimed.length === 0) {

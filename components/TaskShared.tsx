@@ -102,27 +102,33 @@ export function DateRangeField({ label, from, to, onFromChange, onToChange }: {
 }) {
   return (
     <Field label={label}>
-      <div className="row" style={{ gap: 6 }}>
-        <div className="row" style={{ flex: 1, minWidth: 0, gap: 4 }}>
-          <input type="date" value={from} onChange={e => onFromChange(e.target.value)}
-            className="input input-date" style={{ flex: 1 }} />
-          {from && (
-            <button type="button" onClick={() => onFromChange("")} className="btn btn-secondary btn-sm"
-              style={{ flexShrink: 0, padding: "9px 10px" }} aria-label={`${label}の開始日をクリア`}>
-              <Icon name="close" size={14} />
-            </button>
-          )}
+      <div className="date-range-fields">
+        <div className="date-range-control">
+          <span className="date-range-endpoint">開始日</span>
+          <div className="date-range-input-wrap">
+            <input type="date" value={from} onChange={e => onFromChange(e.target.value)}
+              className="input input-date date-range-input" />
+            {from && (
+              <button type="button" onClick={() => onFromChange("")} className="date-range-clear"
+                aria-label={`${label}の開始日をクリア`}>
+                <Icon name="close" size={14} />
+              </button>
+            )}
+          </div>
         </div>
-        <span className="text-meta" style={{ flexShrink: 0 }}>〜</span>
-        <div className="row" style={{ flex: 1, minWidth: 0, gap: 4 }}>
-          <input type="date" value={to} onChange={e => onToChange(e.target.value)}
-            className="input input-date" style={{ flex: 1 }} />
-          {to && (
-            <button type="button" onClick={() => onToChange("")} className="btn btn-secondary btn-sm"
-              style={{ flexShrink: 0, padding: "9px 10px" }} aria-label={`${label}の終了日をクリア`}>
-              <Icon name="close" size={14} />
-            </button>
-          )}
+        <span className="text-meta date-range-separator">〜</span>
+        <div className="date-range-control">
+          <span className="date-range-endpoint">終了日</span>
+          <div className="date-range-input-wrap">
+            <input type="date" value={to} onChange={e => onToChange(e.target.value)}
+              className="input input-date date-range-input" />
+            {to && (
+              <button type="button" onClick={() => onToChange("")} className="date-range-clear"
+                aria-label={`${label}の終了日をクリア`}>
+                <Icon name="close" size={14} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </Field>

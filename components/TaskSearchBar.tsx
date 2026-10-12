@@ -36,13 +36,13 @@ export function TaskSearchBar<T>({ search, tags }: Props<T>) {
   return (
     <>
       {/* フィルタ＋ソート */}
-      <div className="container row" style={{ paddingTop: 16, gap: 8, flexWrap: "wrap" }}>
+      <div className="container row task-search-controls" style={{ paddingTop: 16, gap: 8, flexWrap: "wrap" }}>
         {/* ステータス：プルダウン方式 */}
         <select
           value={filterStatus}
           onChange={e => setFilterStatus(e.target.value as any)}
-          className="select"
-          style={{ width: "auto", padding: "8px 14px", fontWeight: 600 }}>
+          className="select task-search-select"
+          style={{ width: "auto", fontWeight: 600 }}>
           <option value="all">すべてのステータス</option>
           {STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
         </select>
@@ -52,9 +52,9 @@ export function TaskSearchBar<T>({ search, tags }: Props<T>) {
           <select
             value={filterTag}
             onChange={e => setFilterTag(e.target.value)}
-            className="select"
+            className="select task-search-select"
             aria-label="タグで絞り込み"
-            style={{ width: "auto", padding: "8px 14px", fontWeight: 600 }}>
+            style={{ width: "auto", fontWeight: 600 }}>
             <option value="all">すべてのタグ</option>
             {tags.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
@@ -84,7 +84,7 @@ export function TaskSearchBar<T>({ search, tags }: Props<T>) {
           <select
             value={sortKey}
             onChange={e => setSortKey(e.target.value as any)}
-            className="select" style={{ width: "auto", padding: "7px 12px" }}>
+            className="select task-search-select" style={{ width: "auto" }}>
             <option value="ordered_at">依頼日順</option>
             <option value="deadline">納期順</option>
             <option value="price">金額順</option>

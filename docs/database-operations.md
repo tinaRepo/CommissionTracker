@@ -35,6 +35,16 @@ grant select, insert, update, delete on public.example to authenticated;
 
 権限付与を忘れるとデータAPIが `permission denied`（42501）を返します。具体的な付与例は既存のmigrationで確認してください。
 
+## Stripe Webhookの確認
+
+Webhookの冪等性テーブル `public.stripe_events` は `20261006000000_V2.0.0_features.sql` で作成されます。Vercelが接続するSupabaseプロジェクトにこのmigrationが適用されていることを確認してください。
+
+```sql
+select to_regclass('public.stripe_events');
+```
+
+結果が `null` ならmigration未適用です。Stripe Dashboardの **Developers → Webhooks → 対象endpoint → Event deliveries** で配信結果を確認し、同時刻のVercel Function Logsも照合してください。Webhook署名の検証に失敗するとDB登録前に終了します。また、処理失敗時は再配信できるよう `stripe_events` の記録を削除するため、テーブルが空であることだけでは原因を特定できません。テスト環境と本番環境でWebhook endpoint secret・Stripe API key・Price IDを混在させないでください。
+
 ## Storageデータ移行
 
 通常の開発でStorage移行スクリプトを実行する必要はありません。旧環境から画像を移す作業が必要な場合に限り、対象プロジェクトの環境変数を確認して実行します。
