@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const NO_CACHE = {
   "Cache-Control": "no-store, max-age=0",
@@ -26,13 +27,15 @@ export async function GET(
   try {
     const { data: settings, error: settingsError } = await admin
       .from("public_share_pages")
-      .select("user_id, show_accepting_status, accepting_requests, show_active_count, show_completed_count, show_capacity, capacity, show_display_name, display_name, show_bio, bio, show_social_link, social_link")
+      .select("user_id, enabled, show_accepting_status, accepting_requests, show_active_count, show_completed_count, show_capacity, capacity, show_display_name, display_name, show_bio, bio, show_social_link, social_link, show_portfolio")
       .eq("share_token", token)
-      .eq("enabled", true)
       .maybeSingle();
     if (settingsError) throw settingsError;
     if (!settings) {
       return NextResponse.json({ error: "not_found" }, { status: 404, headers: NO_CACHE });
+    }
+    if (!settings.enabled) {
+      return NextResponse.json({ state: "unpublished" }, { headers: NO_CACHE });
     }
 
     const { data: profile, error: profileError } = await admin
@@ -64,7 +67,7 @@ export async function GET(
       completedCount = count ?? 0;
     }
 
-    const publicData: Record<string, string | number | boolean> = {};
+    const publicData: Record<string, string | number | boolean | { id: string; url: string }[]> = {};
     if (settings.show_accepting_status) publicData.acceptingRequests = settings.accepting_requests;
     if (settings.show_active_count) publicData.activeCount = activeCount ?? 0;
     if (settings.show_capacity) {
@@ -76,6 +79,18 @@ export async function GET(
     if (settings.show_display_name && settings.display_name) publicData.displayName = settings.display_name;
     if (settings.show_bio && settings.bio) publicData.bio = settings.bio;
     if (settings.show_social_link && settings.social_link) publicData.socialLink = settings.social_link;
+    if (settings.show_portfolio) {
+      const { data: gallery, error: galleryError } = await admin
+        .from("public_share_gallery")
+        .select("image_id")
+        .eq("user_id", settings.user_id)
+        .order("sort_order");
+      if (galleryError) throw galleryError;
+      publicData.galleryImages = (gallery ?? []).map(({ image_id }) => ({
+        id: image_id,
+        url: `/api/public-share/${encodeURIComponent(token)}/images/${encodeURIComponent(image_id)}`,
+      }));
+    }
 
     return NextResponse.json(publicData, { headers: NO_CACHE });
   } catch (error) {

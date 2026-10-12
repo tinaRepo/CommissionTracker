@@ -1051,12 +1051,11 @@ export default function TaskApp() {
           <button
             className={view === "calendar" && hasCalendarAccess ? "on" : ""}
             aria-pressed={view === "calendar" && hasCalendarAccess}
-            aria-label={hasCalendarAccess ? "カレンダー表示" : "カレンダー表示（有料プラン限定）"}
-            title={hasCalendarAccess ? "カレンダー表示" : "カレンダー表示は有料プラン限定です"}
-            onClick={() => hasCalendarAccess ? changeView("calendar") : window.location.assign("/pricing")}
+            aria-label="カレンダー表示"
+            disabled={!hasCalendarAccess}
+            onClick={() => { if (hasCalendarAccess) changeView("calendar"); }}
           >
-            {!hasCalendarAccess && <Icon name="lock" size={12} />}
-            カレンダー{!hasCalendarAccess && "（有料）"}
+            カレンダー
           </button>
         </div>
       </div>

@@ -13,6 +13,8 @@ npx supabase db push --project-ref <staging-project-ref>
 
 検証環境で反映・動作確認し、変更をマージしてから本番でも `--dry-run` の内容を確認して適用します。検証用・本番用Project Refを取り違えないでください。
 
+共有ページの実績画像機能を使うには、`20261013000000_public_share_gallery.sql` を適用してください。このmigrationは公開設定フラグと、共有ページごとの選択画像テーブルを作成します。`public_share_gallery` はRLSを有効にし、クライアントから直接アクセスできない権限にしています。公開画像はトークン・画像IDごとにサーバーAPIで公開設定と選択状態を検証して配信します。
+
 CLIの初期設定が必要な場合:
 
 ```bash
