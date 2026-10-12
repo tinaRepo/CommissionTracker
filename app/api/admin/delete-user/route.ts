@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { deleteUserCompletely } from "@/lib/server/delete-account";
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,9 +38,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "自分自身は削除できません" }, { status: 400 });
     }
 
-    // auth.usersから削除（cascadeで関連データも全削除）
-    const { error } = await adminSupabase.auth.admin.deleteUser(userId);
-    if (error) throw error;
+    const result = await deleteUserCompletely(adminSupabase, userId);
+    if (!result.ok) {
+      console.error(`admin account delete failed at ${result.stage}:`, result.error);
+      return NextResponse.json(
+        { error: "削除を完了できませんでした。データベースとStorageの状態を確認してください。" },
+        { status: result.stage === "auth" ? 500 : 502 }
+      );
+    }
 
     return NextResponse.json({ success: true });
   } catch (e: any) {
