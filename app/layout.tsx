@@ -7,7 +7,7 @@ import "./globals.css";
 import "./components.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://commission-tracker-nine.vercel.app"),
+  metadataBase: new URL("https://tsukurist.vercel.app"),
   title: {
     default: "ツクリスト | 納期・タスク管理ツール",
     template: "%s | ツクリスト",

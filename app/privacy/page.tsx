@@ -10,7 +10,7 @@ export default function PrivacyPage() {
         <span className="title">プライバシーポリシー</span>
       </header>
       <main className="container-narrow" style={{ padding: "32px 24px 80px" }}>
-        <p className="text-meta" style={{ marginBottom: 24 }}>最終更新日：2026年10月5日</p>
+        <p className="text-meta" style={{ marginBottom: 24 }}>最終更新日：2026年10月16日</p>
 
         <Section title="1. 取得する情報">
           <p>本サービス（ツクリスト）では以下の情報を取得します。</p>
