@@ -100,36 +100,27 @@ export function DateRangeField({ label, from, to, onFromChange, onToChange }: {
   label: string; from: string; to: string;
   onFromChange: (v: string) => void; onToChange: (v: string) => void;
 }) {
+  const renderInput = (value: string, onChange: (v: string) => void, endpoint: string) => (
+    <div className="date-range-control">
+      <span className="date-range-endpoint">{endpoint}</span>
+      <div className="date-range-input-wrap">
+        <input type="date" value={value} onChange={e => onChange(e.target.value)}
+          className="input input-date date-range-input" />
+        {value && (
+          <button type="button" onClick={() => onChange("")} className="btn btn-secondary btn-sm"
+            style={{ flexShrink: 0, padding: "9px 12px" }} aria-label={`${label}の${endpoint}をクリア`}>
+            <Icon name="close" size={14} />
+          </button>
+        )}
+      </div>
+    </div>
+  );
   return (
     <Field label={label}>
       <div className="date-range-fields">
-        <div className="date-range-control">
-          <span className="date-range-endpoint">開始日</span>
-          <div className="date-range-input-wrap">
-            <input type="date" value={from} onChange={e => onFromChange(e.target.value)}
-              className="input input-date date-range-input" />
-            {from && (
-              <button type="button" onClick={() => onFromChange("")} className="date-range-clear"
-                aria-label={`${label}の開始日をクリア`}>
-                <Icon name="close" size={14} />
-              </button>
-            )}
-          </div>
-        </div>
+        {renderInput(from, onFromChange, "開始日")}
         <span className="text-meta date-range-separator">〜</span>
-        <div className="date-range-control">
-          <span className="date-range-endpoint">終了日</span>
-          <div className="date-range-input-wrap">
-            <input type="date" value={to} onChange={e => onToChange(e.target.value)}
-              className="input input-date date-range-input" />
-            {to && (
-              <button type="button" onClick={() => onToChange("")} className="date-range-clear"
-                aria-label={`${label}の終了日をクリア`}>
-                <Icon name="close" size={14} />
-              </button>
-            )}
-          </div>
-        </div>
+        {renderInput(to, onToChange, "終了日")}
       </div>
     </Field>
   );
