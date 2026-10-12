@@ -290,16 +290,26 @@ export async function fetchTasks(): Promise<Task[]> {
 }
 
 // ---- タスク情報の作成 ----
-export async function createTask(values: TaskInput): Promise<Task> {
+export async function createTask(values: TaskInput, id?: string): Promise<Task> {
   const { data: { session } } = await supabase.auth.getSession();
   const user = session?.user;
   if (!user) throw new Error("Not authenticated");
   const { data, error } = await supabase
     .from("tasks")
-    .insert({ ...values, user_id: user.id })
+    .insert({ ...values, ...(id ? { id } : {}), user_id: user.id })
     .select().single();
   if (error) throw error;
   return data;
+}
+
+export async function upsertOfflineTask(id: string, values: TaskInput): Promise<void> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user;
+  if (!user) throw new Error("Not authenticated");
+  const { error } = await supabase
+    .from("tasks")
+    .upsert({ ...values, id, user_id: user.id }, { onConflict: "id" });
+  if (error) throw error;
 }
 
 // --- IDで特定のタスク情報を取得 ---
