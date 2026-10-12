@@ -329,8 +329,8 @@
   width: 100%;
   min-width: 0;
   padding-left: 10px;
-  padding-right: 34px;
-  font-size: 16px;
+  padding-right: 34px;   /* バツボタンの分だけ右を空ける */
+  font-size: 16px;       /* iOSの自動ズーム防止のため16px未満にしない */
 }
 
 .date-range-clear {
@@ -352,24 +352,6 @@
 
 .date-range-clear:active {
   background: var(--surface-2);
-}
-
-@media (max-width: 760px) {
-  .date-range-fields {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 8px;
-  }
-
-  .date-range-endpoint {
-    display: block;
-    margin-bottom: 4px;
-    color: var(--muted);
-    font-size: 11px;
-  }
-
-  .date-range-separator {
-    display: none;
-  }
 }
 
 /* ---------------- Forms ---------------- */
