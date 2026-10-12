@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 // ⚠ 実際のデプロイドメインが確定したら差し替えること
-export const SITE_URL = "https://commission-tracker-nine.vercel.app";
+export const SITE_URL = "https://tsukurist.vercel.app";
 
 export function createPublicPageMetadata(title: string, description: string, pathname: string): Metadata {
     return {

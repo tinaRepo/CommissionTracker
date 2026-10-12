@@ -1,5 +1,3 @@
-import Script from "next/script";
-import { Analytics } from "@vercel/analytics/next";
 import { PageViewTracker } from '../components/PageViewTracker';
 import AdSenseLoader from "@/components/AdSenseLoader";
 import type { Metadata } from "next";
@@ -7,7 +5,7 @@ import "./globals.css";
 import "./components.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://commission-tracker-nine.vercel.app"),
+  metadataBase: new URL("https://tsukurist.vercel.app"),
   title: {
     default: "ツクリスト | 納期・タスク管理ツール",
     template: "%s | ツクリスト",
@@ -54,27 +52,9 @@ export default function RootLayout({
       <body>
         {children}
         <PageViewTracker />
-        <Analytics />
         <AdSenseLoader />
 
-        <Script
-          src="https://www.googletagmanager.com/gtag/js?id=G-VL43MH743Z"
-          strategy="lazyOnload"
-          crossOrigin="anonymous"
-        />
 
-        {/* 初期化 */}
-        <Script id="ga-init" strategy="lazyOnload">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            window.gtag = gtag;
-            gtag('js', new Date());
-            gtag('config', 'G-VL43MH743Z', {
-                send_page_view: false
-            });
-          `}
-        </Script>
       </body>
     </html>
   );

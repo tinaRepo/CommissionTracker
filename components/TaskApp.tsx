@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
-  supabase, fetchTasks, createTask, updateTask,
+  supabase, fetchTasks, createTask, upsertOfflineTask, updateTask,
   deleteTask, uploadImage, deleteImage, getSignedImageUrls,
   fetchMyProfile, canUploadImage,
   PLAN_LIMITS,
-  type Task, type TaskStatus, type TaskImage,
+  type Task, type TaskStatus, type TaskImage, type TaskInput,
   type ImageType, type UserProfile, type Plan, type Tag,
   fetchTaskById,
   changeMyPassword, requestSetPasswordEmail, toJapaneseAuthError,
@@ -23,11 +23,17 @@ import {
   Field, DateField, StatusBadge, TaskListCard, Icon, GoogleLogo, cx,
 } from "./TaskShared";
 import { TaskSearchBar } from "./TaskSearchBar";
+import {
+  acknowledgeOfflineChange, applyOfflineChanges, clearOfflineUserData, isNetworkUnavailable, listOfflineChanges,
+  readOfflineSnapshot, saveOfflineChange, saveOfflineSnapshot,
+  type OfflineSnapshot, type OfflineTaskChange,
+} from "@/lib/offline-tasks";
 import { TagPicker, TagManagerModal } from "./TagPicker";
 import PushNotificationToggle from "./PushNotificationToggle";
 const NotificationsModal = dynamic(() => import("./NotificationsModal"), { ssr: false });
 const ContactModal = dynamic(() => import("./ContactModal"), { ssr: false });
 const InstallPromptBanner = dynamic(() => import("./InstallPromptBanner"), { ssr: false });
+const ShareSettingsModal = dynamic(() => import("./ShareSettingsModal"), { ssr: false });
 // 開くまで使わないUIはコード分割する
 const TaskCalendar = dynamic(() => import("./TaskCalendar"), { ssr: false });
 const DeleteAccountModal = dynamic(() => import("./DeleteAccountModal"), { ssr: false });
@@ -92,8 +98,8 @@ function ImageUsageBar({ plan, imageCount }: { plan: Plan; imageCount: number })
 }
 
 // ---- 画像セクション ----
-function ImageSection({ task, plan, onUpdated }: {
-  task: Task; plan: Plan; onUpdated: () => void;
+function ImageSection({ task, plan, isOnline, onUpdated }: {
+  task: Task; plan: Plan; isOnline: boolean; onUpdated: () => void;
 }) {
   const [uploading, setUploading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -151,7 +157,7 @@ function ImageSection({ task, plan, onUpdated }: {
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !isOnline) return;
     setLimitError(null);
     setUploading(true);
     try {
@@ -172,6 +178,7 @@ function ImageSection({ task, plan, onUpdated }: {
   }
 
   async function handleDelete(img: TaskImage) {
+    if (!isOnline) return;
     if (!confirm(`「${img.file_name}」を削除しますか？`)) return;
     await deleteImage(img);
     onUpdated();
@@ -212,7 +219,7 @@ function ImageSection({ task, plan, onUpdated }: {
                   <div style={{ width: "100%", aspectRatio: "1" }} />
                 )}
                 <div className="tag" style={{ position: "absolute", top: 4, left: 4 }}>{typeLabel}</div>
-                <button onClick={() => handleDelete(img)} aria-label={`${img.file_name}を削除`}
+                <button onClick={() => handleDelete(img)} disabled={!isOnline} aria-label={`${img.file_name}を削除`}
                   className="icon-btn" style={{
                     position: "absolute", top: 4, right: 4, width: 22, height: 22,
                     background: "rgba(0,0,0,0.55)", border: "none",
@@ -236,19 +243,24 @@ function ImageSection({ task, plan, onUpdated }: {
       )}
 
       <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-        <select value={imageType} onChange={e => setImageType(e.target.value as ImageType)}
+        <select value={imageType} onChange={e => setImageType(e.target.value as ImageType)} disabled={!isOnline}
           className="select" style={{ width: "auto", padding: "8px 12px" }}>
           {IMAGE_TYPES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
         </select>
         <label className={cx("btn", "btn-secondary", "grow")} style={{
-          borderStyle: "dashed", cursor: (uploading || atLimit) ? "not-allowed" : "pointer",
+          borderStyle: "dashed", cursor: (!isOnline || uploading || atLimit) ? "not-allowed" : "pointer",
           color: atLimit ? "var(--danger)" : "var(--accent)",
         }}>
           {uploading ? "アップロード中…" : atLimit ? `上限に達しました（${limit}枚）` : "画像を追加"}
           <input type="file" accept="image/*" onChange={handleUpload}
-            disabled={uploading || atLimit} style={{ display: "none" }} />
+            disabled={!isOnline || uploading || atLimit} style={{ display: "none" }} />
         </label>
       </div>
+      {!isOnline && (
+        <div className="text-meta" style={{ marginTop: 8 }}>
+          画像の追加・削除は、オンラインに戻ってから行えます。最新の画像枚数も接続時に確認します。
+        </div>
+      )}
 
       {preview && (
         <div onClick={() => setPreview(null)} style={{
@@ -281,6 +293,11 @@ export default function TaskApp() {
   const [view, setView] = useState<ViewMode>("list");
   const [thumbnailUrls, setThumbnailUrls] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [isOnline, setIsOnline] = useState(true);
+  const [pendingChangesCount, setPendingChangesCount] = useState(0);
+  const [offlineMessage, setOfflineMessage] = useState<string | null>(null);
+  const syncingChanges = useRef<Promise<void> | null>(null);
+  const loadRef = useRef<() => Promise<void>>(async () => {});
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<FormValues>(EMPTY_FORM);
@@ -294,6 +311,7 @@ export default function TaskApp() {
   const [showNameEdit, setShowNameEdit] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+  const [showShareSettings, setShowShareSettings] = useState(false);
   const [showTagManager, setShowTagManager] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showContact, setShowContact] = useState(false);
@@ -335,48 +353,160 @@ export default function TaskApp() {
   useEffect(() => {
     try {
       const saved = localStorage.getItem(VIEW_STORAGE_KEY);
-      if (saved === "list" || saved === "calendar") setView(saved);
+      if (saved === "list" || (saved === "calendar" && profile && profile.plan !== "free")) {
+        setView(saved);
+      } else {
+        setView("list");
+      }
     } catch { /* localStorageが使えない環境では既定のまま */ }
-  }, []);
+  }, [profile]);
 
   function changeView(next: ViewMode) {
     setView(next);
     try { localStorage.setItem(VIEW_STORAGE_KEY, next); } catch { /* 無視 */ }
   }
 
-  async function load() {
-    try {
-      const [data, prof, tagList] = await Promise.all([fetchTasks(), fetchMyProfile(), fetchTags()]);
-      setTasks(data);
-      setProfile(prof);
-      setTags(tagList);
-      const total = data.reduce((sum, t) => sum + (t.images?.length ?? 0), 0);
-      setImageCount(total);
+  useEffect(() => {
+    const updateOnlineStatus = () => setIsOnline(navigator.onLine);
+    updateOnlineStatus();
+    window.addEventListener("online", updateOnlineStatus);
+    window.addEventListener("offline", updateOnlineStatus);
+    return () => {
+      window.removeEventListener("online", updateOnlineStatus);
+      window.removeEventListener("offline", updateOnlineStatus);
+    };
+  }, []);
 
+  async function syncOfflineChanges(userId: string) {
+    if (syncingChanges.current) return syncingChanges.current;
+
+    const syncPromise = (async () => {
+      const changes = await listOfflineChanges(userId);
+      setPendingChangesCount(changes.length);
+      for (const change of changes) {
+        if (change.action === "delete") {
+          await deleteTask(change.taskId);
+        } else if (change.values) {
+          if (change.action === "create") {
+            await upsertOfflineTask(change.taskId, change.values);
+          } else {
+            await updateTask(change.taskId, change.values);
+          }
+          await setTaskTags(change.taskId, change.tagIds ?? []);
+        }
+        await acknowledgeOfflineChange(userId, change.taskId, change.createdAt);
+        setPendingChangesCount(count => Math.max(0, count - 1));
+      }
+      setOfflineMessage(null);
+    })();
+    syncingChanges.current = syncPromise;
+    try {
+      await syncPromise;
+    } finally {
+      if (syncingChanges.current === syncPromise) syncingChanges.current = null;
+    }
+  }
+
+  async function load() {
+    const userId = user?.id;
+    if (!userId) return;
+
+    let cached: OfflineSnapshot | null = null;
+    let changes: OfflineTaskChange[] = [];
+    try {
+      [cached, changes] = await Promise.all([
+        readOfflineSnapshot(userId),
+        listOfflineChanges(userId),
+      ]);
+      setPendingChangesCount(changes.length);
+      if (cached) {
+        setTasks(applyOfflineChanges(cached.tasks, changes));
+        setTags(cached.tags);
+        setProfile(cached.profile);
+        setImageCount(cached.tasks.reduce((sum, task) => sum + (task.images?.length ?? 0), 0));
+      }
+    } catch (error) {
+      console.error("オフラインデータの読み込みに失敗しました", error);
+      setOfflineMessage("端末に保存したデータを読み込めませんでした。オンライン接続を確認してください。");
+    }
+
+    if (!navigator.onLine) {
+      setIsOnline(false);
+      setLoading(false);
+      if (!cached) setOfflineMessage("オフライン用のデータがありません。一度オンラインでタスクを読み込んでください。");
+      return;
+    }
+    setIsOnline(true);
+
+    try {
+      try {
+        await syncOfflineChanges(userId);
+      } catch (error) {
+        console.error("オフライン変更の同期に失敗しました", error);
+        setOfflineMessage(isNetworkUnavailable(error)
+          ? "接続が不安定なため、変更は端末に保存されています。オンライン復帰後に自動で同期します。"
+          : "一部の変更を同期できませんでした。内容を確認して再試行してください。");
+      }
+
+      const [serverTasks, serverProfile, serverTags] = await Promise.all([
+        fetchTasks(), fetchMyProfile(), fetchTags(),
+      ]);
+      const remainingChanges = await listOfflineChanges(userId);
+      const visibleTasks = applyOfflineChanges(serverTasks, remainingChanges);
+      setTasks(visibleTasks);
+      setProfile(serverProfile ?? cached?.profile ?? null);
+      setTags(serverTags);
+      setImageCount(serverTasks.reduce((sum, task) => sum + (task.images?.length ?? 0), 0));
+      setPendingChangesCount(remainingChanges.length);
       setLoading(false);
 
-      const firstImagePaths = data
-        .map(t => t.images?.[0]?.storage_path)
-        .filter((p): p is string => !!p);
+      const snapshot: OfflineSnapshot = {
+        userId, tasks: serverTasks, tags: serverTags,
+        profile: serverProfile ?? cached?.profile ?? null, savedAt: new Date().toISOString(),
+      };
+      try {
+        await saveOfflineSnapshot(snapshot);
+      } catch (error) {
+        console.error("オフライン用データの保存に失敗しました", error);
+        setOfflineMessage("タスクは表示されていますが、オフライン用データを保存できませんでした。");
+      }
+
+      const firstImagePaths = visibleTasks
+        .map(task => task.images?.[0]?.storage_path)
+        .filter((path): path is string => !!path);
       if (firstImagePaths.length === 0) { setThumbnailUrls({}); return; }
       try {
         const pathToUrl = await getSignedImageUrls(firstImagePaths);
         const byTaskId: Record<string, string> = {};
-        data.forEach(t => {
-          const path = t.images?.[0]?.storage_path;
-          if (path && pathToUrl[path]) byTaskId[t.id] = pathToUrl[path];
+        visibleTasks.forEach(task => {
+          const path = task.images?.[0]?.storage_path;
+          if (path && pathToUrl[path]) byTaskId[task.id] = pathToUrl[path];
         });
         setThumbnailUrls(byTaskId);
       } catch {
         setThumbnailUrls({});
       }
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error("サーバーデータの読み込みに失敗しました", error);
+      if (isNetworkUnavailable(error)) {
+        setIsOnline(false);
+        setOfflineMessage(cached
+          ? "接続できないため、端末に保存したデータを表示しています。変更は接続時に同期されます。"
+          : "オフライン用のデータがありません。一度オンラインでタスクを読み込んでください。");
+      } else {
+        setOfflineMessage("タスクを読み込めませんでした。再読み込みしてください。");
+      }
       setLoading(false);
     }
   }
 
-  useEffect(() => { if (user) load(); }, [user]);
+  useEffect(() => { loadRef.current = load; });
+  useEffect(() => { if (user) void loadRef.current(); }, [user]);
+  useEffect(() => {
+    const onOnline = () => { if (user) void loadRef.current(); };
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+  }, [user]);
 
   useEffect(() => {
     if (!user || new URLSearchParams(window.location.search).get("checkout") !== "success") return;
@@ -409,6 +539,17 @@ export default function TaskApp() {
   const tagsOf = (t: Task) =>
     (t.tag_ids ?? []).map(id => tagById.get(id)).filter((x): x is Tag => !!x);
 
+  async function storeOfflineChange(change: OfflineTaskChange) {
+    if (!user) throw new Error("ログイン情報を確認できませんでした。");
+    const nextTasks = applyOfflineChanges(tasks, [change]);
+    await saveOfflineChange({
+      userId: user.id, tasks: nextTasks, tags, profile, savedAt: new Date().toISOString(),
+    }, change);
+    setTasks(nextTasks);
+    setPendingChangesCount((await listOfflineChanges(user.id)).length);
+    setOfflineMessage("変更を端末に保存しました。オンラインに戻ると自動で同期します。");
+  }
+
   async function handleSaveName() {
     if (!nameInput.trim()) return;
     const { data: { session } } = await supabase.auth.getSession();
@@ -421,17 +562,20 @@ export default function TaskApp() {
   }
 
   async function handleCreateTag(name: string): Promise<Tag> {
+    if (!navigator.onLine) throw new Error("タグの作成はオンライン接続時にご利用いただけます。");
     const tag = await createTag(name);
     setTags(prev => (prev.some(t => t.id === tag.id) ? prev : [...prev, tag].sort((a, b) => a.name.localeCompare(b.name, "ja"))));
     return tag;
   }
 
   async function handleRenameTag(id: string, name: string) {
+    if (!navigator.onLine) throw new Error("タグの変更はオンライン接続時にご利用いただけます。");
     await renameTag(id, name);
     await load();
   }
 
   async function handleDeleteTag(id: string) {
+    if (!navigator.onLine) throw new Error("タグの削除はオンライン接続時にご利用いただけます。");
     await deleteTag(id);
     if (search.filterTag === id) search.setFilterTag("all");
     await load();
@@ -523,6 +667,14 @@ export default function TaskApp() {
 
   // アカウント削除が完了した後: セッションを破棄してログイン画面へ
   async function handleAccountDeleted() {
+    if (user) {
+      try {
+        await clearOfflineUserData(user.id);
+      } catch (error) {
+        console.error("削除済みアカウントのオフラインデータを消去できませんでした", error);
+        alert("アカウントは削除されましたが、この端末に保存されたオフラインデータを消去できませんでした。ブラウザーのサイトデータを削除してください。");
+      }
+    }
     await supabase.auth.signOut();
     window.location.href = "/login?deleted=1";
   }
@@ -547,27 +699,46 @@ export default function TaskApp() {
   }
 
   async function handleSave() {
-    if (!form.title || !form.assigneeName) return;
+    if (!form.title || !form.assigneeName || !user) return;
     setSaving(true);
+    const taskId = editId ?? crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+    const payload: TaskInput = {
+      title: form.title, assignee_name: form.assigneeName, contact: form.contact || null,
+      ordered_at: form.ordered_at || null, deadline: form.deadline || null,
+      price: form.price ? Number(form.price) : null, currency: form.currency,
+      status: form.status, submission_date: form.submission_date || null, notes: form.notes || null,
+    };
+    const change: OfflineTaskChange = {
+      userId: user.id, taskId, action: editId ? "update" : "create",
+      values: payload,
+      tagIds: form.tagIds, createdAt,
+    };
     try {
-      // 空にした項目は null で送る（undefined だと更新時に無視され、消せない）
-      const payload = {
-        title: form.title, assignee_name: form.assigneeName, contact: form.contact || null,
-        ordered_at: form.ordered_at || null, deadline: form.deadline || null,
-        price: form.price ? Number(form.price) : null, currency: form.currency,
-        status: form.status, submission_date: form.submission_date || null, notes: form.notes || null,
-      };
+      if (!navigator.onLine) {
+        await storeOfflineChange(change);
+        pendingImages.forEach(image => URL.revokeObjectURL(image.previewUrl));
+        setPendingImages([]);
+        setShowForm(false);
+        setEditId(null);
+        if (pendingImages.length > 0) {
+          alert("タスクの内容は端末に保存しました。画像は保存されていないため、オンライン復帰後にタスク詳細から追加してください。");
+        }
+        return;
+      }
       if (editId) {
         await updateTask(editId, payload);
         await setTaskTags(editId, form.tagIds);
       } else {
-        const newTask = await createTask(payload);
-        await setTaskTags(newTask.id, form.tagIds);
+        const newTask = await createTask(payload, taskId);
+        await setTaskTags(taskId, form.tagIds);
         if (pendingImages.length > 0) {
           for (const pi of pendingImages) {
             try {
               await uploadImage(newTask.id, pi.file, pi.imageType, plan);
-            } catch { /* 1枚失敗しても続行 */ }
+            } catch (error) {
+              if (isNetworkUnavailable(error)) throw error;
+            }
             URL.revokeObjectURL(pi.previewUrl);
           }
           setPendingImages([]);
@@ -578,21 +749,59 @@ export default function TaskApp() {
         fetchTaskById(detailId).then(setDetailItem).catch(() => setDetailItem(null));
       }
       setShowForm(false); setEditId(null);
-    } catch (e: any) {
-      alert(e instanceof Error && /タグ/.test(e.message) ? e.message : "保存に失敗しました");
+    } catch (error) {
+      if (isNetworkUnavailable(error)) {
+        try {
+          await storeOfflineChange(change);
+          pendingImages.forEach(image => URL.revokeObjectURL(image.previewUrl));
+          setPendingImages([]);
+          setShowForm(false);
+          setEditId(null);
+          if (pendingImages.length > 0) {
+            alert("タスクの内容は端末に保存しました。通信エラーのため画像は未保存です。オンライン復帰後にタスク詳細から追加してください。");
+          }
+        } catch (storageError) {
+          console.error("オフライン保存に失敗しました", storageError);
+          alert("通信に失敗し、端末にも保存できませんでした。入力内容をコピーしてから再度お試しください。");
+        }
+      } else {
+        alert(error instanceof Error && /タグ/.test(error.message) ? error.message : "保存に失敗しました");
+      }
     }
     finally { setSaving(false); }
   }
 
   async function handleDelete(id: string) {
     try {
+      if (!user) throw new Error("ログイン情報を確認できませんでした。");
+      const change: OfflineTaskChange = {
+        userId: user.id, taskId: id, action: "delete", createdAt: new Date().toISOString(),
+      };
+      if (!navigator.onLine) {
+        await storeOfflineChange(change);
+        setDeleteConfirm(null);
+        setDetailId(null);
+        return;
+      }
       await deleteTask(id);
       await load();
       if (detailId) {
         fetchTaskById(detailId).then(setDetailItem).catch(() => setDetailItem(null));
       }
+    } catch (error) {
+      if (isNetworkUnavailable(error) && user) {
+        try {
+          await storeOfflineChange({
+            userId: user.id, taskId: id, action: "delete", createdAt: new Date().toISOString(),
+          });
+        } catch (storageError) {
+          console.error("削除をオフライン保存できませんでした", storageError);
+          alert("削除に失敗し、端末にも保存できませんでした。");
+        }
+      } else {
+        alert(error instanceof Error ? error.message : "削除に失敗しました");
+      }
     }
-    catch { alert("削除に失敗しました"); }
     setDeleteConfirm(null); setDetailId(null);
   }
 
@@ -614,6 +823,7 @@ export default function TaskApp() {
     return () => { document.body.style.overflow = ""; };
   }, [showForm, detailId]);
   const plan = (profile?.plan ?? "free") as Plan;
+  const hasCalendarAccess = !!profile && profile.plan !== "free";
   const lastProvider = profile?.last_login_provider ?? null;
   const hasPassword = profile?.has_password ?? true;
   const isGoogleLinked = hasGoogleIdentity(user);
@@ -659,6 +869,10 @@ export default function TaskApp() {
 
           <button onClick={() => setShowContact(true)} className="icon-btn" title="お問い合わせ" aria-label="お問い合わせ">
             <Icon name="mail" size={17} />
+          </button>
+
+          <button onClick={() => window.location.reload()} className="icon-btn" title="画面を更新" aria-label="画面を更新">
+            <Icon name="refresh" size={17} />
           </button>
 
           <div style={{ position: "relative" }}>
@@ -723,6 +937,12 @@ export default function TaskApp() {
                   <span className="user-menu-item-icon"><Icon name="creditCard" size={17} /></span>
                   <span>プランをアップグレード</span>
                 </button>
+                {profile?.plan === "premium" && (
+                  <button onClick={() => { setShowShareSettings(true); setShowUserMenu(false); }} className="user-menu-item">
+                    <span className="user-menu-item-icon"><Icon name="link" size={17} /></span>
+                    <span>共有ページを設定</span>
+                  </button>
+                )}
                 <PushNotificationToggle />
                 <button onClick={() => { setShowTagManager(true); setShowUserMenu(false); }} className="user-menu-item">
                   <span className="user-menu-item-icon"><Icon name="tag" size={17} /></span>
@@ -785,6 +1005,26 @@ export default function TaskApp() {
         </div>
       )}
 
+      {(!isOnline || pendingChangesCount > 0 || offlineMessage) && (
+        <div className="container" style={{ paddingTop: 12 }}>
+          <div role="status" aria-live="polite" className="row" style={{
+            justifyContent: "space-between", gap: 12, flexWrap: "wrap",
+            padding: "12px 16px", borderRadius: "var(--radius-md)", fontSize: 13, lineHeight: 1.6,
+            background: !isOnline ? "var(--warn-soft)" : "var(--accent-soft)",
+            color: !isOnline ? "var(--warn)" : "var(--accent)",
+          }}>
+            <span>
+              {!isOnline ? "オフラインです。タスクのテキストや日付の変更は端末に保存されます。" : ""}
+              {pendingChangesCount > 0 ? ` 同期待ち: ${pendingChangesCount}件。` : ""}
+              {offlineMessage ? ` ${offlineMessage}` : ""}
+            </span>
+            {isOnline && pendingChangesCount > 0 && (
+              <button onClick={() => void load()} className="btn btn-secondary btn-sm">今すぐ同期</button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* 支払い失敗の警告（Stripeの再試行中） */}
       {paymentIssue && (
         <div className="container" style={{ paddingTop: 12 }}>
@@ -808,13 +1048,22 @@ export default function TaskApp() {
       <div className="container row" style={{ justifyContent: "flex-end", paddingTop: 12 }}>
         <div className="seg" role="group" aria-label="表示形式">
           <button className={view === "list" ? "on" : ""} aria-pressed={view === "list"} onClick={() => changeView("list")}>リスト</button>
-          <button className={view === "calendar" ? "on" : ""} aria-pressed={view === "calendar"} onClick={() => changeView("calendar")}>カレンダー</button>
+          <button
+            className={view === "calendar" && hasCalendarAccess ? "on" : ""}
+            aria-pressed={view === "calendar" && hasCalendarAccess}
+            aria-label={hasCalendarAccess ? "カレンダー表示" : "カレンダー表示（有料プラン限定）"}
+            title={hasCalendarAccess ? "カレンダー表示" : "カレンダー表示は有料プラン限定です"}
+            onClick={() => hasCalendarAccess ? changeView("calendar") : window.location.assign("/pricing")}
+          >
+            {!hasCalendarAccess && <Icon name="lock" size={12} />}
+            カレンダー{!hasCalendarAccess && "（有料）"}
+          </button>
         </div>
       </div>
 
       {/* リスト / カレンダー */}
       <main className="container" style={{ paddingTop: 16, paddingBottom: 60, maxWidth: 900 }}>
-        {view === "calendar" ? (
+        {view === "calendar" && hasCalendarAccess ? (
           <TaskCalendar tasks={filtered} onSelect={id => setDetailId(id)} />
         ) : (
           <>
@@ -880,7 +1129,7 @@ export default function TaskApp() {
                   ))}
                 </tbody>
               </table>
-              <ImageSection task={detailItem} plan={plan} onUpdated={load} />
+              <ImageSection task={detailItem} plan={plan} isOnline={isOnline} onUpdated={load} />
             </div>
             <div className="modal-footer">
               <div className="row" style={{ gap: 10, marginTop: 16 }}>
@@ -901,6 +1150,7 @@ export default function TaskApp() {
         plan={plan}
         onDeleted={handleAccountDeleted}
       />
+      <ShareSettingsModal open={showShareSettings} onClose={() => setShowShareSettings(false)} />
 
       {/* タグの管理 */}
       <TagManagerModal
@@ -1231,17 +1481,18 @@ export default function TaskApp() {
                       )}
                       <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
                         <select
+                          disabled={!isOnline}
                           value={pendingImageType}
                           onChange={e => setPendingImageType(e.target.value as ImageType)}
                           className="select" style={{ width: "auto", padding: "8px 12px" }}>
                           {IMAGE_TYPES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
                         </select>
                         <label className={cx("btn", "btn-secondary", "grow")} style={{
-                          borderStyle: "dashed", cursor: atLimit ? "not-allowed" : "pointer",
+                          borderStyle: "dashed", cursor: (!isOnline || atLimit) ? "not-allowed" : "pointer",
                           color: atLimit ? "var(--danger)" : "var(--accent)",
                         }}>
-                          {atLimit ? `上限に達しています（${limit}枚）` : "画像を追加"}
-                          <input type="file" accept="image/*" disabled={atLimit} style={{ display: "none" }}
+                          {!isOnline ? "オンライン時に画像を追加できます" : atLimit ? `上限に達しています（${limit}枚）` : "画像を追加"}
+                          <input type="file" accept="image/*" disabled={!isOnline || atLimit} style={{ display: "none" }}
                             onChange={e => {
                               const file = e.target.files?.[0];
                               if (!file) return;
@@ -1305,7 +1556,6 @@ export default function TaskApp() {
       <footer className="app-footer">
         <div className="footer-links">
           {[
-            { href: "/lp", label: "サービス紹介" },
             { href: "/guide", label: "使い方" },
             { href: "/terms", label: "利用規約" },
             { href: "/privacy", label: "プライバシーポリシー" },

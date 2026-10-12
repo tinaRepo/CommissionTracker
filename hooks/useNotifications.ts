@@ -44,6 +44,25 @@ export type UseNotificationsResult = {
   markReleasesRead: () => Promise<void>;
 };
 
+function getJstCalendarDate(value: string): string | null {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find(item => item.type === type)?.value;
+  const year = part("year");
+  const month = part("month");
+  const day = part("day");
+  return year && month && day ? `${year}-${month}-${day}` : null;
+}
+
 /**
  * お知らせ・リリースノートの取得と未読管理を1箇所に集約したフック。
  * ヘッダーの未読バッジ・NotificationsModal・DemoAppの3箇所が利用する。
@@ -129,8 +148,9 @@ export function useNotifications(
 
   const isBeforeAccountCreation = (publishedAt: string) => {
     if (!accountCreatedAt) return false;
-    const publishedDate = new Date(publishedAt).toISOString().slice(0, 10);
-    const createdDate = new Date(accountCreatedAt).toISOString().slice(0, 10);
+    const publishedDate = getJstCalendarDate(publishedAt);
+    const createdDate = getJstCalendarDate(accountCreatedAt);
+    if (!publishedDate || !createdDate) return false;
     return publishedDate < createdDate;
   };
 
@@ -144,7 +164,7 @@ export function useNotifications(
     return matchesUser || matchesPlan;
   });
 
-  const unreadAnnouncementIds = userId && statusUserId === userId
+  const unreadAnnouncementIds = userId && accountCreatedAt && statusUserId === userId
     ? new Set(
       visibleAnnouncements
         .filter(a => !readAnnouncementIds.has(a.id))
@@ -156,6 +176,7 @@ export function useNotifications(
   const latestRelease = releases[0] ?? null;
   const hasUnreadRelease =
     !!userId &&
+    !!accountCreatedAt &&
     statusUserId === userId &&
     !!latestRelease &&
     !isBeforeAccountCreation(latestRelease.released_at) &&

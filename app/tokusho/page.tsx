@@ -20,7 +20,7 @@ export default function TokushoPage() {
               ["電話番号", "お問い合わせいただいた場合に遅滞なく開示いたします"],
               ["メールアドレス・お問い合わせ", "amukat0823@gmail.com"],
               ["サービス名", "ツクリスト"],
-              ["サービスURL", "https://commission-tracker-nine.vercel.app"],
+              ["サービスURL", "https://tsukurist.vercel.app"],
               ["販売価格",
                 "■ 無料プラン：0円\n■ スタンダードプラン：月額300円（税込）\n■ プレミアムプラン：月額800円（税込）\n※料金はすべて日本円・税込表示"],
               ["代金の支払い方法", "クレジットカード決済（Stripe）\n対応カード：Visa・Mastercard・American Express・JCB等"],
@@ -33,7 +33,7 @@ export default function TokushoPage() {
               ["返品・返金ポリシー",
                 "デジタルコンテンツの性質上、原則として返金・キャンセルは承っておりません。\nただし、サービスの重大な不具合等により提供できなかった場合はこの限りではありません。\nご不明な点はお問い合わせフォームよりご連絡ください。"],
               ["動作環境", "最新バージョンのChrome・Safari・Firefox・Edge（インターネット接続が必要）"],
-              ["個人情報の取り扱い", "プライバシーポリシー（https://commission-tracker-nine.vercel.app/privacy）に従い適切に管理します。"],
+              ["個人情報の取り扱い", "プライバシーポリシー（https://tsukurist.vercel.app/privacy）に従い適切に管理します。"],
             ].map(([label, value]) => (
               <tr key={label} style={{ borderBottom: "1px solid var(--border-soft)" }}>
                 <td style={{ padding: "14px 12px", fontWeight: 600, color: "var(--muted)", width: 200, verticalAlign: "top", background: "var(--bg)", fontSize: 13, whiteSpace: "nowrap" }}>{label}</td>

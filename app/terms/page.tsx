@@ -10,7 +10,7 @@ export default function TermsPage() {
         <span className="title">利用規約</span>
       </header>
       <main className="container-narrow" style={{ padding: "32px 24px 80px" }}>
-        <p className="text-meta" style={{ marginBottom: 24 }}>最終更新日：2026年3月23日</p>
+        <p className="text-meta" style={{ marginBottom: 24 }}>最終更新日：2026年10月16日</p>
 
         <Section title="第1条（適用）">
           <p>本規約は、ツクリスト（以下「本サービス」）の利用に関する条件を定めるものです。ユーザーの皆さまは本規約に同意の上、本サービスをご利用ください。</p>
