@@ -27,7 +27,7 @@ const PLANS = [
     key: "premium",
     label: "プレミアム",
     price: 800,
-    features: ["タスクの登録・管理", "カレンダー表示", "画像アップロード 無制限", "ステータス管理", "納期アラート", "優先サポート"],
+    features: ["タスクの登録・管理", "カレンダー表示", "共有用公開ページ", "画像アップロード 無制限", "ステータス管理", "納期アラート", "優先サポート"],
     priceId: process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID,
   },
 ];

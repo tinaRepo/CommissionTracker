@@ -33,6 +33,7 @@ import PushNotificationToggle from "./PushNotificationToggle";
 const NotificationsModal = dynamic(() => import("./NotificationsModal"), { ssr: false });
 const ContactModal = dynamic(() => import("./ContactModal"), { ssr: false });
 const InstallPromptBanner = dynamic(() => import("./InstallPromptBanner"), { ssr: false });
+const ShareSettingsModal = dynamic(() => import("./ShareSettingsModal"), { ssr: false });
 // 開くまで使わないUIはコード分割する
 const TaskCalendar = dynamic(() => import("./TaskCalendar"), { ssr: false });
 const DeleteAccountModal = dynamic(() => import("./DeleteAccountModal"), { ssr: false });
@@ -310,6 +311,7 @@ export default function TaskApp() {
   const [showNameEdit, setShowNameEdit] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+  const [showShareSettings, setShowShareSettings] = useState(false);
   const [showTagManager, setShowTagManager] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showContact, setShowContact] = useState(false);
@@ -935,6 +937,12 @@ export default function TaskApp() {
                   <span className="user-menu-item-icon"><Icon name="creditCard" size={17} /></span>
                   <span>プランをアップグレード</span>
                 </button>
+                {profile?.plan === "premium" && (
+                  <button onClick={() => { setShowShareSettings(true); setShowUserMenu(false); }} className="user-menu-item">
+                    <span className="user-menu-item-icon"><Icon name="link" size={17} /></span>
+                    <span>共有ページを設定</span>
+                  </button>
+                )}
                 <PushNotificationToggle />
                 <button onClick={() => { setShowTagManager(true); setShowUserMenu(false); }} className="user-menu-item">
                   <span className="user-menu-item-icon"><Icon name="tag" size={17} /></span>
@@ -1142,6 +1150,7 @@ export default function TaskApp() {
         plan={plan}
         onDeleted={handleAccountDeleted}
       />
+      <ShareSettingsModal open={showShareSettings} onClose={() => setShowShareSettings(false)} />
 
       {/* タグの管理 */}
       <TagManagerModal

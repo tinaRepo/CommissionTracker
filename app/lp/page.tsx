@@ -24,7 +24,7 @@ const FEATURES = [
 const PLANS = [
   { label: "無料", price: "¥0", period: "", features: ["タスクの登録・管理", "画像 合計10枚まで", "全ステータス対応", "納期アラート"], cta: "無料で始める", featured: false },
   { label: "スタンダード", price: "¥300", period: "/月", features: ["タスクの登録・管理", "カレンダー表示", "画像 合計50枚まで", "全ステータス対応", "納期アラート"], cta: "始める", featured: false },
-  { label: "プレミアム", price: "¥800", period: "/月", features: ["タスクの登録・管理", "カレンダー表示", "画像 無制限", "全ステータス対応", "納期アラート", "優先サポート"], cta: "始める", featured: true },
+  { label: "プレミアム", price: "¥800", period: "/月", features: ["タスクの登録・管理", "カレンダー表示", "共有用公開ページ", "画像 無制限", "全ステータス対応", "納期アラート", "優先サポート"], cta: "始める", featured: true },
 ];
 
 // FAQ

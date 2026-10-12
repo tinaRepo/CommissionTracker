@@ -61,6 +61,11 @@ export default function GuidePage() {
           </Step>
         </Section>
 
+        <Section title="共有ページ（プレミアム）">
+          <p>プレミアムプランでは、ユーザーメニューの「共有ページを設定」から、ログインなしで見られる専用ページを公開できます。受付状況・対応件数・完了件数・表示名・紹介文・SNSリンクは項目ごとに公開を選べます。受付可能件数は設定した受付上限から対応中件数を差し引いて表示します。</p>
+          <p>共有リンクを知っている人は誰でも閲覧できます。不要になったら公開を停止するかリンクを再発行してください。タスク名、依頼先、金額、メモ、アカウント情報は公開されません。</p>
+        </Section>
+
         <Section title="納期アラート">
           <p>納期が7日以内に迫ったタスクは<strong>アプリ内でハイライト表示</strong>されます。</p>
           <div style={{ background: "var(--danger-soft)", borderRadius: "var(--radius-md)", padding: "14px 16px", margin: "12px 0", fontSize: 13, color: "var(--danger)" }}>
