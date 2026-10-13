@@ -449,12 +449,15 @@
 .modal-overlay {
   position: fixed;
   inset: 0;
+  width: 100%;
+  min-width: 0;
   background: rgba(0, 0, 0, 0.5);
   z-index: 200;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
+  overflow-x: hidden;
   overscroll-behavior: contain;
 }
 
@@ -462,7 +465,9 @@
   background: var(--bg);
   border-radius: var(--radius-xl);
   width: 100%;
+  min-width: 0;
   height: calc(100vh - 32px);
+  height: calc(100dvh - 32px);
   max-height: 600px;
   display: flex;
   flex-direction: column;
@@ -489,6 +494,7 @@
   background: var(--bg);
   border-radius: var(--radius-xl);
   width: 100%;
+  min-width: 0;
   max-width: 380px;
   padding: 32px;
   box-shadow: var(--shadow-lg);
@@ -532,6 +538,45 @@
 .stat-label {
   color: var(--muted-on-inverse);
   font-size: 10px;
+}
+
+@media (max-width: 600px) {
+  .app-header {
+    padding: 12px 16px;
+    align-items: flex-start;
+  }
+
+  .app-header > .row {
+    width: 100%;
+    min-width: 0;
+    justify-content: space-between;
+    gap: 8px !important;
+  }
+
+  .app-header > .row > .row {
+    gap: 8px !important;
+  }
+
+  .app-header .stat-block {
+    min-width: 42px;
+  }
+
+  .modal-header {
+    padding: 16px 16px 0;
+  }
+
+  .modal-body {
+    min-width: 0;
+    padding: 0 16px;
+  }
+
+  .modal-footer {
+    padding: 12px 16px 16px;
+  }
+
+  .modal-compact {
+    padding: 24px;
+  }
 }
 
 .user-menu {
