@@ -44,6 +44,15 @@ export async function GET(request: NextRequest) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      response.headers.set("Cache-Control", "private, no-store, max-age=0");
+      response.cookies.set("ct_last_login_provider", "google", {
+        httpOnly: true,
+        secure: request.nextUrl.protocol === "https:",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 90,
+      });
+
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         const adminSupabase = createClient(
@@ -60,14 +69,8 @@ export async function GET(request: NextRequest) {
         if (profileError || !profile) {
           console.error("failed to save Google login provider:", profileError ?? "profile not found");
         }
-
-        response.cookies.set("ct_last_login_provider", "google", {
-          httpOnly: true,
-          secure: request.nextUrl.protocol === "https:",
-          sameSite: "lax",
-          path: "/",
-          maxAge: 60 * 60 * 24 * 90,
-        });
+      } else {
+        console.error("Google callback completed without a session user");
       }
       return response;
     }
