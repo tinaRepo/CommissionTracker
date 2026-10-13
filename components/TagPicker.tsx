@@ -13,9 +13,10 @@ type PickerProps = {
   selectedIds: string[];
   onChange: (ids: string[]) => void;
   onCreate: (name: string) => Promise<Tag>;
+  canCreate?: boolean;
 };
 
-export function TagPicker({ tags, selectedIds, onChange, onCreate }: PickerProps) {
+export function TagPicker({ tags, selectedIds, onChange, onCreate, canCreate = true }: PickerProps) {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +34,7 @@ export function TagPicker({ tags, selectedIds, onChange, onCreate }: PickerProps
   }
 
   async function add() {
+    if (!canCreate) return;
     const name = normalizeTagName(input);
     if (!name || busy) return;
     setError(null);
@@ -77,15 +79,17 @@ export function TagPicker({ tags, selectedIds, onChange, onCreate }: PickerProps
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); add(); } }}
+          disabled={!canCreate}
           maxLength={TAG_NAME_MAX_LENGTH}
           placeholder="新しいタグ（例: 緊急、A社）"
           className="input"
           style={{ flex: 1 }}
         />
-        <button type="button" onClick={add} disabled={!input.trim() || busy} className="btn btn-secondary btn-sm" style={{ flexShrink: 0 }}>
+        <button type="button" onClick={add} disabled={!canCreate || !input.trim() || busy} className="btn btn-secondary btn-sm" style={{ flexShrink: 0 }}>
           <Icon name="plus" size={14} /> 追加
         </button>
       </div>
+      {!canCreate && <div className="text-meta" style={{ marginTop: 6 }}>新しいタグの作成はオンライン復帰後に利用できます。既存タグの選択は可能です。</div>}
       {error && <div style={{ marginTop: 6, fontSize: 12, color: "var(--danger)" }}>{error}</div>}
       <div className="text-meta" style={{ marginTop: 6 }}>{selectedIds.length} / {TAGS_PER_TASK_LIMIT} 個選択中</div>
     </div>
@@ -99,9 +103,10 @@ type ManagerProps = {
   onClose: () => void;
   onRename: (id: string, name: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  disabled?: boolean;
 };
 
-export function TagManagerModal({ open, tags, onClose, onRename, onDelete }: ManagerProps) {
+export function TagManagerModal({ open, tags, onClose, onRename, onDelete, disabled = false }: ManagerProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -111,6 +116,7 @@ export function TagManagerModal({ open, tags, onClose, onRename, onDelete }: Man
   if (!open) return null;
 
   async function run(id: string, fn: () => Promise<void>) {
+    if (disabled) return;
     setBusyId(id); setError(null);
     try { await fn(); } catch (e: any) { setError(e?.message ?? "処理に失敗しました"); } finally { setBusyId(null); }
   }
@@ -128,6 +134,7 @@ export function TagManagerModal({ open, tags, onClose, onRename, onDelete }: Man
           </div>
         </div>
         <div className="modal-body" style={{ paddingBottom: 16 }}>
+          {disabled && <div role="status" style={{ marginBottom: 12, padding: "10px 14px", borderRadius: "var(--radius-md)", fontSize: 13, background: "var(--warn-soft)", color: "var(--warn)" }}>タグの変更・削除はオンライン復帰後に利用できます。</div>}
           {error && <div style={{ marginBottom: 12, padding: "10px 14px", borderRadius: "var(--radius-md)", fontSize: 13, background: "var(--danger-soft)", color: "var(--danger)" }}>{error}</div>}
           {tags.length === 0 ? (
             <div style={{ textAlign: "center", padding: "40px 0", color: "var(--meta)", fontSize: 14 }}>
@@ -141,26 +148,27 @@ export function TagManagerModal({ open, tags, onClose, onRename, onDelete }: Man
                     <>
                       <input value={draft} onChange={e => setDraft(e.target.value)} maxLength={TAG_NAME_MAX_LENGTH}
                         onKeyDown={e => { if (e.key === "Enter" && !e.nativeEvent.isComposing) run(t.id, async () => { await onRename(t.id, draft); setEditingId(null); }); }}
+                        disabled={disabled}
                         className="input" style={{ flex: 1, minHeight: 36, padding: "6px 10px" }} />
-                      <button className="btn btn-primary btn-sm" disabled={busyId === t.id || !draft.trim()}
+                      <button className="btn btn-primary btn-sm" disabled={disabled || busyId === t.id || !draft.trim()}
                         onClick={() => run(t.id, async () => { await onRename(t.id, draft); setEditingId(null); })}>保存</button>
                       <button className="btn btn-ghost btn-sm" onClick={() => setEditingId(null)}>戻る</button>
                     </>
                   ) : confirmId === t.id ? (
                     <>
                       <span className="grow" style={{ fontSize: 13 }}>「{t.name}」を削除しますか？（タスクは残ります）</span>
-                      <button className="btn btn-danger-solid btn-sm" disabled={busyId === t.id}
+                      <button className="btn btn-danger-solid btn-sm" disabled={disabled || busyId === t.id}
                         onClick={() => run(t.id, async () => { await onDelete(t.id); setConfirmId(null); })}>削除</button>
                       <button className="btn btn-ghost btn-sm" onClick={() => setConfirmId(null)}>戻る</button>
                     </>
                   ) : (
                     <>
                       <span className="grow" style={{ fontSize: 14, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name}</span>
-                      <button className="icon-btn" aria-label={`${t.name}の名前を変更`} onClick={() => { setEditingId(t.id); setDraft(t.name); setConfirmId(null); }}
+                      <button className="icon-btn" aria-label={`${t.name}の名前を変更`} disabled={disabled} onClick={() => { setEditingId(t.id); setDraft(t.name); setConfirmId(null); }}
                         style={{ background: "var(--surface)", color: "var(--fg)", border: "1px solid var(--border-soft)", width: 32, height: 32 }}>
                         <Icon name="edit" size={14} />
                       </button>
-                      <button className="icon-btn" aria-label={`${t.name}を削除`} onClick={() => { setConfirmId(t.id); setEditingId(null); }}
+                      <button className="icon-btn" aria-label={`${t.name}を削除`} disabled={disabled} onClick={() => { setConfirmId(t.id); setEditingId(null); }}
                         style={{ background: "var(--danger-soft)", color: "var(--danger)", border: "none", width: 32, height: 32 }}>
                         <Icon name="trash" size={14} />
                       </button>

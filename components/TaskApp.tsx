@@ -127,6 +127,7 @@ function ImageSection({ task, plan, isOnline, onUpdated }: {
   const [limitError, setLimitError] = useState<string | null>(null);
 
   async function handleDownload(url: string, fileName: string) {
+    if (!isOnline || !navigator.onLine) return;
     try {
       const res = await fetch(url);
       const blob = await res.blob();
@@ -157,7 +158,7 @@ function ImageSection({ task, plan, isOnline, onUpdated }: {
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file || !isOnline) return;
+    if (!file || !isOnline || !navigator.onLine) return;
     setLimitError(null);
     setUploading(true);
     try {
@@ -178,7 +179,7 @@ function ImageSection({ task, plan, isOnline, onUpdated }: {
   }
 
   async function handleDelete(img: TaskImage) {
-    if (!isOnline) return;
+    if (!isOnline || !navigator.onLine) return;
     if (!confirm(`「${img.file_name}」を削除しますか？`)) return;
     await deleteImage(img);
     onUpdated();
@@ -228,10 +229,12 @@ function ImageSection({ task, plan, isOnline, onUpdated }: {
                 </button>
                 {url && (
                   <button onClick={e => { e.stopPropagation(); handleDownload(url, img.file_name); }}
-                    title="ダウンロード" aria-label={`${img.file_name}をダウンロード`}
-                    className="icon-btn" style={{
+                      title={!isOnline ? "ダウンロードはオンライン復帰後に利用できます" : "ダウンロード"}
+                      aria-label={`${img.file_name}をダウンロード`} disabled={!isOnline}
+                      className="icon-btn" style={{
                       position: "absolute", bottom: 4, right: 4, width: 22, height: 22,
-                      background: "rgba(0,0,0,0.55)", border: "none",
+                      background: "rgba(0,0,0,0.55)", border: "none", opacity: isOnline ? 1 : 0.5,
+                      cursor: isOnline ? "pointer" : "not-allowed",
                     }}>
                     <Icon name="download" size={12} />
                   </button>
@@ -271,6 +274,7 @@ function ImageSection({ task, plan, isOnline, onUpdated }: {
             style={{ maxWidth: "90vw", maxHeight: "90vh", borderRadius: "var(--radius-lg)", boxShadow: "var(--shadow-lg)" }} />
           <button
             onClick={e => { e.stopPropagation(); handleDownload(preview, previewFileName); }}
+            disabled={!isOnline}
             className="btn btn-inverse"
             style={{ position: "fixed", bottom: 40, left: "50%", transform: "translateX(-50%)", zIndex: 501 }}>
             <Icon name="download" size={16} /> ダウンロード
@@ -295,6 +299,7 @@ export default function TaskApp() {
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(true);
   const [pendingChangesCount, setPendingChangesCount] = useState(0);
+  const [syncing, setSyncing] = useState(false);
   const [offlineMessage, setOfflineMessage] = useState<string | null>(null);
   const syncingChanges = useRef<Promise<void> | null>(null);
   const loadRef = useRef<() => Promise<void>>(async () => {});
@@ -380,6 +385,7 @@ export default function TaskApp() {
   async function syncOfflineChanges(userId: string, pendingChanges?: OfflineTaskChange[]) {
     if (syncingChanges.current) return syncingChanges.current;
 
+    setSyncing(true);
     const syncPromise = (async () => {
       const changes = pendingChanges ?? await listOfflineChanges(userId);
       setPendingChangesCount(changes.length);
@@ -403,6 +409,7 @@ export default function TaskApp() {
     try {
       await syncPromise;
     } finally {
+      setSyncing(false);
       if (syncingChanges.current === syncPromise) syncingChanges.current = null;
     }
   }
@@ -467,6 +474,7 @@ export default function TaskApp() {
       setTags(serverTags);
       setImageCount(serverTasks.reduce((sum, task) => sum + (task.images?.length ?? 0), 0));
       setPendingChangesCount(remainingChanges.length);
+      if (syncSucceeded && remainingChanges.length === 0) setOfflineMessage(null);
       setLoading(false);
 
       const snapshot: OfflineSnapshot = {
@@ -560,7 +568,7 @@ export default function TaskApp() {
   }
 
   async function handleSaveName() {
-    if (!nameInput.trim()) return;
+    if (!isOnline || !nameInput.trim()) return;
     const { data: { session } } = await supabase.auth.getSession();
     const u = session?.user;
     if (!u) return;
@@ -571,26 +579,27 @@ export default function TaskApp() {
   }
 
   async function handleCreateTag(name: string): Promise<Tag> {
-    if (!navigator.onLine) throw new Error("タグの作成はオンライン接続時にご利用いただけます。");
+    if (!isOnline || !navigator.onLine) throw new Error("タグの作成はオンライン接続時にご利用いただけます。");
     const tag = await createTag(name);
     setTags(prev => (prev.some(t => t.id === tag.id) ? prev : [...prev, tag].sort((a, b) => a.name.localeCompare(b.name, "ja"))));
     return tag;
   }
 
   async function handleRenameTag(id: string, name: string) {
-    if (!navigator.onLine) throw new Error("タグの変更はオンライン接続時にご利用いただけます。");
+    if (!isOnline || !navigator.onLine) throw new Error("タグの変更はオンライン接続時にご利用いただけます。");
     await renameTag(id, name);
     await load();
   }
 
   async function handleDeleteTag(id: string) {
-    if (!navigator.onLine) throw new Error("タグの削除はオンライン接続時にご利用いただけます。");
+    if (!isOnline || !navigator.onLine) throw new Error("タグの削除はオンライン接続時にご利用いただけます。");
     await deleteTag(id);
     if (search.filterTag === id) search.setFilterTag("all");
     await load();
   }
 
   async function handlePortal() {
+    if (!isOnline) return;
     try {
       await openBillingPortal();
     } catch (e: any) {
@@ -606,6 +615,7 @@ export default function TaskApp() {
   }
 
   async function handleSavePassword() {
+    if (!isOnline) return;
     setPwError(null);
     setPwSaving(true);
     try {
@@ -626,6 +636,7 @@ export default function TaskApp() {
   }
 
   async function handleLinkGoogle() {
+    if (!isOnline) return;
     setLinking(true);
     try {
       await linkGoogleAccount();
@@ -636,11 +647,13 @@ export default function TaskApp() {
   }
 
   function requestUnlinkGoogle() {
+    if (!isOnline) return;
     setShowUserMenu(false);
     setShowUnlinkWarning(true);
   }
 
   async function handleUnlinkGoogle() {
+    if (!isOnline) return;
     setUnlinking(true);
     try {
       await unlinkGoogleAccount(user!);
@@ -661,6 +674,7 @@ export default function TaskApp() {
   }
 
   function requestLogout() {
+    if (!isOnline) return;
     setShowUserMenu(false);
     if (!hasPassword && !isGoogleLinked) {
       setShowLogoutWarning(true);
@@ -670,12 +684,14 @@ export default function TaskApp() {
   }
 
   async function handleLogout() {
+    if (!isOnline) return;
     await supabase.auth.signOut();
     window.location.href = "/login";
   }
 
   // アカウント削除が完了した後: セッションを破棄してログイン画面へ
   async function handleAccountDeleted() {
+    if (!isOnline) return;
     if (user) {
       try {
         await clearOfflineUserData(user.id);
@@ -724,7 +740,7 @@ export default function TaskApp() {
       tagIds: form.tagIds, createdAt,
     };
     try {
-      if (!navigator.onLine) {
+      if (!isOnline || !navigator.onLine) {
         await storeOfflineChange(change);
         pendingImages.forEach(image => URL.revokeObjectURL(image.previewUrl));
         setPendingImages([]);
@@ -786,7 +802,7 @@ export default function TaskApp() {
       const change: OfflineTaskChange = {
         userId: user.id, taskId: id, action: "delete", createdAt: new Date().toISOString(),
       };
-      if (!navigator.onLine) {
+      if (!isOnline || !navigator.onLine) {
         await storeOfflineChange(change);
         setDeleteConfirm(null);
         setDetailId(null);
@@ -876,16 +892,19 @@ export default function TaskApp() {
             </div>
           )}
 
-          <button onClick={() => setShowContact(true)} className="icon-btn" title="お問い合わせ" aria-label="お問い合わせ">
+          <button onClick={() => setShowContact(true)} disabled={!isOnline}
+            className="icon-btn" title={!isOnline ? "お問い合わせはオンライン復帰後に利用できます" : "お問い合わせ"} aria-label="お問い合わせ">
             <Icon name="mail" size={17} />
           </button>
 
-          <button onClick={() => window.location.reload()} className="icon-btn" title="画面を更新" aria-label="画面を更新">
+          <button onClick={() => window.location.reload()} disabled={!isOnline}
+            className="icon-btn" title={!isOnline ? "画面更新はオンライン復帰後に利用できます" : "画面を更新"} aria-label="画面を更新">
             <Icon name="refresh" size={17} />
           </button>
 
           <div style={{ position: "relative" }}>
-            <button onClick={() => setShowNotifications(true)} className="icon-btn" title="お知らせ" aria-label="お知らせ">
+            <button onClick={() => setShowNotifications(true)} disabled={!isOnline}
+              className="icon-btn" title={!isOnline ? "お知らせはオンライン復帰後に利用できます" : "お知らせ"} aria-label="お知らせ">
               <Icon name="bell" size={17} />
             </button>
             {notifications.unreadCount > 0 && (
@@ -942,55 +961,62 @@ export default function TaskApp() {
                   <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user?.email}</div>
                   {profile && <PlanBadge plan={profile.plan} />}
                 </div>
-                <button onClick={() => window.location.href = "/pricing"} className="user-menu-item accent">
+                <button onClick={() => window.location.href = "/pricing"} disabled={!isOnline}
+                  title={!isOnline ? "プラン変更はオンライン復帰後に利用できます" : undefined} className="user-menu-item accent">
                   <span className="user-menu-item-icon"><Icon name="creditCard" size={17} /></span>
                   <span>プランをアップグレード</span>
                 </button>
                 {profile?.plan === "premium" && (
-                  <button onClick={() => { setShowShareSettings(true); setShowUserMenu(false); }} className="user-menu-item">
+                  <button onClick={() => { setShowShareSettings(true); setShowUserMenu(false); }} disabled={!isOnline}
+                    title={!isOnline ? "共有ページ設定はオンライン復帰後に利用できます" : undefined} className="user-menu-item">
                     <span className="user-menu-item-icon"><Icon name="link" size={17} /></span>
                     <span>共有ページを設定</span>
                   </button>
                 )}
-                <PushNotificationToggle />
-                <button onClick={() => { setShowTagManager(true); setShowUserMenu(false); }} className="user-menu-item">
+                <PushNotificationToggle enabled={isOnline} />
+                <button onClick={() => { setShowTagManager(true); setShowUserMenu(false); }} disabled={!isOnline}
+                  title={!isOnline ? "タグ管理はオンライン復帰後に利用できます" : undefined} className="user-menu-item">
                   <span className="user-menu-item-icon"><Icon name="tag" size={17} /></span>
                   <span>タグを管理</span>
                 </button>
                 <button onClick={() => { setNameInput(profile?.display_name ?? ""); setShowNameEdit(true); setShowUserMenu(false); }}
-                  className="user-menu-item">
+                  disabled={!isOnline} title={!isOnline ? "名前の変更はオンライン復帰後に利用できます" : undefined} className="user-menu-item">
                   <span className="user-menu-item-icon"><Icon name="user" size={17} /></span>
                   <span>名前を変更</span>
                 </button>
-                <button onClick={openPasswordModal} className="user-menu-item">
+                <button onClick={openPasswordModal} disabled={!isOnline}
+                  title={!isOnline ? "パスワード設定はオンライン復帰後に利用できます" : undefined} className="user-menu-item">
                   <span className="user-menu-item-icon"><Icon name="lock" size={17} /></span>
                   <span>{hasPassword ? "パスワードを変更" : "パスワードを設定"}</span>
                 </button>
                 {isGoogleLinked ? (
-                  <button onClick={requestUnlinkGoogle} className="user-menu-item">
+                  <button onClick={requestUnlinkGoogle} disabled={!isOnline}
+                    title={!isOnline ? "Google連携の解除はオンライン復帰後に利用できます" : undefined} className="user-menu-item">
                     <span className="user-menu-item-icon"><Icon name="link" size={17} /></span>
                     <span>Google連携を解除</span>
                   </button>
                 ) : (
-                  <button onClick={handleLinkGoogle} disabled={linking} className="user-menu-item">
+                  <button onClick={handleLinkGoogle} disabled={!isOnline || linking}
+                    title={!isOnline ? "Google連携はオンライン復帰後に利用できます" : undefined} className="user-menu-item">
                     <span className="user-menu-item-icon"><Icon name="link" size={17} /></span>
                     <span>{linking ? "連携中…" : "Googleと連携する"}</span>
                   </button>
                 )}
                 {profile?.is_admin && (
-                  <button onClick={() => window.location.href = "/mgmt-c7f2a91e"} className="user-menu-item accent">
+                  <button onClick={() => window.location.href = "/mgmt-c7f2a91e"} disabled={!isOnline} className="user-menu-item accent">
                     <span className="user-menu-item-icon"><Icon name="users" size={17} /></span>
                     <span>管理者ページ</span>
                   </button>
                 )}
                 {!profile?.is_admin && (
                   <button onClick={() => { setShowDeleteAccount(true); setShowUserMenu(false); }}
-                    className="user-menu-item danger">
+                    disabled={!isOnline} title={!isOnline ? "アカウント削除はオンライン復帰後に利用できます" : undefined} className="user-menu-item danger">
                     <span className="user-menu-item-icon"><Icon name="trash" size={17} /></span>
                     <span>アカウントを削除</span>
                   </button>
                 )}
-                <button onClick={requestLogout} className="user-menu-item danger" style={{ fontWeight: 600 }}>
+                <button onClick={requestLogout} disabled={!isOnline}
+                  title={!isOnline ? "ログアウトはオンライン復帰後に利用できます" : undefined} className="user-menu-item danger" style={{ fontWeight: 600 }}>
                   <span className="user-menu-item-icon"><Icon name="logout" size={17} /></span>
                   <span>ログアウト</span>
                 </button>
@@ -1023,12 +1049,24 @@ export default function TaskApp() {
             color: !isOnline ? "var(--warn)" : "var(--accent)",
           }}>
             <span>
-              {!isOnline ? "オフラインです。タスクのテキストや日付の変更は端末に保存されます。" : ""}
-              {pendingChangesCount > 0 ? ` 同期待ち: ${pendingChangesCount}件。` : ""}
+              {!isOnline && (
+                <strong style={{ display: "block", marginBottom: pendingChangesCount > 0 ? 4 : 0 }}>
+                  オフライン — 端末内のデータを表示中
+                </strong>
+              )}
+              {!isOnline && "タスクの追加・変更・削除はこの端末に保存され、接続回復後に同期されます。"}
+              {pendingChangesCount > 0 && (
+                <span style={{ display: "block", fontWeight: 600 }}>
+                  同期前の変更: {pendingChangesCount}件（この端末に保存済み）
+                </span>
+              )}
+              {!isOnline && pendingChangesCount === 0 && "同期前の変更はありません。"}
               {offlineMessage ? ` ${offlineMessage}` : ""}
             </span>
             {isOnline && pendingChangesCount > 0 && (
-              <button onClick={() => void load()} className="btn btn-secondary btn-sm">今すぐ同期</button>
+              <button onClick={() => void load()} disabled={syncing} className="btn btn-secondary btn-sm">
+                {syncing ? "同期中…" : "今すぐ同期"}
+              </button>
             )}
           </div>
         </div>
@@ -1045,7 +1083,7 @@ export default function TaskApp() {
               <Icon name="alert" size={16} />
               有料プランのお支払いを確認できませんでした。支払い方法を更新してください。
             </span>
-            <button onClick={handlePortal} className="btn btn-primary btn-sm">支払い方法を更新</button>
+            <button onClick={handlePortal} disabled={!isOnline} className="btn btn-primary btn-sm">支払い方法を更新</button>
           </div>
         </div>
       )}
@@ -1157,8 +1195,9 @@ export default function TaskApp() {
         hasPassword={hasPassword}
         plan={plan}
         onDeleted={handleAccountDeleted}
+        online={isOnline}
       />
-      <ShareSettingsModal open={showShareSettings} onClose={() => setShowShareSettings(false)} />
+      <ShareSettingsModal open={showShareSettings} onClose={() => setShowShareSettings(false)} online={isOnline} />
 
       {/* タグの管理 */}
       <TagManagerModal
@@ -1167,6 +1206,7 @@ export default function TaskApp() {
         onClose={() => setShowTagManager(false)}
         onRename={handleRenameTag}
         onDelete={handleDeleteTag}
+        disabled={!isOnline}
       />
 
       {/* 名前編集モーダル */}
@@ -1176,6 +1216,7 @@ export default function TaskApp() {
             <div style={{ fontWeight: 600, fontSize: 17, marginBottom: 20 }}>表示名を変更</div>
             <input
               value={nameInput}
+              disabled={!isOnline}
               onChange={e => setNameInput(e.target.value)}
               onKeyDown={e => e.key === "Enter" && handleSaveName()}
               placeholder="例: 山田太郎"
@@ -1187,7 +1228,7 @@ export default function TaskApp() {
               <button onClick={() => setShowNameEdit(false)} className="btn btn-secondary" style={{ flex: 1 }}>
                 キャンセル
               </button>
-              <button onClick={handleSaveName} disabled={!nameInput.trim()} className="btn btn-primary" style={{ flex: 2 }}>
+              <button onClick={handleSaveName} disabled={!isOnline || !nameInput.trim()} className="btn btn-primary" style={{ flex: 2 }}>
                 保存する
               </button>
             </div>
@@ -1241,7 +1282,7 @@ export default function TaskApp() {
                   <button onClick={() => setShowUnlinkWarning(false)} disabled={unlinking} className="btn btn-secondary" style={{ flex: 1 }}>
                     キャンセル
                   </button>
-                  <button onClick={handleUnlinkGoogle} disabled={unlinking} className="btn btn-danger-solid" style={{ flex: 1 }}>
+                  <button onClick={handleUnlinkGoogle} disabled={!isOnline || unlinking} className="btn btn-danger-solid" style={{ flex: 1 }}>
                     {unlinking ? "解除中…" : "解除する"}
                   </button>
                 </div>
@@ -1332,7 +1373,7 @@ export default function TaskApp() {
                   </button>
                   <button
                     onClick={handleSavePassword}
-                    disabled={pwSaving || !canChangePassword}
+                    disabled={!isOnline || pwSaving || !canChangePassword}
                     className="btn btn-primary" style={{ flex: 2 }}>
                     {pwSaving ? "処理中…" : "変更する"}
                   </button>
@@ -1355,7 +1396,7 @@ export default function TaskApp() {
                   <button onClick={() => setShowPasswordModal(false)} disabled={pwSaving} className="btn btn-secondary" style={{ flex: 1 }}>
                     キャンセル
                   </button>
-                  <button onClick={handleSavePassword} disabled={pwSaving} className="btn btn-primary" style={{ flex: 2 }}>
+                  <button onClick={handleSavePassword} disabled={!isOnline || pwSaving} className="btn btn-primary" style={{ flex: 2 }}>
                     {pwSaving ? "送信中…" : "設定用メールを送信する"}
                   </button>
                 </div>
@@ -1451,6 +1492,7 @@ export default function TaskApp() {
                     selectedIds={form.tagIds}
                     onChange={ids => setForm({ ...form, tagIds: ids })}
                     onCreate={handleCreateTag}
+                    canCreate={isOnline}
                   />
                 </Field>
                 <Field label="メモ">
@@ -1475,12 +1517,12 @@ export default function TaskApp() {
                               <div className="tag" style={{ position: "absolute", top: 3, left: 3 }}>
                                 {IMAGE_TYPES.find(t => t.key === pi.imageType)?.label}
                               </div>
-                              <button type="button" aria-label={`${pi.file.name}を取り除く`}
+                              <button type="button" aria-label={`${pi.file.name}を取り除く`} disabled={!isOnline}
                                 onClick={() => {
                                   URL.revokeObjectURL(pi.previewUrl);
                                   setPendingImages(prev => prev.filter(x => x.id !== pi.id));
                                 }}
-                                className="icon-btn" style={{ position: "absolute", top: 3, right: 3, width: 20, height: 20, background: "rgba(0,0,0,0.55)", border: "none" }}>
+                                className="icon-btn" style={{ position: "absolute", top: 3, right: 3, width: 20, height: 20, background: "rgba(0,0,0,0.55)", border: "none", opacity: isOnline ? 1 : 0.5, cursor: isOnline ? "pointer" : "not-allowed" }}>
                                 <Icon name="close" size={11} />
                               </button>
                             </div>

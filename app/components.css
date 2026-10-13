@@ -138,12 +138,17 @@
     background var(--duration-fast) var(--ease-standard);
 }
 
-.icon-btn:hover {
+.icon-btn:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.18);
 }
 
-.icon-btn:active {
+.icon-btn:active:not(:disabled) {
   transform: scale(0.95);
+}
+
+.icon-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 /* ---------------- Cards & surfaces ---------------- */
@@ -582,6 +587,11 @@
 
 .user-menu-item:hover {
   background: var(--surface);
+}
+
+.user-menu-item:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .user-menu-item.danger {
