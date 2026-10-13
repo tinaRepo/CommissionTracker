@@ -11,11 +11,12 @@ type Props = {
   hasPassword: boolean;
   plan: Plan;
   onDeleted: () => void; // 削除完了後（サインアウト・画面遷移）
+  online?: boolean;
 };
 
 // 本人によるアカウント削除（即時）。本人確認: 登録メールアドレスの入力 + パスワード
 // （パスワード未設定のGoogleユーザーは、直近15分以内のログインが必要）
-export default function DeleteAccountModal({ open, onClose, email, hasPassword, plan, onDeleted }: Props) {
+export default function DeleteAccountModal({ open, onClose, email, hasPassword, plan, onDeleted, online = true }: Props) {
   const [confirmEmail, setConfirmEmail] = useState("");
   const [password, setPassword] = useState("");
   const [agree, setAgree] = useState(false);
@@ -36,9 +37,10 @@ export default function DeleteAccountModal({ open, onClose, email, hasPassword, 
   if (!open) return null;
 
   const emailMatches = confirmEmail.trim().toLowerCase() === email.toLowerCase();
-  const canSubmit = emailMatches && agree && (!hasPassword || password.length > 0) && !busy;
+  const canSubmit = online && emailMatches && agree && (!hasPassword || password.length > 0) && !busy;
 
   async function handleDelete() {
+    if (!online || !navigator.onLine) return;
     setBusy(true);
     setError(null);
     try {
@@ -57,6 +59,7 @@ export default function DeleteAccountModal({ open, onClose, email, hasPassword, 
     <div className="modal-overlay" onClick={() => !busy && onClose()}>
       <div role="dialog" aria-modal="true" aria-label="アカウントを削除" className="modal-compact" style={{ maxWidth: 420, textAlign: "left" }} onClick={e => e.stopPropagation()}>
         <div style={{ fontWeight: 600, fontSize: 17, marginBottom: 12 }}>アカウントを削除する</div>
+        {!online && <div role="status" style={{ marginBottom: 12, padding: "10px 14px", borderRadius: "var(--radius-md)", fontSize: 13, background: "var(--warn-soft)", color: "var(--warn)" }}>アカウント削除はオンライン復帰後に利用できます。</div>}
         <div style={{
           fontSize: 13, color: "var(--danger)", lineHeight: 1.8, marginBottom: 16,
           background: "var(--danger-soft)", borderRadius: "var(--radius-md)", padding: "12px 14px",
@@ -75,15 +78,15 @@ export default function DeleteAccountModal({ open, onClose, email, hasPassword, 
 
         <div style={{ display: "grid", gap: 12 }}>
           <Field label={`確認のため、登録メールアドレス（${email}）を入力`}>
-            <input type="email" value={confirmEmail} onChange={e => setConfirmEmail(e.target.value)} autoComplete="off" className="input" />
+            <input type="email" value={confirmEmail} disabled={!online} onChange={e => setConfirmEmail(e.target.value)} autoComplete="off" className="input" />
           </Field>
           {hasPassword && (
             <Field label="パスワード">
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password" className="input" />
+              <input type="password" value={password} disabled={!online} onChange={e => setPassword(e.target.value)} autoComplete="current-password" className="input" />
             </Field>
           )}
           <label className="checkbox-row" style={{ alignItems: "flex-start" }}>
-            <input type="checkbox" checked={agree} onChange={e => setAgree(e.target.checked)} style={{ width: 16, height: 16, marginTop: 3 }} />
+            <input type="checkbox" checked={agree} disabled={!online} onChange={e => setAgree(e.target.checked)} style={{ width: 16, height: 16, marginTop: 3 }} />
             データが完全に削除され、復元できないことを理解しました
           </label>
         </div>

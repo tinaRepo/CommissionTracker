@@ -7,13 +7,14 @@ import { Icon } from "./TaskShared";
 // Web Push通知の購読管理コンポーネント
 // 購読は端末（ブラウザ）ごとに (user_id, endpoint) で保存する。
 // オン/オフはこの端末の分だけに作用し、他の端末の購読は変わらない。
-export default function PushNotificationToggle() {
+export default function PushNotificationToggle({ enabled = true }: { enabled?: boolean }) {
   const [supported, setSupported] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!enabled) return;
     if ("serviceWorker" in navigator && "PushManager" in window) {
       setSupported(true);
       setLoading(true);
@@ -31,7 +32,7 @@ export default function PushNotificationToggle() {
         })
         .finally(() => setLoading(false));
     }
-  }, []);
+  }, [enabled]);
 
   async function saveSubscription(sub: PushSubscription) {
     const { data: { session } } = await supabase.auth.getSession();
@@ -62,6 +63,7 @@ export default function PushNotificationToggle() {
   }
 
   async function handleToggle() {
+    if (!enabled) return;
     setLoading(true);
     try {
       if (subscribed) {
@@ -103,7 +105,7 @@ export default function PushNotificationToggle() {
 
   return (
     <div>
-      <button onClick={handleToggle} disabled={loading} className="user-menu-item"
+      <button onClick={handleToggle} disabled={!enabled || loading} className="user-menu-item"
         style={{ color: subscribed ? "var(--success)" : "var(--fg)" }}>
         <span className="user-menu-item-icon"><Icon name="bell" size={17} /></span>
         <span>{loading ? "処理中…" : subscribed ? "通知オン（タップでオフ）" : "通知オフ（タップでオン）"}</span>

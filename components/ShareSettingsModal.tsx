@@ -30,7 +30,7 @@ type ShareImage = {
   previewUrl: string | null;
 };
 
-type Props = { open: boolean; onClose: () => void };
+type Props = { open: boolean; onClose: () => void; online?: boolean };
 
 const EMPTY_SETTINGS: Omit<ShareSettings, "share_token"> = {
   enabled: false,
@@ -49,7 +49,7 @@ const EMPTY_SETTINGS: Omit<ShareSettings, "share_token"> = {
   show_portfolio: false,
 };
 
-export default function ShareSettingsModal({ open, onClose }: Props) {
+export default function ShareSettingsModal({ open, onClose, online = true }: Props) {
   const [settings, setSettings] = useState<Omit<ShareSettings, "share_token">>(EMPTY_SETTINGS);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -65,6 +65,10 @@ export default function ShareSettingsModal({ open, onClose }: Props) {
 
   useEffect(() => {
     if (!open) return;
+    if (!online || !navigator.onLine) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -103,7 +107,7 @@ export default function ShareSettingsModal({ open, onClose }: Props) {
       }
     })();
     return () => { cancelled = true; };
-  }, [open]);
+  }, [open, online]);
 
   if (!open) return null;
 
@@ -112,6 +116,7 @@ export default function ShareSettingsModal({ open, onClose }: Props) {
   }
 
   async function request(method: "POST" | "DELETE", body?: Record<string, unknown>) {
+    if (!online || !navigator.onLine) throw new Error("共有設定の変更はオンライン復帰後に利用できます。");
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error("ログイン状態を確認できませんでした。再ログインしてください。");
     const response = await fetch("/api/share/settings", {
@@ -130,6 +135,7 @@ export default function ShareSettingsModal({ open, onClose }: Props) {
   }
 
   async function loadMoreImages() {
+    if (!online || !navigator.onLine) return;
     setSaving(true);
     setError(null);
     try {
@@ -153,6 +159,7 @@ export default function ShareSettingsModal({ open, onClose }: Props) {
   }
 
   async function save() {
+    if (!online || !navigator.onLine) return;
     setSaving(true);
     setError(null);
     setCopied(false);
@@ -172,6 +179,7 @@ export default function ShareSettingsModal({ open, onClose }: Props) {
   }
 
   async function regenerate() {
+    if (!online || !navigator.onLine) return;
     if (!window.confirm("現在の共有リンクを無効にし、新しいリンクを発行します。続けますか？")) return;
     setSaving(true);
     setError(null);
@@ -190,6 +198,7 @@ export default function ShareSettingsModal({ open, onClose }: Props) {
   }
 
   async function deletePage() {
+    if (!online || !navigator.onLine) return;
     if (!window.confirm("共有ページと現在の共有リンクを削除します。リンクは無効になります。続けますか？")) return;
     setSaving(true);
     setError(null);
@@ -255,7 +264,9 @@ export default function ShareSettingsModal({ open, onClose }: Props) {
         </div>
 
         <div className="modal-body">
+          {!online && <div role="status" style={{ marginBottom: 12, padding: "10px 14px", borderRadius: "var(--radius-md)", fontSize: 13, background: "var(--warn-soft)", color: "var(--warn)" }}>共有設定の閲覧・変更はオンライン復帰後に利用できます。</div>}
           {loading ? <div className="text-meta">設定を読み込み中…</div> : (
+            <fieldset disabled={!online || saving} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
             <div style={{ display: "grid", gap: 14 }}>
               {error && (
                 <div role="alert" style={{ padding: "10px 14px", borderRadius: "var(--radius-md)", background: "var(--danger-soft)", color: "var(--danger)", fontSize: 13 }}>
@@ -404,13 +415,14 @@ export default function ShareSettingsModal({ open, onClose }: Props) {
                 共有リンクを知っている人はログインなしで閲覧できます。リンクはSNS等で公開される場合があります。選択した実績画像以外のタスク情報やアカウント情報は公開しません。
               </div>
             </div>
+            </fieldset>
           )}
         </div>
 
         <div className="modal-footer">
           <div className="row" style={{ gap: 10, marginTop: 14 }}>
             <button onClick={onClose} className="btn btn-secondary" style={{ flex: 1 }}>閉じる</button>
-            <button onClick={save} disabled={loading || saving} className="btn btn-primary" style={{ flex: 2 }}>
+            <button onClick={save} disabled={!online || loading || saving} className="btn btn-primary" style={{ flex: 2 }}>
               {saving ? "保存中…" : "設定を保存"}
             </button>
           </div>
