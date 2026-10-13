@@ -56,15 +56,24 @@ export default function LoginPage() {
 
   // ログイン画面にアクセスした際に、前回のログインプロバイダを取得して表示する
   useEffect(() => {
+    let cancelled = false;
     if (new URLSearchParams(window.location.search).get("deleted") === "1") {
       setLastProvider(null);
-      return;
+      return () => { cancelled = true; };
     }
 
-    fetch("/api/auth/last-login-provider")
-      .then(res => res.json())
-      .then(data => setLastProvider(data.provider ?? null))
-      .catch(() => { });
+    fetch("/api/auth/last-login-provider", { cache: "no-store" })
+      .then(async response => {
+        if (!response.ok) throw new Error(`ログイン方法の取得に失敗しました (${response.status})`);
+        return response.json() as Promise<{ provider: string | null }>;
+      })
+      .then(data => {
+        if (!cancelled) setLastProvider(data.provider === "google" ? "google" : null);
+      })
+      .catch(error => {
+        if (!cancelled) console.error("failed to load last login provider:", error);
+      });
+    return () => { cancelled = true; };
   }, []);
 
   // デモモードの場合はDemoAppを表示

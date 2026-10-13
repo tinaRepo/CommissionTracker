@@ -4,10 +4,17 @@ import type { NextRequest } from "next/server";
 
 const COOKIE_NAME = "ct_last_login_provider";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 // GET: ログイン画面（未認証）がバッジ表示のために呼ぶ。Cookieの値のみ返す
 export async function GET(request: NextRequest) {
-    const provider = request.cookies.get(COOKIE_NAME)?.value ?? null;
-    return NextResponse.json({ provider });
+    const value = request.cookies.get(COOKIE_NAME)?.value;
+    const provider = value === "email" || value === "google" || value === "twitter" ? value : null;
+    return NextResponse.json(
+        { provider },
+        { headers: { "Cache-Control": "private, no-store, max-age=0" } }
+    );
 }
 
 // POST: ログイン成功後にログイン画面から呼ぶ。DBへ保存 + HttpOnly Cookieを発行
