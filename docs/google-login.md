@@ -31,6 +31,25 @@ Google Cloud ConsoleとSupabase Dashboardの両方でOAuthを設定します。
 
 `redirectTo` のURLがRedirect URLsに登録されていない場合、認証後にSite URLへ戻ることがあります。OAuth・連携・パスワードリセットに使う全URLを登録してください。
 
+## アプリのドメインを変更するとき
+
+アプリのドメインを変更したら、ログイン開始から認証コールバック、ログイン後の画面まで新しいドメインに統一してください。旧ドメインから新ドメインへ転送する構成では、旧ドメインで設定されたCookieは新ドメインへ引き継がれません。たとえば `ct_last_login_provider` が旧ドメインに保存されると、新ドメインのログイン画面で「前回ログイン」バッジを表示できません。
+
+1. **Vercel**で新しいドメインをプロジェクトに割り当て、ログイン画面を新ドメインから開けることを確認します。ログイン開始に使うURLとOAuth後の戻り先を混在させないでください。
+2. **Supabase Dashboard → Authentication → URL Configuration**でSite URLを新しいアプリドメインに変更し、Redirect URLsに少なくとも次を登録します。
+   - `https://<new-app-domain>/auth/callback`
+   - `https://<new-app-domain>/auth/confirm`
+   - 必要な場合は、新ドメイン配下のVercel Preview URLも追加します。
+3. **Google Cloud Console**の承認済みリダイレクトURIは、通常は変更不要です。Googleから最初に戻る先はアプリではなくSupabaseのCallback URL（`https://<project-ref>.supabase.co/auth/v1/callback`）です。Supabaseプロジェクトを変更した場合、またはSupabase Authの独自ドメインを使っている場合に限り、Google Cloud側のURIもSupabase Dashboardに表示される値へ更新します。
+4. Vercelの`NEXT_PUBLIC_APP_URL`を新しいドメインに変更します。メール、プッシュ通知、課金後の戻り先などに使われます。
+5. コード内の公開URLも確認します。`lib/seo.ts`の`SITE_URL`、`app/layout.tsx`の`metadataBase`、サイトURLを直接記載しているページ・設定を新しいドメインに合わせます。
+6. 新しいドメインでGoogleログインし、次を確認します。
+   - OAuth完了後に新しいドメインの`/auth/callback`を経由してアプリへ戻る。
+   - そのコールバック応答に`Set-Cookie: ct_last_login_provider=google`があり、続く`/api/auth/last-login-provider`の応答が`{"provider":"google"}`になる。
+   - ログイン画面のGoogleボタンに「前回ログイン」バッジが表示される。
+
+切り替え完了後は、不要になった旧ドメインのRedirect URLをSupabaseの許可リストから削除してください。独自ドメインの有効化前やDNS反映中に旧ドメインからログインを開始しないよう、案内リンク・ブックマーク・デプロイ先URLも確認します。
+
 ## 動作確認
 
 - 新しいGoogleアカウントで登録・ログインできる。
