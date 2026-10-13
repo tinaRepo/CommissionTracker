@@ -1,8 +1,11 @@
 import { randomBytes } from "crypto";
-import { createClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/server/admin";
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+export const revalidate = 0;
 
 const PRIVATE_HEADERS = { "Cache-Control": "no-store, private" };
 const SETTINGS_COLUMNS = "share_token, enabled, show_accepting_status, accepting_requests, show_active_count, show_completed_count, show_capacity, capacity, show_display_name, display_name, show_bio, bio, show_social_link, social_link, show_portfolio";
@@ -31,11 +34,7 @@ async function getAuthorizedUser(request: NextRequest) {
   const token = (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
   if (!token) return null;
 
-  const admin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
+  const admin = createAdminClient();
   const { data, error } = await admin.auth.getUser(token);
   if (error || !data.user) return null;
   return { admin, user: data.user };
