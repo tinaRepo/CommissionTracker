@@ -1,12 +1,24 @@
 // Web Push通知・オフライン表示のService Worker
 // offline.html を変更したら OFFLINE_CACHE のバージョンを必ず上げること
 // （上げないと既存ユーザーは古いキャッシュを使い続ける）
-const OFFLINE_CACHE = 'tsukurist-offline-v3';
+const OFFLINE_CACHE = 'tsukurist-offline-v4';
 
 self.addEventListener('install', function (event) {
   event.waitUntil(
     caches.open(OFFLINE_CACHE)
       .then(function (cache) { return cache.add('/offline.html'); })
+      .then(function () {
+        return fetch('/')
+          .then(function (response) {
+            if (response.ok) {
+              return caches.open(OFFLINE_CACHE)
+                .then(function (cache) { return cache.put('/', response); });
+            }
+          })
+          .catch(function (error) {
+            console.error('failed to cache app shell:', error);
+          });
+      })
       .then(function () { return self.skipWaiting(); })
   );
 });
@@ -28,11 +40,44 @@ self.addEventListener('activate', function (event) {
 });
 
 self.addEventListener('fetch', function (event) {
+  const requestUrl = new URL(event.request.url);
+  if (event.request.method === 'GET' &&
+      requestUrl.origin === self.location.origin &&
+      requestUrl.pathname.startsWith('/_next/static/')) {
+    event.respondWith(
+      fetch(event.request).then(function (response) {
+        if (response.ok) {
+          event.waitUntil(
+            caches.open(OFFLINE_CACHE)
+              .then(function (cache) { return cache.put(event.request, response.clone()); })
+          );
+        }
+        return response;
+      }).catch(async function () {
+        const cache = await caches.open(OFFLINE_CACHE);
+        return (await cache.match(event.request)) || Response.error();
+      })
+    );
+    return;
+  }
+
   if (event.request.mode !== 'navigate') return;
 
   event.respondWith(
-    fetch(event.request).catch(async function () {
+    fetch(event.request).then(function (response) {
+      if (requestUrl.origin === self.location.origin && requestUrl.pathname === '/' && response.ok) {
+        event.waitUntil(
+          caches.open(OFFLINE_CACHE)
+            .then(function (cache) { return cache.put('/', response.clone()); })
+        );
+      }
+      return response;
+    }).catch(async function () {
       const cache = await caches.open(OFFLINE_CACHE);
+      if (requestUrl.origin === self.location.origin && requestUrl.pathname === '/') {
+        const appShell = await cache.match('/');
+        if (appShell) return appShell;
+      }
       return (await cache.match('/offline.html')) || Response.error();
     })
   );

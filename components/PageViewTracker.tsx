@@ -19,6 +19,12 @@ export function PageViewTracker() {
         trackPath(pathname);
     }, [pathname, trackPath]);
 
+    useEffect(() => {
+        if (!('serviceWorker' in navigator)) return;
+        navigator.serviceWorker.register('/sw.js')
+            .catch(error => console.error('service worker registration error:', error));
+    }, []);
+
     if (pathname.startsWith('/share/')) return null;
     return (
         <>
