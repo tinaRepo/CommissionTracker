@@ -1,8 +1,10 @@
-import { createClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/server/admin";
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+export const revalidate = 0;
 
 const NO_CACHE = {
   "Cache-Control": "no-store, max-age=0",
@@ -18,11 +20,7 @@ export async function GET(
     return NextResponse.json({ error: "not_found" }, { status: 404, headers: NO_CACHE });
   }
 
-  const admin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
+  const admin = createAdminClient();
 
   try {
     const { data: settings, error: settingsError } = await admin
