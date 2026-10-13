@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import ContactModal from "@/components/ContactModal";
 import NotificationsModal from "@/components/NotificationsModal";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -11,6 +12,8 @@ import {
   Field, DateField, StatusBadge, TaskListCard, Icon, cx,
 } from "@/components/TaskShared";
 import { TaskSearchBar } from "@/components/TaskSearchBar";
+
+const TaskCalendar = dynamic(() => import("@/components/TaskCalendar"), { ssr: false });
 
 // ============================================================
 // NOTE: ステータス定義・画像タイプ・日付/金額フォーマッタ・Field/DateField/
@@ -157,8 +160,10 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showContact, setShowContact] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showSharePreview, setShowSharePreview] = useState(false);
   const [pendingImages, setPendingImages] = useState<DemoImage[]>([]);
   const [pendingImageType, setPendingImageType] = useState<ImageType>("preview");
+  const [view, setView] = useState<"list" | "calendar">("list");
 
   const notifications = useNotifications(null, null);
 
@@ -213,6 +218,12 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, images } : t));
   }
 
+  function refreshDemo() {
+    const url = new URL(window.location.href);
+    url.searchParams.set("demo", "1");
+    window.location.assign(url.toString());
+  }
+
   return (
     <div style={{ minHeight: "100vh" }} onClick={() => setShowUserMenu(false)}>
 
@@ -233,7 +244,7 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
           <div style={{ fontSize: 18, fontWeight: 600, letterSpacing: "-0.01em" }}>ツクリスト</div>
           <div className="tagline">納期管理</div>
         </div>
-        <div className="row" style={{ gap: 16, flexWrap: "wrap" }}>
+        <div className="row demo-header-actions" style={{ gap: 16, flexWrap: "wrap" }}>
           <div className="row" style={{ gap: 16 }}>
             {[["合計", stats.total], ["進行中", stats.active], ["完成", stats.done]].map(([l, v]) => (
               <div key={l as string} className="stat-block">
@@ -245,8 +256,14 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
           <button onClick={() => setShowContact(true)} className="icon-btn" title="お問い合わせ">
             <Icon name="mail" size={17} />
           </button>
+          <button onClick={refreshDemo} className="icon-btn" title="画面を更新" aria-label="画面を更新">
+            <Icon name="refresh" size={17} />
+          </button>
           <button onClick={() => setShowNotifications(true)} className="icon-btn" title="お知らせ">
             <Icon name="bell" size={17} />
+          </button>
+          <button onClick={() => setShowSharePreview(true)} className="btn btn-secondary btn-sm demo-share-button">
+            <Icon name="link" size={15} /> 共有ページのサンプル
           </button>
           <button onClick={openNew} className="btn btn-primary btn-sm">
             <Icon name="plus" size={15} /> 新規登録
@@ -282,34 +299,49 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
 
       <TaskSearchBar search={search} />
 
-      <main className="container" style={{ paddingTop: 20, paddingBottom: 60, maxWidth: 900 }}>
-        {filtered.length === 0 && (
-          <div style={{ textAlign: "center", marginTop: 60 }}>
-            <div style={{ color: "var(--meta)", fontSize: 14, marginBottom: 8 }}>タスクがありません</div>
-            <div className="text-meta">「＋ 新規登録」からタスクを追加してみてください</div>
-          </div>
-        )}
-        <div style={{ display: "grid", gap: 10 }}>
-          {filtered.map(t => (
-            <TaskListCard
-              key={t.id}
-              title={t.title}
-              assigneeName={t.assignee_name}
-              contact={t.contact}
-              status={t.status}
-              deadline={t.deadline}
-              price={t.price}
-              imageCount={t.images.length}
-              thumbnailUrl={t.images[0]?.objectUrl}
-              onClick={() => setDetailId(t.id)}
-            />
-          ))}
+      <div className="container row" style={{ justifyContent: "flex-end", paddingTop: 12 }}>
+        <div className="seg" role="group" aria-label="表示形式">
+          <button className={view === "list" ? "on" : ""} aria-pressed={view === "list"} onClick={() => setView("list")}>リスト</button>
+          <button className={view === "calendar" ? "on" : ""} aria-pressed={view === "calendar"} onClick={() => setView("calendar")}>
+            カレンダー
+          </button>
         </div>
+      </div>
+
+      <main className="container" style={{ paddingTop: 20, paddingBottom: 60, maxWidth: 900 }}>
+        {view === "calendar" ? (
+          <TaskCalendar tasks={filtered} onSelect={id => setDetailId(id)} />
+        ) : (
+          <>
+            {filtered.length === 0 && (
+              <div style={{ textAlign: "center", marginTop: 60 }}>
+                <div style={{ color: "var(--meta)", fontSize: 14, marginBottom: 8 }}>タスクがありません</div>
+                <div className="text-meta">「＋ 新規登録」からタスクを追加してみてください</div>
+              </div>
+            )}
+            <div style={{ display: "grid", gap: 10 }}>
+              {filtered.map(t => (
+                <TaskListCard
+                  key={t.id}
+                  title={t.title}
+                  assigneeName={t.assignee_name}
+                  contact={t.contact}
+                  status={t.status}
+                  deadline={t.deadline}
+                  price={t.price}
+                  imageCount={t.images.length}
+                  thumbnailUrl={t.images[0]?.objectUrl}
+                  onClick={() => setDetailId(t.id)}
+                />
+              ))}
+            </div>
+          </>
+        )}
       </main>
 
       {/* 詳細モーダル */}
       {detailItem && (
-        <div className="modal-overlay" style={{ touchAction: "none" }} onClick={() => setDetailId(null)}>
+        <div className="modal-overlay demo-modal-overlay" style={{ touchAction: "none" }} onClick={() => setDetailId(null)}>
           <div role="dialog" aria-modal="true" className="modal-sheet" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
@@ -359,7 +391,7 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
 
       {/* 削除確認 */}
       {deleteConfirm && (
-        <div className="modal-overlay">
+        <div className="modal-overlay demo-modal-overlay">
           <div role="dialog" aria-modal="true" className="modal-compact" style={{ maxWidth: 340 }}>
             <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 8 }}>本当に削除しますか？</div>
             <div style={{ color: "var(--muted)", fontSize: 13, marginBottom: 24 }}>この操作は元に戻せません。</div>
@@ -373,7 +405,7 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
 
       {/* フォームモーダル */}
       {showForm && (
-        <div className="modal-overlay" style={{ touchAction: "none" }}
+        <div className="modal-overlay demo-modal-overlay" style={{ touchAction: "none" }}
           onClick={() => { pendingImages.forEach(pi => URL.revokeObjectURL(pi.objectUrl)); setPendingImages([]); setShowForm(false); setEditId(null); }}>
           <div role="dialog" aria-modal="true" className="modal-sheet" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
@@ -472,6 +504,68 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
                 <button onClick={handleSave} disabled={!form.title || !form.assigneeName} className="btn btn-primary" style={{ flex: 2 }}>
                   {editId ? "更新する" : pendingImages.length > 0 ? `登録する（画像${pendingImages.length}枚）` : "登録する"}
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSharePreview && (
+        <div className="modal-overlay demo-modal-overlay" onClick={() => setShowSharePreview(false)}>
+          <div role="dialog" aria-modal="true" aria-label="共有ページのサンプル" className="modal-sheet demo-share-preview" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="row" style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <div style={{ fontWeight: 600, fontSize: 19 }}>共有ページのサンプル</div>
+                <button onClick={() => setShowSharePreview(false)} className="icon-btn"
+                  style={{ background: "var(--surface)", border: "1px solid var(--border-soft)", color: "var(--fg)" }}
+                  aria-label="閉じる">
+                  <Icon name="close" size={14} />
+                </button>
+              </div>
+            </div>
+            <div className="modal-body">
+              <div className="demo-share-page">
+                <div className="text-meta" style={{ fontWeight: 600, marginBottom: 14 }}>ツクリスト | 共有ページ</div>
+                <h2 style={{ fontSize: 28, lineHeight: 1.4, margin: "0 0 12px" }}>デモクリエイター</h2>
+                <p style={{ color: "var(--fg-2)", lineHeight: 1.8, whiteSpace: "pre-wrap", margin: "0 0 24px" }}>
+                  イラスト・デザインのご依頼を受付中です。丁寧なヒアリングで、ご希望に合わせた作品を制作します。
+                </p>
+                <div className="demo-share-metrics">
+                  {[
+                    ["依頼受付", "受付中"],
+                    ["現在対応中", "2件"],
+                    ["受付可能", "3件"],
+                    ["累計完了", "28件"],
+                  ].map(([label, value]) => (
+                    <div key={label} style={{ padding: 16, borderRadius: "var(--radius-md)", background: "var(--surface-2, var(--bg))" }}>
+                      <div className="text-meta" style={{ marginBottom: 8 }}>{label}</div>
+                      <div style={{ fontSize: 22, fontWeight: 700 }}>{value}</div>
+                    </div>
+                  ))}
+                </div>
+                <p style={{ marginTop: 24 }}>
+                  <span className="btn btn-secondary" style={{ cursor: "default" }}>
+                    SNS・プロフィールを見る
+                  </span>
+                </p>
+                <section style={{ marginTop: 28 }}>
+                  <h3 style={{ fontSize: 18, marginBottom: 12 }}>実績</h3>
+                  <div className="demo-share-gallery">
+                    {["キャラクターイラスト", "配信用バナー", "アイコンデザイン"].map((label, index) => (
+                      <div key={label} className={`demo-share-art demo-share-art-${index + 1}`}>
+                        <span>{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+                <footer className="text-meta" style={{ marginTop: 32, textAlign: "center" }}>
+                  Powered by ツクリスト
+                </footer>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <div className="text-meta" style={{ textAlign: "center" }}>
+                これは表示イメージです。サンプル内容は公開されません。
               </div>
             </div>
           </div>
