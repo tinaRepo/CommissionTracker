@@ -377,11 +377,11 @@ export default function TaskApp() {
     };
   }, []);
 
-  async function syncOfflineChanges(userId: string) {
+  async function syncOfflineChanges(userId: string, pendingChanges?: OfflineTaskChange[]) {
     if (syncingChanges.current) return syncingChanges.current;
 
     const syncPromise = (async () => {
-      const changes = await listOfflineChanges(userId);
+      const changes = pendingChanges ?? await listOfflineChanges(userId);
       setPendingChangesCount(changes.length);
       for (const change of changes) {
         if (change.action === "delete") {
@@ -411,6 +411,10 @@ export default function TaskApp() {
     const userId = user?.id;
     if (!userId) return;
 
+    const initialServerDataPromise = navigator.onLine
+      ? Promise.all([fetchTasks(), fetchMyProfile(), fetchTags()])
+        .then(data => ({ data }), error => ({ error }))
+      : null;
     let cached: OfflineSnapshot | null = null;
     let changes: OfflineTaskChange[] = [];
     try {
@@ -424,6 +428,7 @@ export default function TaskApp() {
         setTags(cached.tags);
         setProfile(cached.profile);
         setImageCount(cached.tasks.reduce((sum, task) => sum + (task.images?.length ?? 0), 0));
+        setLoading(false);
       }
     } catch (error) {
       console.error("オフラインデータの読み込みに失敗しました", error);
@@ -439,18 +444,22 @@ export default function TaskApp() {
     setIsOnline(true);
 
     try {
+      let syncSucceeded = true;
       try {
-        await syncOfflineChanges(userId);
+        if (changes.length > 0) await syncOfflineChanges(userId, changes);
       } catch (error) {
+        syncSucceeded = false;
         console.error("オフライン変更の同期に失敗しました", error);
         setOfflineMessage(isNetworkUnavailable(error)
           ? "接続が不安定なため、変更は端末に保存されています。オンライン復帰後に自動で同期します。"
           : "一部の変更を同期できませんでした。内容を確認して再試行してください。");
       }
 
-      const [serverTasks, serverProfile, serverTags] = await Promise.all([
-        fetchTasks(), fetchMyProfile(), fetchTags(),
-      ]);
+      if (!initialServerDataPromise) throw new Error("オンラインデータを取得できませんでした");
+      const initialServerData = await initialServerDataPromise;
+      if ("error" in initialServerData) throw initialServerData.error;
+      let [serverTasks, serverProfile, serverTags] = initialServerData.data;
+      if (changes.length > 0 && syncSucceeded) serverTasks = await fetchTasks();
       const remainingChanges = await listOfflineChanges(userId);
       const visibleTasks = applyOfflineChanges(serverTasks, remainingChanges);
       setTasks(visibleTasks);
