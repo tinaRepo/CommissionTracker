@@ -46,24 +46,34 @@ export async function GET(
       return NextResponse.json({ error: "not_found" }, { status: 404, headers: NO_CACHE });
     }
 
-    let activeCount: number | null = null;
-    let completedCount: number | null = null;
-    if (settings.show_active_count || settings.show_capacity) {
-      const { count, error } = await admin.from("tasks")
+    const activeCountPromise = settings.show_active_count || settings.show_capacity
+      ? admin.from("tasks")
         .select("id", { count: "exact", head: true })
         .eq("user_id", settings.user_id)
-        .in("status", ["pending", "checking", "progress"]);
-      if (error) throw error;
-      activeCount = count ?? 0;
-    }
-    if (settings.show_completed_count) {
-      const { count, error } = await admin.from("tasks")
+        .in("status", ["pending", "checking", "progress"])
+      : Promise.resolve(null);
+    const completedCountPromise = settings.show_completed_count
+      ? admin.from("tasks")
         .select("id", { count: "exact", head: true })
         .eq("user_id", settings.user_id)
-        .eq("status", "done");
-      if (error) throw error;
-      completedCount = count ?? 0;
-    }
+        .eq("status", "done")
+      : Promise.resolve(null);
+    const galleryPromise = settings.show_portfolio
+      ? admin.from("public_share_gallery")
+        .select("image_id")
+        .eq("user_id", settings.user_id)
+        .order("sort_order")
+      : Promise.resolve(null);
+    const [activeResult, completedResult, galleryResult] = await Promise.all([
+      activeCountPromise,
+      completedCountPromise,
+      galleryPromise,
+    ]);
+    if (activeResult?.error) throw activeResult.error;
+    if (completedResult?.error) throw completedResult.error;
+    if (galleryResult?.error) throw galleryResult.error;
+    const activeCount = activeResult?.count ?? null;
+    const completedCount = completedResult?.count ?? null;
 
     const publicData: Record<string, string | number | boolean | { id: string; url: string }[]> = {};
     if (settings.show_accepting_status) publicData.acceptingRequests = settings.accepting_requests;
@@ -78,13 +88,7 @@ export async function GET(
     if (settings.show_bio && settings.bio) publicData.bio = settings.bio;
     if (settings.show_social_link && settings.social_link) publicData.socialLink = settings.social_link;
     if (settings.show_portfolio) {
-      const { data: gallery, error: galleryError } = await admin
-        .from("public_share_gallery")
-        .select("image_id")
-        .eq("user_id", settings.user_id)
-        .order("sort_order");
-      if (galleryError) throw galleryError;
-      publicData.galleryImages = (gallery ?? []).map(({ image_id }) => ({
+      publicData.galleryImages = (galleryResult?.data ?? []).map(({ image_id }) => ({
         id: image_id,
         url: `/api/public-share/${encodeURIComponent(token)}/images/${encodeURIComponent(image_id)}`,
       }));

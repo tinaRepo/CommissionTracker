@@ -33,33 +33,38 @@ export async function GET(
       return NextResponse.json({ error: "not_found" }, { status: 404, headers: NO_CACHE });
     }
 
-    const { data: profile, error: profileError } = await admin
-      .from("user_profiles")
-      .select("plan")
-      .eq("id", settings.user_id)
-      .maybeSingle();
+    const [profileResult, selectedImageResult, imageResult] = await Promise.all([
+      admin
+        .from("user_profiles")
+        .select("plan")
+        .eq("id", settings.user_id)
+        .maybeSingle(),
+      admin
+        .from("public_share_gallery")
+        .select("image_id")
+        .eq("user_id", settings.user_id)
+        .eq("image_id", imageId)
+        .maybeSingle(),
+      admin
+        .from("task_images")
+        .select("storage_path, tasks!inner(user_id)")
+        .eq("id", imageId)
+        .eq("tasks.user_id", settings.user_id)
+        .maybeSingle(),
+    ]);
+    const { data: profile, error: profileError } = profileResult;
     if (profileError) throw profileError;
     if (profile?.plan !== "premium") {
       return NextResponse.json({ error: "not_found" }, { status: 404, headers: NO_CACHE });
     }
 
-    const { data: selectedImage, error: selectedImageError } = await admin
-      .from("public_share_gallery")
-      .select("image_id")
-      .eq("user_id", settings.user_id)
-      .eq("image_id", imageId)
-      .maybeSingle();
+    const { data: selectedImage, error: selectedImageError } = selectedImageResult;
     if (selectedImageError) throw selectedImageError;
     if (!selectedImage) {
       return NextResponse.json({ error: "not_found" }, { status: 404, headers: NO_CACHE });
     }
 
-    const { data: image, error: imageError } = await admin
-      .from("task_images")
-      .select("storage_path, tasks!inner(user_id)")
-      .eq("id", imageId)
-      .eq("tasks.user_id", settings.user_id)
-      .maybeSingle();
+    const { data: image, error: imageError } = imageResult;
     if (imageError) throw imageError;
     if (!image) {
       return NextResponse.json({ error: "not_found" }, { status: 404, headers: NO_CACHE });
