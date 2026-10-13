@@ -36,7 +36,8 @@ export default function LoginPage() {
   // ログイン済みの場合はトップページにリダイレクト
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("demo") === "1") setDemoMode(true);
+    const isDemo = params.get("demo") === "1";
+    if (isDemo) setDemoMode(true);
     if (params.get("deleted") === "1") {
       setMessage({ type: "success", text: "アカウントを削除しました。ご利用ありがとうございました。" });
     }
@@ -50,7 +51,7 @@ export default function LoginPage() {
     }
 
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) window.location.href = "/";
+      if (data.session && !isDemo) window.location.href = "/";
     });
   }, []);
 
@@ -78,7 +79,7 @@ export default function LoginPage() {
 
   // デモモードの場合はDemoAppを表示
   if (demoMode) {
-    return <DemoApp onExit={() => setDemoMode(false)} />;
+    return <DemoApp onExit={() => { window.location.href = "/login"; }} />;
   }
 
   // メールログイン・サインアップ・パスワードリセットの処理

@@ -130,6 +130,22 @@ export default function PricingPage() {
           <p className="text-muted" style={{ fontSize: 14 }}>いつでもキャンセル可能・月額制</p>
         </div>
 
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap",
+          marginBottom: 28, padding: "18px 20px", background: "var(--bg)",
+          border: "1px solid var(--border-soft)", borderRadius: "var(--radius-md)",
+        }}>
+          <div>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>アップグレード前にデモでお試しいただけます</div>
+            <div className="text-muted" style={{ fontSize: 13, lineHeight: 1.6 }}>
+              デモ画面では、カレンダー表示のイメージや共有ページのサンプルをご覧いただけます。
+            </div>
+          </div>
+          <a href="/login?demo=1" className="btn btn-secondary" style={{ textDecoration: "none", flexShrink: 0 }}>
+            デモ画面を見る
+          </a>
+        </div>
+
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 16, marginBottom: 32 }}>
           {PLANS.map(plan => {
             const isCurrent = currentPlan === plan.key;
