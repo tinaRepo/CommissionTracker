@@ -3,6 +3,19 @@
 // （上げないと既存ユーザーは古いキャッシュを使い続ける）
 const OFFLINE_CACHE = 'tsukurist-offline-v4';
 
+function cacheResponse(event, request, response) {
+  try {
+    const responseToCache = response.clone();
+    event.waitUntil(
+      caches.open(OFFLINE_CACHE)
+        .then(function (cache) { return cache.put(request, responseToCache); })
+        .catch(function (error) { console.error('failed to cache response:', error); })
+    );
+  } catch (error) {
+    console.error('failed to clone response for cache:', error);
+  }
+}
+
 self.addEventListener('install', function (event) {
   event.waitUntil(
     caches.open(OFFLINE_CACHE)
@@ -47,10 +60,7 @@ self.addEventListener('fetch', function (event) {
     event.respondWith(
       fetch(event.request).then(function (response) {
         if (response.ok) {
-          event.waitUntil(
-            caches.open(OFFLINE_CACHE)
-              .then(function (cache) { return cache.put(event.request, response.clone()); })
-          );
+          cacheResponse(event, event.request, response);
         }
         return response;
       }).catch(async function () {
@@ -66,10 +76,7 @@ self.addEventListener('fetch', function (event) {
   event.respondWith(
     fetch(event.request).then(function (response) {
       if (requestUrl.origin === self.location.origin && requestUrl.pathname === '/' && response.ok) {
-        event.waitUntil(
-          caches.open(OFFLINE_CACHE)
-            .then(function (cache) { return cache.put('/', response.clone()); })
-        );
+        cacheResponse(event, '/', response);
       }
       return response;
     }).catch(async function () {
