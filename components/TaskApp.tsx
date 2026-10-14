@@ -320,6 +320,7 @@ export default function TaskApp() {
   const [showTagManager, setShowTagManager] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showContact, setShowContact] = useState(false);
+  const [showCalendarUpgrade, setShowCalendarUpgrade] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [pwCurrent, setPwCurrent] = useState("");
   const [pwNew, setPwNew] = useState("");
@@ -369,6 +370,14 @@ export default function TaskApp() {
   function changeView(next: ViewMode) {
     setView(next);
     try { localStorage.setItem(VIEW_STORAGE_KEY, next); } catch { /* 無視 */ }
+  }
+
+  function handleCalendarClick() {
+    if (!hasCalendarAccess) {
+      setShowCalendarUpgrade(true);
+      return;
+    }
+    changeView("calendar");
   }
 
   useEffect(() => {
@@ -1099,8 +1108,7 @@ export default function TaskApp() {
             className={view === "calendar" && hasCalendarAccess ? "on" : ""}
             aria-pressed={view === "calendar" && hasCalendarAccess}
             aria-label="カレンダー表示"
-            disabled={!hasCalendarAccess}
-            onClick={() => { if (hasCalendarAccess) changeView("calendar"); }}
+            onClick={handleCalendarClick}
           >
             カレンダー
           </button>
@@ -1198,6 +1206,29 @@ export default function TaskApp() {
         online={isOnline}
       />
       <ShareSettingsModal open={showShareSettings} onClose={() => setShowShareSettings(false)} online={isOnline} />
+
+      {showCalendarUpgrade && (
+        <div className="modal-overlay" onClick={() => setShowCalendarUpgrade(false)}>
+          <div role="dialog" aria-modal="true" aria-labelledby="calendar-upgrade-title"
+            className="modal-compact" style={{ maxWidth: 400, textAlign: "left" }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ fontWeight: 600, fontSize: 18, marginBottom: 10 }} id="calendar-upgrade-title">
+              カレンダーは有料プランの機能です
+            </div>
+            <p style={{ color: "var(--muted)", fontSize: 14, lineHeight: 1.7, margin: "0 0 20px" }}>
+              プランをアップグレードすると、タスクをカレンダーで確認できます。
+            </p>
+            <div className="row" style={{ gap: 10 }}>
+              <button onClick={() => setShowCalendarUpgrade(false)} className="btn btn-secondary" style={{ flex: 1 }}>
+                あとで
+              </button>
+              <button onClick={() => { window.location.href = "/pricing"; }} className="btn btn-primary" style={{ flex: 1 }}>
+                プランを見る
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* タグの管理 */}
       <TagManagerModal
