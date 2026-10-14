@@ -149,7 +149,7 @@ function DemoImageSection({ task, onChange }: {
   );
 }
 
-export default function DemoApp({ onExit }: { onExit: () => void }) {
+export default function DemoApp() {
   const [tasks, setTasks] = useState<DemoTask[]>([]);
   const search = useTaskSearch(tasks);
   const [showForm, setShowForm] = useState(false);
@@ -233,9 +233,6 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
         justifyContent: "center", padding: "10px 16px", fontSize: 13, fontWeight: 600
       }}>
         デモモード中 — データはリロードで消えます。
-        <button onClick={onExit} className="btn btn-inverse btn-sm" style={{ marginLeft: 16 }}>
-          登録してはじめる →
-        </button>
       </div>
 
       {/* Header */}
@@ -288,9 +285,6 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
                   <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>デモモード</div>
                   <span className="badge badge-accent">無料プラン相当</span>
                 </div>
-                <button onClick={onExit} className="user-menu-item accent">
-                  アカウント登録する
-                </button>
               </div>
             )}
           </div>
@@ -544,8 +538,8 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
                   ))}
                 </div>
                 <p style={{ marginTop: 24 }}>
-                  <span className="btn btn-secondary" style={{ cursor: "default" }}>
-                    SNS・プロフィールを見る
+                  <span className="btn btn-secondary share-page-social-link" style={{ cursor: "default" }}>
+                      <span className="share-page-social-host">x.com のプロフィールを見る ↗</span>
                   </span>
                 </p>
                 <section style={{ marginTop: 28 }}>
@@ -576,7 +570,6 @@ export default function DemoApp({ onExit }: { onExit: () => void }) {
       <footer className="app-footer">
         <div className="footer-links">
           {[
-            { href: "/lp", label: "サービス紹介" },
             { href: "/guide", label: "使い方" },
             { href: "/terms", label: "利用規約" },
             { href: "/privacy", label: "プライバシーポリシー" },
