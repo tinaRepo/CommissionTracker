@@ -58,8 +58,8 @@ export default function PricingPage() {
     });
   }, []);
 
-  // プランをアップグレードする処理
-  async function handleUpgrade(priceId: string) {
+  // 有料プランを申し込む処理
+  async function handleSubscribe(priceId: string) {
     setLoading(priceId);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -73,7 +73,7 @@ export default function PricingPage() {
       if (data.url) {
         window.location.href = data.url;
       } else {
-        alert(data.error === "already_subscribed" ? "すでにサブスクリプションがあります。プラン管理から変更してください。" : "エラーが発生しました");
+        alert(data.error === "already_subscribed" ? "有効なサブスクリプションがあります。プラン・支払い管理をご利用ください。" : "エラーが発生しました");
       }
     } catch {
       alert("エラーが発生しました");
@@ -113,7 +113,7 @@ export default function PricingPage() {
 
         {checkoutStatus === "success" && (
           <div style={{ marginBottom: 24, padding: "14px 18px", background: "var(--success-soft)", borderRadius: "var(--radius-md)", fontSize: 14, color: "var(--success)", fontWeight: 600 }}>
-            プランのアップグレードが完了しました！
+            プランの申し込みが完了しました！
           </div>
         )}
         {checkoutStatus === "cancelled" && (
@@ -136,7 +136,7 @@ export default function PricingPage() {
           border: "1px solid var(--border-soft)", borderRadius: "var(--radius-md)",
         }}>
           <div>
-            <div style={{ fontWeight: 600, marginBottom: 4 }}>アップグレード前にデモでお試しいただけます</div>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>プラン選択の前にデモでお試しいただけます</div>
             <div className="text-muted" style={{ fontSize: 13, lineHeight: 1.6 }}>
               デモ画面では、カレンダー表示のイメージや共有ページのサンプルをご覧いただけます。
             </div>
@@ -189,11 +189,13 @@ export default function PricingPage() {
 
                 {isCurrent ? (
                   <div className="btn btn-secondary btn-block" style={{ cursor: "default" }}>利用中</div>
-                ) : plan.key === "free" ? (
-                  <div className="btn btn-secondary btn-block" style={{ cursor: "default", color: "var(--meta)" }}>ダウングレードは解約後</div>
+                ) : hasSubscription ? (
+                  <div className="btn btn-secondary btn-block" style={{ cursor: "default", color: "var(--meta)" }}>
+                    プラン・支払い管理をご利用ください
+                  </div>
                 ) : (
-                  <button onClick={() => plan.priceId && handleUpgrade(plan.priceId)} disabled={!!loading} className="btn btn-primary btn-block">
-                    {isLoading ? "処理中…" : `${plan.label}にアップグレード`}
+                  <button onClick={() => plan.priceId && handleSubscribe(plan.priceId)} disabled={!!loading} className="btn btn-primary btn-block">
+                    {isLoading ? "処理中…" : "このプランを選択"}
                   </button>
                 )}
               </div>
@@ -204,9 +206,12 @@ export default function PricingPage() {
         {hasSubscription && (
           <div style={{ textAlign: "center" }}>
             <button onClick={handlePortal} disabled={loading === "portal"} className="btn btn-secondary">
-              {loading === "portal" ? "処理中…" : "プラン・支払い管理（解約はこちら）"}
+              {loading === "portal" ? "処理中…" : "プラン・支払い管理（解約・変更はこちら）"}
             </button>
             <div className="text-meta" style={{ marginTop: 8 }}>Stripeのカスタマーポータルに移動します</div>
+            <p className="text-meta" style={{ margin: "8px auto 0", maxWidth: 520, lineHeight: 1.7 }}>
+              解約手続き後も契約期間終了までは現在のプランをご利用いただけます。契約終了までは、他のプランへの変更・新規契約はできません。
+            </p>
           </div>
         )}
 
