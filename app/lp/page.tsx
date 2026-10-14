@@ -74,7 +74,7 @@ export default function LandingPage() {
 
         <div className="row" style={{ gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
           <a href="/login" className="btn btn-primary" style={{ textDecoration: "none" }}>無料で始める →</a>
-          <a href="/login?demo=1" className="btn btn-secondary" style={{ textDecoration: "none" }}>デモを試す</a>
+          <a href="/demo" className="btn btn-secondary" style={{ textDecoration: "none" }}>デモを試す</a>
         </div>
         <p style={{ fontSize: 12, color: "var(--meta)", marginTop: 20 }}>クレジットカード不要・登録1分</p>
 
@@ -181,7 +181,7 @@ export default function LandingPage() {
         <p style={{ color: "var(--muted)", fontSize: 14, marginBottom: 32 }}>登録1分・クレジットカード不要</p>
         <div className="row" style={{ gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
           <a href="/login" className="btn btn-primary" style={{ textDecoration: "none" }}>無料アカウントを作成 →</a>
-          <a href="/login?demo=1" className="btn btn-secondary" style={{ textDecoration: "none" }}>デモを試す</a>
+          <a href="/demo" className="btn btn-secondary" style={{ textDecoration: "none" }}>デモを試す</a>
         </div>
       </section>
 

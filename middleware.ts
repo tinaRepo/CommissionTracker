@@ -46,6 +46,12 @@ async function getMaintenanceSettings(): Promise<MaintenanceSettings> {
 // メンテナンス中は、管理者以外のユーザーをメンテナンスページにリダイレクトするミドルウェア
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  if (pathname === "/login" && request.nextUrl.searchParams.get("demo") === "1") {
+    const demoUrl = request.nextUrl.clone();
+    demoUrl.pathname = "/demo";
+    demoUrl.search = "";
+    return NextResponse.redirect(demoUrl);
+  }
   if (allowedDuringMaintenance.some(path => pathname === path || pathname.startsWith(path))) {
     return NextResponse.next();
   }

@@ -141,7 +141,7 @@ export default function PricingPage() {
               デモ画面では、カレンダー表示のイメージや共有ページのサンプルをご覧いただけます。
             </div>
           </div>
-          <a href="/login?demo=1" className="btn btn-secondary" style={{ textDecoration: "none", flexShrink: 0 }}>
+          <a href="/demo" className="btn btn-secondary" style={{ textDecoration: "none", flexShrink: 0 }}>
             デモ画面を見る
           </a>
         </div>

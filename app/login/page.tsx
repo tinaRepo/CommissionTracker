@@ -2,10 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { supabase, isValidEmailFormat, DISPLAY_NAME_MAX_LENGTH, PASSWORD_MIN_LENGTH, toJapaneseAuthError } from "@/lib/supabase";
-import dynamic from "next/dynamic";
 import ContactModal from "@/components/ContactModal";
 import { GoogleLogo } from "@/components/TaskShared";
-const DemoApp = dynamic(() => import("@/components/DemoApp"), { ssr: false });
 
 type Mode = "login" | "signup" | "reset";
 
@@ -18,7 +16,6 @@ export default function LoginPage() {
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
-  const [demoMode, setDemoMode] = useState(false);
   const [showContact, setShowContact] = useState(false);
   const [lastProvider, setLastProvider] = useState<string | null>(null);
 
@@ -37,7 +34,10 @@ export default function LoginPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const isDemo = params.get("demo") === "1";
-    if (isDemo) setDemoMode(true);
+    if (isDemo) {
+      window.location.replace("/demo");
+      return;
+    }
     if (params.get("deleted") === "1") {
       setMessage({ type: "success", text: "アカウントを削除しました。ご利用ありがとうございました。" });
     }
@@ -51,14 +51,15 @@ export default function LoginPage() {
     }
 
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session && !isDemo) window.location.href = "/";
+      if (data.session) window.location.href = "/";
     });
   }, []);
 
   // ログイン画面にアクセスした際に、前回のログインプロバイダを取得して表示する
   useEffect(() => {
     let cancelled = false;
-    if (new URLSearchParams(window.location.search).get("deleted") === "1") {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("demo") === "1" || params.get("deleted") === "1") {
       setLastProvider(null);
       return () => { cancelled = true; };
     }
@@ -76,11 +77,6 @@ export default function LoginPage() {
       });
     return () => { cancelled = true; };
   }, []);
-
-  // デモモードの場合はDemoAppを表示
-  if (demoMode) {
-    return <DemoApp onExit={() => { window.location.href = "/login"; }} />;
-  }
 
   // メールログイン・サインアップ・パスワードリセットの処理
   async function handleEmail() {
@@ -259,9 +255,9 @@ export default function LoginPage() {
         </button>
 
         {mode === "login" && (
-          <button onClick={() => setDemoMode(true)} className="btn btn-secondary btn-block" style={{ marginTop: 10 }}>
+          <a href="/demo" className="btn btn-secondary btn-block" style={{ marginTop: 10, textDecoration: "none" }}>
             ログインせずにデモを試す
-          </button>
+          </a>
         )}
 
         <div style={{ marginTop: 22, textAlign: "center", fontSize: 13, color: "var(--muted)", display: "flex", flexDirection: "column", gap: 8 }}>

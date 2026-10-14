@@ -69,14 +69,15 @@ export default function PublicSharePage({ params }: { params: { token: string } 
   }
 
   const socialUrl = data.socialLink ? safeSocialUrl(data.socialLink) : null;
+  const socialHost = socialUrl ? new URL(socialUrl).hostname : null;
   return (
     <main style={{ minHeight: "100vh", padding: "48px 20px", background: "var(--surface)" }}>
-      <article className="card" style={{ maxWidth: 640, margin: "0 auto", padding: "clamp(24px, 6vw, 40px)" }}>
+      <article className="share-page-content demo-share-page" style={{ maxWidth: 640, margin: "0 auto" }}>
         <div className="text-meta" style={{ fontWeight: 600, marginBottom: 14 }}>ツクリスト | 共有ページ</div>
         {data.displayName && <h1 style={{ fontSize: 28, lineHeight: 1.4, margin: "0 0 12px" }}>{data.displayName}</h1>}
         {data.bio && <p style={{ color: "var(--fg-2)", lineHeight: 1.8, whiteSpace: "pre-wrap", margin: "0 0 24px" }}>{data.bio}</p>}
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
+        <div className="share-page-metrics">
           {typeof data.acceptingRequests === "boolean" && (
             <Metric label="依頼受付" value={data.acceptingRequests ? "受付中" : "受付停止中"} />
           )}
@@ -88,15 +89,15 @@ export default function PublicSharePage({ params }: { params: { token: string } 
         {socialUrl && (
           <p style={{ marginTop: 24 }}>
             <a href={socialUrl} target="_blank" rel="noopener noreferrer nofollow"
-              className="btn btn-secondary" style={{ textDecoration: "none" }}>
-              SNS・プロフィールを見る
+              className="btn btn-secondary share-page-social-link" style={{ textDecoration: "none" }}>
+              <span className="share-page-social-host">{socialHost} のプロフィールを見る ↗</span>
             </a>
           </p>
         )}
         {data.galleryImages && data.galleryImages.length > 0 && (
           <section style={{ marginTop: 28 }}>
             <h2 style={{ fontSize: 18, marginBottom: 12 }}>実績</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
+            <div className="share-page-gallery">
               {data.galleryImages.map(image => (
                 <img key={image.id} src={image.url} alt="制作実績" loading="lazy"
                   style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: "var(--radius-md)" }} />
