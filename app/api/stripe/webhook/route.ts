@@ -1,6 +1,6 @@
 import Stripe from "stripe";
 import { Resend } from "resend";
-import { EMAIL_FROM } from "@/lib/site";
+import { getNoReplyFrom, paymentFailedEmail } from "@/lib/email-templates";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
@@ -119,14 +119,9 @@ async function notifyPaymentFailed(admin: SupabaseClient, customerId: string) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
   const resend = new Resend(process.env.RESEND_API_KEY);
   await resend.emails.send({
-    from: EMAIL_FROM,
+    from: getNoReplyFrom(),
     to: email,
-    subject: "【ツクリスト】お支払いを確認できませんでした",
-    html: `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1d1d1f">
-      <h2 style="font-weight:600">お支払いを確認できませんでした</h2>
-      <p style="line-height:1.8">有料プランの更新時のお支払いが完了しませんでした。カードの有効期限や利用限度額をご確認のうえ、お支払い方法を更新してください。しばらく更新されない場合、プランは無料プランに戻ります。</p>
-      <p style="margin:24px 0"><a href="${appUrl}/pricing" style="display:inline-block;background:#0066cc;color:#fff;text-decoration:none;padding:12px 24px;border-radius:9999px">お支払い方法を更新する</a></p>
-      <p style="color:#6e6e73;font-size:12px">ログイン後、プラン画面の「プラン・支払い管理」から更新できます。</p></div>`,
+    ...paymentFailedEmail(appUrl),
   });
 }
 

@@ -132,7 +132,8 @@ vercel dev
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY`        | Supabase の anon key          |                                                                                       |
 | `SUPABASE_SERVICE_ROLE_KEY`            | Supabase の service_role key  | ⚠️ サーバーサイド専用                                                                  |
 | `RESEND_API_KEY`                       | Resend の API キー            |                                                                                       |
-| `ADMIN_EMAIL`                          | 管理通知・お問い合わせの受信先 | 本番・Preview とも `support@tsukurist.com` |
+| `SUPPORT_EMAIL`                        | サポート窓口兼管理通知の受信先・送信元 | 本番・Preview とも `support@tsukurist.com` |
+| `NOREPLY_EMAIL`                        | 自動通知メールの送信元 | 本番・Preview とも `noreply@tsukurist.com` |
 | `NEXT_PUBLIC_APP_URL`                  | アプリの公開URL               | Production: `https://tsukurist.com`。Preview: 対象Vercel PreviewのURL（パスなし） |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`   | Stripe の公開鍵               |                                                                                       |
 | `STRIPE_SECRET_KEY`                    | Stripe の秘密鍵               | ⚠️ サーバーサイド専用                                                                  |
@@ -159,11 +160,12 @@ VercelのEnvironment Variablesは、ProductionとPreviewそれぞれに設定し
 ### Resend（メール送信）
 
 アカウント削除申請の通知メール、お問い合わせフォームの管理者通知・ユーザー自動返信メールに使用します。
+メールの送信元・件名・本文テンプレートは `lib/email-templates.ts` に集約しています。文面を変更するときはこのファイルを編集してください。
 
 1. [resend.com](https://resend.com) でアカウントを作成し、送信ドメイン `tsukurist.com` を追加します。
 2. Resendが表示するSPF/DKIM等のDNSレコードをCloudflareに登録し、Resend側でドメイン認証が完了したことを確認します。既存のSPFレコードがある場合は、別のSPFレコードを追加せず、送信サービスを同じレコードに統合してください。
 3. **Dashboard → API Keys → Create API Key** で発行し、`RESEND_API_KEY` としてVercelのProduction・Preview両方に設定します。
-4. `ADMIN_EMAIL` を `support@tsukurist.com` に設定します。アプリからのメールは `ツクリスト <support@tsukurist.com>` を送信元として送ります。
+4. VercelのProduction・Preview両方で `SUPPORT_EMAIL=support@tsukurist.com`、`NOREPLY_EMAIL=noreply@tsukurist.com` を設定します。問い合わせ通知・管理通知は `SUPPORT_EMAIL` を送信元・受信先として使用し、ユーザー向け自動返信や決済通知は `NOREPLY_EMAIL` を送信元として使用します。両アドレスともResendで認証した `tsukurist.com` ドメインを使用します。
 5. 受信にはメールボックス提供元が必要です。Cloudflare Email Routingを使う場合は `support@tsukurist.com` から既存の受信箱への転送を設定し、Cloudflareに案内されるMX/TXTレコードを追加します。メールボックスサービスを契約する場合は、そのサービスのMXレコードを設定してください。Cloudflareでのドメイン取得だけではメールボックスは作成されません。
 
 Preview環境も認証済みドメインからメールを送るため、検証メールが実ユーザーへ届かないよう宛先に注意してください。Supabase Authの確認メール・パスワード再設定メールも `support@tsukurist.com` から送るには、Supabase Dashboard → **Project Settings → Authentication → SMTP Settings** でカスタムSMTPを有効にし、ResendのSMTP情報（ホスト・ポート・ユーザー名・APIキー）と送信元 `support@tsukurist.com` を設定します。Previewでの認証メールも本番の受信箱に届きます。

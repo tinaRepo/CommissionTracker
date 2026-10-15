@@ -1,7 +1,8 @@
 "use client";
 
 import { Icon } from "@/components/TaskShared";
-import { SITE_URL, SUPPORT_EMAIL } from "@/lib/site";
+import { SITE_URL } from "@/lib/site";
+import { SUPPORT_EMAIL } from "@/lib/site";
 // ページメタデータ
 export default function TokushoPage() {
   return (
