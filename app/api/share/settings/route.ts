@@ -8,7 +8,7 @@ export const fetchCache = "force-no-store";
 export const revalidate = 0;
 
 const PRIVATE_HEADERS = { "Cache-Control": "no-store, private" };
-const SETTINGS_COLUMNS = "share_token, enabled, show_accepting_status, accepting_requests, show_active_count, show_completed_count, show_capacity, capacity, show_display_name, display_name, show_bio, bio, show_social_link, social_link, show_portfolio";
+const SETTINGS_COLUMNS = "share_token, enabled, show_accepting_status, accepting_requests, show_active_count, show_completed_count, show_capacity, capacity, show_display_name, display_name, show_bio, bio, show_social_link, social_link, social_links, show_portfolio";
 const DEFAULT_SETTINGS = {
   enabled: false,
   show_accepting_status: false,
@@ -23,6 +23,7 @@ const DEFAULT_SETTINGS = {
   bio: "",
   show_social_link: false,
   social_link: "",
+  social_links: [] as string[],
   show_portfolio: false,
 } as const;
 
@@ -70,10 +71,18 @@ export async function GET(request: NextRequest) {
       .eq("user_id", auth.user.id)
       .maybeSingle();
     if (error) throw error;
+    const settings = data
+      ? {
+          ...data,
+          social_links: Array.isArray(data.social_links)
+            ? data.social_links
+            : data.social_link ? [data.social_link] : [],
+        }
+      : null;
 
     const { data: selectedGallery, error: galleryError } = await auth.admin
       .from("public_share_gallery")
-      .select("image_id, sort_order")
+      .select("image_id, sort_order, caption")
       .eq("user_id", auth.user.id)
       .order("sort_order");
     if (galleryError) throw galleryError;
@@ -124,8 +133,9 @@ export async function GET(request: NextRequest) {
       };
     };
     return response({
-      settings: data ?? null,
+      settings,
       galleryImageIds: (selectedGallery ?? []).map(item => item.image_id),
+      galleryCaptions: Object.fromEntries((selectedGallery ?? []).map(item => [item.image_id, item.caption])),
       selectedImages: selectedImages.map(mapImage),
       images: currentImages.map(mapImage),
       imagesPage: page,
@@ -185,26 +195,41 @@ export async function POST(request: NextRequest) {
       return response({ error: "公開する項目を1つ以上選択してください" }, 400);
     }
 
-    const { capacity, display_name, bio, social_link, galleryImageIds } = payload;
+    const { capacity, display_name, bio, galleryImageIds } = payload;
+    const socialLinksInput = payload.social_links ?? (
+      typeof payload.social_link === "string" ? [payload.social_link] : undefined
+    );
+    const galleryCaptions = payload.galleryCaptions ?? {};
     if (!Number.isInteger(capacity) || capacity < 0 || capacity > 1000) {
       return response({ error: "受付枠は0〜1000件で入力してください" }, 400);
     }
     if (
       typeof display_name !== "string" || display_name.length > 80 ||
       typeof bio !== "string" || bio.length > 500 ||
-      typeof social_link !== "string" || social_link.length > 2048
+      !Array.isArray(socialLinksInput) || socialLinksInput.length > 3 ||
+      socialLinksInput.some((link: unknown) => typeof link !== "string" || link.length > 2048)
     ) {
       return response({ error: "公開プロフィールの入力内容を確認してください" }, 400);
     }
-    if (social_link) {
+    const normalizedSocialLinks = (socialLinksInput as string[]).map(link => link.trim()).filter(Boolean);
+    for (const socialLink of normalizedSocialLinks) {
       try {
-        const url = new URL(social_link);
+        const url = new URL(socialLink);
         if (url.protocol !== "https:" && url.protocol !== "http:") throw new Error("Invalid protocol");
       } catch {
         return response({ error: "SNSリンクはhttpまたはhttpsのURLで入力してください" }, 400);
       }
     }
 
+    if (
+      !galleryCaptions || typeof galleryCaptions !== "object" || Array.isArray(galleryCaptions) ||
+      Object.entries(galleryCaptions).some(([imageId, caption]) =>
+        !/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(imageId) ||
+        typeof caption !== "string" || caption.length > 120
+      )
+    ) {
+      return response({ error: "実績画像の説明は120文字以内で入力してください" }, 400);
+    }
     if (
       !Array.isArray(galleryImageIds) ||
       galleryImageIds.length > 20 ||
@@ -216,7 +241,6 @@ export async function POST(request: NextRequest) {
     if (payload.show_portfolio && galleryImageIds.length === 0) {
       return response({ error: "実績画像を1枚以上選択してください" }, 400);
     }
-
     if (galleryImageIds.length > 0) {
       const { data: ownedImages, error: ownedImagesError } = await auth.admin
         .from("task_images")
@@ -228,6 +252,9 @@ export async function POST(request: NextRequest) {
         return response({ error: "選択した画像を確認できませんでした。再読み込みしてください。" }, 400);
       }
     }
+    if (Object.keys(galleryCaptions).some(imageId => !galleryImageIds.includes(imageId))) {
+      return response({ error: "実績画像の説明対象を確認してください" }, 400);
+    }
 
     const settingsValues = {
       ...DEFAULT_SETTINGS,
@@ -235,7 +262,8 @@ export async function POST(request: NextRequest) {
       capacity,
       display_name: display_name.trim(),
       bio: bio.trim(),
-      social_link: social_link.trim(),
+      social_link: normalizedSocialLinks[0] ?? "",
+      social_links: normalizedSocialLinks,
       updated_at: new Date().toISOString(),
     };
 
@@ -275,12 +303,23 @@ export async function POST(request: NextRequest) {
           user_id: auth.user.id,
           image_id: imageId,
           sort_order: sortOrder,
+          caption: (galleryCaptions as Record<string, string>)[imageId]?.trim() ?? "",
         })),
       );
       if (galleryError) throw galleryError;
     }
 
-    return response({ settings: savedSettings, galleryImageIds });
+    return response({
+      settings: {
+        ...savedSettings,
+        social_links: normalizedSocialLinks,
+      },
+      galleryImageIds,
+      galleryCaptions: Object.fromEntries(galleryImageIds.map((imageId: string) => [
+        imageId,
+        (galleryCaptions as Record<string, string>)[imageId]?.trim() ?? "",
+      ])),
+    });
   } catch (error) {
     console.error("share settings POST failed", error);
     return response({ error: "共有設定を保存できませんでした" }, 500);

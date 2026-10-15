@@ -19,6 +19,7 @@ type ShareSettings = {
   bio: string;
   show_social_link: boolean;
   social_link: string;
+  social_links: string[];
   show_portfolio: boolean;
 };
 
@@ -46,6 +47,7 @@ const EMPTY_SETTINGS: Omit<ShareSettings, "share_token"> = {
   bio: "",
   show_social_link: false,
   social_link: "",
+  social_links: [],
   show_portfolio: false,
 };
 
@@ -58,6 +60,7 @@ export default function ShareSettingsModal({ open, onClose, online = true }: Pro
   const [copied, setCopied] = useState(false);
   const [deleted, setDeleted] = useState(false);
   const [galleryImageIds, setGalleryImageIds] = useState<string[]>([]);
+  const [galleryCaptions, setGalleryCaptions] = useState<Record<string, string>>({});
   const [images, setImages] = useState<ShareImage[]>([]);
   const [selectedImages, setSelectedImages] = useState<ShareImage[]>([]);
   const [imagesPage, setImagesPage] = useState(0);
@@ -88,12 +91,19 @@ export default function ShareSettingsModal({ open, onClose, online = true }: Pro
           setImages(result.images ?? []);
           setSelectedImages(result.selectedImages ?? []);
           setGalleryImageIds(result.galleryImageIds ?? []);
+          setGalleryCaptions(result.galleryCaptions ?? {});
           setImagesPage(result.imagesPage ?? 0);
           setHasMoreImages(!!result.hasMoreImages);
           setDeleted(false);
         }
         if (!cancelled && result.settings) {
-          const { share_token, ...savedSettings } = result.settings as ShareSettings;
+          const loadedSettings = result.settings as ShareSettings;
+          const { share_token, ...savedSettings } = {
+            ...loadedSettings,
+            social_links: Array.isArray(loadedSettings.social_links)
+              ? loadedSettings.social_links
+              : loadedSettings.social_link ? [loadedSettings.social_link] : [],
+          };
           setToken(share_token);
           setSettings(savedSettings);
         } else if (!cancelled) {
@@ -164,12 +174,18 @@ export default function ShareSettingsModal({ open, onClose, online = true }: Pro
     setError(null);
     setCopied(false);
     try {
-      const result = await request("POST", { ...settings, galleryImageIds });
+      const result = await request("POST", {
+        ...settings,
+        social_link: settings.social_links[0] ?? "",
+        galleryImageIds,
+        galleryCaptions,
+      });
       const saved = result.settings as ShareSettings;
       const { share_token, ...savedSettings } = saved;
       setToken(share_token);
       setSettings(savedSettings);
       setGalleryImageIds(result.galleryImageIds ?? []);
+      setGalleryCaptions(result.galleryCaptions ?? {});
       setDeleted(false);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "共有設定を保存できませんでした。");
@@ -199,7 +215,7 @@ export default function ShareSettingsModal({ open, onClose, online = true }: Pro
 
   async function deletePage() {
     if (!online || !navigator.onLine) return;
-    if (!window.confirm("共有ページと現在の共有リンクを削除します。リンクは無効になります。続けますか？")) return;
+    if (!window.confirm("共有ページを削除します。共有リンクが無効になり、入力したプロフィール・SNSリンク・実績画像の説明などの設定内容もすべて削除されます。続けますか？")) return;
     setSaving(true);
     setError(null);
     try {
@@ -207,6 +223,7 @@ export default function ShareSettingsModal({ open, onClose, online = true }: Pro
       setToken(null);
       setSettings(EMPTY_SETTINGS);
       setGalleryImageIds([]);
+      setGalleryCaptions({});
       setSelectedImages([]);
       setDeleted(true);
     } catch (cause) {
@@ -232,15 +249,21 @@ export default function ShareSettingsModal({ open, onClose, online = true }: Pro
   }
 
   function toggleGalleryImage(imageId: string) {
-    setGalleryImageIds(current => {
-      if (current.includes(imageId)) return current.filter(id => id !== imageId);
-      if (current.length >= 20) {
-        setError("実績画像は20枚まで選択できます。");
-        return current;
-      }
-      setError(null);
-      return [...current, imageId];
-    });
+    if (galleryImageIds.includes(imageId)) {
+      setGalleryImageIds(galleryImageIds.filter(id => id !== imageId));
+      setGalleryCaptions(current => {
+        const remaining = { ...current };
+        delete remaining[imageId];
+        return remaining;
+      });
+      return;
+    }
+    if (galleryImageIds.length >= 20) {
+      setError("実績画像は20枚まで選択できます。");
+      return;
+    }
+    setError(null);
+    setGalleryImageIds([...galleryImageIds, imageId]);
   }
 
   const checkboxStyle = { display: "flex", alignItems: "center", gap: 9, fontSize: 14, cursor: "pointer" };
@@ -350,9 +373,35 @@ export default function ShareSettingsModal({ open, onClose, online = true }: Pro
                     SNSリンクを公開
                   </label>
                   {settings.show_social_link && (
-                    <input type="url" value={settings.social_link} maxLength={2048} placeholder="https://…"
-                      onChange={event => setSettings(current => ({ ...current, social_link: event.target.value }))}
-                      className="input" />
+                    <div style={{ display: "grid", gap: 8, marginLeft: 25 }}>
+                      {settings.social_links.map((link, index) => (
+                        <div key={index} className="row" style={{ minWidth: 0, gap: 8 }}>
+                          <input type="url" value={link} maxLength={2048} placeholder="https://…"
+                            aria-label={`SNSリンク ${index + 1}`}
+                            onChange={event => setSettings(current => ({
+                              ...current,
+                              social_links: current.social_links.map((currentLink, currentIndex) =>
+                                currentIndex === index ? event.target.value : currentLink
+                              ),
+                            }))}
+                            className="input" style={{ minWidth: 0, flex: 1 }} />
+                          <button type="button" onClick={() => setSettings(current => ({
+                            ...current,
+                            social_links: current.social_links.filter((_, currentIndex) => currentIndex !== index),
+                          }))} className="btn btn-ghost btn-sm" aria-label={`SNSリンク ${index + 1} を削除`}>
+                            削除
+                          </button>
+                        </div>
+                      ))}
+                      {settings.social_links.length < 3 && (
+                        <button type="button" onClick={() => setSettings(current => ({
+                          ...current,
+                          social_links: [...current.social_links, ""],
+                        }))} className="btn btn-ghost btn-sm" style={{ justifySelf: "start" }}>
+                          SNSリンクを追加（最大3件）
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
@@ -366,16 +415,26 @@ export default function ShareSettingsModal({ open, onClose, online = true }: Pro
                 {settings.show_portfolio && (
                   <div style={{ marginTop: 12 }}>
                     <p className="text-meta" style={{ lineHeight: 1.6 }}>
-                      タスクに添付した画像から最大20枚選べます。画像だけが公開され、タスク名などは公開されません。選択中: {galleryImageIds.length}/20
+                      タスクに添付した画像から最大20枚選べます。画像と入力した説明文が公開されます。タスク名は自動では公開されません。選択中: {galleryImageIds.length}/20
                     </p>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 10, marginTop: 10 }}>
                       {Array.from(new Map([...selectedImages, ...images].map(image => [image.id, image])).values()).map(image => (
-                        <label key={image.id} style={{ cursor: "pointer", border: galleryImageIds.includes(image.id) ? "1px solid var(--primary)" : "1px solid var(--border-soft)", borderRadius: "var(--radius-md)", padding: 8, background: galleryImageIds.includes(image.id) ? "var(--primary-soft)" : "var(--surface)" }}>
-                          <input type="checkbox" checked={galleryImageIds.includes(image.id)} onChange={() => toggleGalleryImage(image.id)} />
+                        <div key={image.id} style={{ border: galleryImageIds.includes(image.id) ? "1px solid var(--primary)" : "1px solid var(--border-soft)", borderRadius: "var(--radius-md)", padding: 8, background: galleryImageIds.includes(image.id) ? "var(--primary-soft)" : "var(--surface)" }}>
+                          <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13 }}>
+                            <input type="checkbox" checked={galleryImageIds.includes(image.id)} onChange={() => toggleGalleryImage(image.id)} />
+                            実績に掲載
+                          </label>
                           {image.previewUrl && <img src={image.previewUrl} alt="" loading="lazy" style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: 6, marginTop: 6 }} />}
                           <span className="text-meta" style={{ display: "block", marginTop: 5, overflowWrap: "anywhere" }}>{image.fileName}</span>
                           <span className="text-meta" style={{ display: "block", overflowWrap: "anywhere" }}>{image.taskTitle}</span>
-                        </label>
+                          {galleryImageIds.includes(image.id) && (
+                            <input value={galleryCaptions[image.id] ?? ""} maxLength={120}
+                              placeholder={`説明（例: ${image.taskTitle}）`}
+                              aria-label={`${image.taskTitle} の実績画像の説明`}
+                              onChange={event => setGalleryCaptions(current => ({ ...current, [image.id]: event.target.value }))}
+                              className="input" style={{ marginTop: 8, fontSize: 12 }} />
+                          )}
+                        </div>
                       ))}
                     </div>
                     {images.length === 0 && <p className="text-meta" style={{ marginTop: 10 }}>選択できる添付画像がありません。</p>}
@@ -396,8 +455,8 @@ export default function ShareSettingsModal({ open, onClose, online = true }: Pro
                       {settings.enabled ? "公開中" : "非公開"}
                     </span>
                   </div>
-                  <div className="row" style={{ gap: 8, alignItems: "stretch" }}>
-                    <input readOnly value={shareUrl()} className="input" aria-label="共有リンク" />
+                  <div className="row" style={{ gap: 8, alignItems: "stretch", minWidth: 0 }}>
+                    <input readOnly value={shareUrl()} className="input" aria-label="共有リンク" style={{ minWidth: 0, flex: 1 }} />
                     <button onClick={copyLink} className="btn btn-secondary btn-sm" style={{ flexShrink: 0 }}>
                       <Icon name={copied ? "check" : "link"} size={14} />{copied ? "コピー済み" : "コピー"}
                     </button>

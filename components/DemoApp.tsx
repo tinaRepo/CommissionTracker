@@ -164,6 +164,11 @@ export default function DemoApp({ returnPath, onBack }: {
   const [showContact, setShowContact] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSharePreview, setShowSharePreview] = useState(false);
+  const [demoPortfolioCaptions, setDemoPortfolioCaptions] = useState([
+    "キャラクターイラスト",
+    "配信用バナー",
+    "アイコンデザイン",
+  ]);
   const [pendingImages, setPendingImages] = useState<DemoImage[]>([]);
   const [pendingImageType, setPendingImageType] = useState<ImageType>("preview");
   const [view, setView] = useState<"list" | "calendar">("list");
@@ -543,17 +548,27 @@ export default function DemoApp({ returnPath, onBack }: {
                     </div>
                   ))}
                 </div>
-                <p style={{ marginTop: 24 }}>
-                  <span className="btn btn-secondary share-page-social-link" style={{ cursor: "default" }}>
-                      <span className="share-page-social-host">x.com のプロフィールを見る ↗</span>
-                  </span>
-                </p>
+                <div style={{ display: "grid", justifyItems: "start", gap: 8, marginTop: 24 }}>
+                  {["x.com", "instagram.com", "pixiv.net"].map(host => (
+                    <span key={host} className="btn btn-secondary share-page-social-link" style={{ cursor: "default" }}>
+                      <span className="share-page-social-host">{host} のプロフィールを見る ↗</span>
+                    </span>
+                  ))}
+                </div>
                 <section style={{ marginTop: 28 }}>
                   <h3 style={{ fontSize: 18, marginBottom: 12 }}>実績</h3>
                   <div className="demo-share-gallery">
-                    {["キャラクターイラスト", "配信用バナー", "アイコンデザイン"].map((label, index) => (
-                      <div key={label} className={`demo-share-art demo-share-art-${index + 1}`}>
-                        <span>{label}</span>
+                    {demoPortfolioCaptions.map((caption, index) => (
+                      <div key={index} className={`demo-share-art demo-share-art-${index + 1}`}>
+                        <input
+                          value={caption}
+                          maxLength={120}
+                          aria-label={`実績画像 ${index + 1} の説明`}
+                          onChange={event => setDemoPortfolioCaptions(current => current.map((value, currentIndex) =>
+                            currentIndex === index ? event.target.value : value
+                          ))}
+                          style={{ width: "100%", minWidth: 0, padding: "6px 8px", border: "1px solid rgba(255,255,255,0.55)", borderRadius: 6, background: "rgba(0,0,0,0.2)", color: "#fff", font: "inherit" }}
+                        />
                       </div>
                     ))}
                   </div>
