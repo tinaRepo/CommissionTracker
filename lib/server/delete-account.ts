@@ -41,7 +41,7 @@ async function cancelSubscriptions(stripe: Stripe, customerId: string | null, su
   }
   for (const id of Array.from(ids)) {
     try {
-      await stripe.subscriptions.cancel(id);
+      await stripe.subscriptions.cancel(id, { prorate: false });
     } catch (e: any) {
       if (e?.code !== "resource_missing" && !/already been canceled/i.test(e?.message ?? "")) throw e;
     }

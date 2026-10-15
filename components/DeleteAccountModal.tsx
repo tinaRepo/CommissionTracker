@@ -66,7 +66,7 @@ export default function DeleteAccountModal({ open, onClose, email, hasPassword, 
         }}>
           <strong>この操作は取り消せません。</strong>タスク・タグ・アップロード画像・通知設定をすべて削除します。
           {plan !== "free" && (
-            <><br />有料プランは<strong>今すぐ解約</strong>され、残りの期間分の返金はありません。期間の終了まで使いたい場合は、先にプラン画面から解約し、期間終了後に削除してください。</>
+            <><br />有料プランは<strong>今すぐ解約</strong>され、残りの期間分の返金・残高クレジットはありません。期間の終了まで使いたい場合は、先にプラン画面から解約し、期間終了後に削除してください。</>
           )}
         </div>
 

@@ -34,10 +34,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No subscription found" }, { status: 400 });
     }
 
+    const configuration = process.env.STRIPE_BILLING_PORTAL_CONFIGURATION_ID;
+    if (!configuration) {
+      console.error("Stripe billing portal configuration is missing");
+      return NextResponse.json(
+        { error: "プラン管理の設定が完了していません。時間をおいて再度お試しください。" },
+        { status: 500 }
+      );
+    }
+
+    const portalConfiguration = await stripe.billingPortal.configurations.retrieve(configuration);
+    if (
+      portalConfiguration.features.subscription_cancel.enabled ||
+      !portalConfiguration.features.subscription_update.enabled ||
+      portalConfiguration.features.subscription_update.proration_behavior !== "always_invoice"
+    ) {
+      console.error("Stripe billing portal configuration must disable cancellation and enable immediate prorated plan updates");
+      return NextResponse.json(
+        { error: "プラン管理の設定が未完了です。サポートへお問い合わせください。" },
+        { status: 500 }
+      );
+    }
+
     const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
 
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: profile.stripe_customer_id,
+      configuration,
       return_url: `${appUrl}/pricing`,
     });
 

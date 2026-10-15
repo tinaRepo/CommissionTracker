@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { TAGS_PER_TASK_LIMIT, TAG_NAME_MAX_LENGTH, normalizeTagName, type Tag } from "@/lib/supabase";
-import { Icon, cx } from "./TaskShared";
+import { Icon } from "./TaskShared";
+import { TagMultiSelect } from "./TagMultiSelect";
 
 // ============================================================
 // タグの選択UI（タスクのフォーム内で使う）と、タグの管理モーダル
@@ -22,15 +23,16 @@ export function TagPicker({ tags, selectedIds, onChange, onCreate, canCreate = t
   const [error, setError] = useState<string | null>(null);
   const atLimit = selectedIds.length >= TAGS_PER_TASK_LIMIT;
 
-  function toggle(id: string) {
+  function handleSelectionChange(ids: string[]) {
     setError(null);
-    if (selectedIds.includes(id)) {
-      onChange(selectedIds.filter(x => x !== id));
-    } else if (atLimit) {
+    if (ids.length > TAGS_PER_TASK_LIMIT) {
+      const retained = selectedIds.filter(id => ids.includes(id));
+      const additions = ids.filter(id => !selectedIds.includes(id));
+      onChange([...retained, ...additions.slice(0, TAGS_PER_TASK_LIMIT - retained.length)]);
       setError(`1つのタスクに付けられるタグは${TAGS_PER_TASK_LIMIT}個までです`);
-    } else {
-      onChange([...selectedIds, id]);
+      return;
     }
+    onChange(ids);
   }
 
   async function add() {
@@ -62,16 +64,12 @@ export function TagPicker({ tags, selectedIds, onChange, onCreate, canCreate = t
   return (
     <div>
       {tags.length > 0 && (
-        <div className="row" style={{ gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
-          {tags.map(t => {
-            const on = selectedIds.includes(t.id);
-            return (
-              <button key={t.id} type="button" aria-pressed={on} onClick={() => toggle(t.id)}
-                className={cx("tag-chip", on && "on")}>
-                {on && <Icon name="check" size={12} />}{t.name}
-              </button>
-            );
-          })}
+        <div style={{ marginBottom: 10 }}>
+          <TagMultiSelect
+            tags={tags}
+            selectedIds={selectedIds}
+            onChange={handleSelectionChange}
+            ariaLabel="既存タグ（複数選択可）" />
         </div>
       )}
       <div className="row" style={{ gap: 8 }}>

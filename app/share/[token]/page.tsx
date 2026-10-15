@@ -11,7 +11,8 @@ type PublicShare = {
   displayName?: string;
   bio?: string;
   socialLink?: string;
-  galleryImages?: { id: string; url: string }[];
+  socialLinks?: string[];
+  galleryImages?: { id: string; url: string; caption?: string }[];
 };
 
 export default function PublicSharePage({ params }: { params: { token: string } }) {
@@ -68,8 +69,12 @@ export default function PublicSharePage({ params }: { params: { token: string } 
     );
   }
 
-  const socialUrl = data.socialLink ? safeSocialUrl(data.socialLink) : null;
-  const socialHost = socialUrl ? new URL(socialUrl).hostname : null;
+  const socialLinks = (data.socialLinks ?? (data.socialLink ? [data.socialLink] : []))
+    .map(value => {
+      const url = safeSocialUrl(value);
+      return url ? { url, host: new URL(url).hostname } : null;
+    })
+    .filter((link): link is { url: string; host: string } => link !== null);
   return (
     <main style={{ minHeight: "100vh", padding: "48px 20px", background: "var(--surface)" }}>
       <article className="share-page-content demo-share-page" style={{ maxWidth: 640, margin: "0 auto" }}>
@@ -86,21 +91,26 @@ export default function PublicSharePage({ params }: { params: { token: string } 
           {typeof data.completedCount === "number" && <Metric label="累計完了" value={`${data.completedCount}件`} />}
         </div>
 
-        {socialUrl && (
-          <p style={{ marginTop: 24 }}>
-            <a href={socialUrl} target="_blank" rel="noopener noreferrer nofollow"
-              className="btn btn-secondary share-page-social-link" style={{ textDecoration: "none" }}>
-              <span className="share-page-social-host">{socialHost} のプロフィールを見る ↗</span>
-            </a>
-          </p>
+        {socialLinks.length > 0 && (
+          <div style={{ display: "grid", justifyItems: "start", gap: 8, marginTop: 24 }}>
+            {socialLinks.map(({ url, host }) => (
+              <a key={url} href={url} target="_blank" rel="noopener noreferrer nofollow"
+                className="btn btn-secondary share-page-social-link" style={{ textDecoration: "none", maxWidth: "100%" }}>
+                <span className="share-page-social-host" style={{ overflowWrap: "anywhere" }}>{host} のプロフィールを見る ↗</span>
+              </a>
+            ))}
+          </div>
         )}
         {data.galleryImages && data.galleryImages.length > 0 && (
           <section style={{ marginTop: 28 }}>
             <h2 style={{ fontSize: 18, marginBottom: 12 }}>実績</h2>
             <div className="share-page-gallery">
               {data.galleryImages.map(image => (
-                <img key={image.id} src={image.url} alt="制作実績" loading="lazy"
-                  style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: "var(--radius-md)" }} />
+                <figure key={image.id} style={{ minWidth: 0 }}>
+                  <img src={image.url} alt={image.caption || "制作実績"} loading="lazy"
+                    style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: "var(--radius-md)" }} />
+                  {image.caption && <figcaption className="text-meta" style={{ marginTop: 6, overflowWrap: "anywhere" }}>{image.caption}</figcaption>}
+                </figure>
               ))}
             </div>
           </section>

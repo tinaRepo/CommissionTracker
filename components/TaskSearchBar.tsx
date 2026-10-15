@@ -2,6 +2,7 @@
 
 import type { UseTaskSearchResult } from "@/hooks/useTaskSearch";
 import { STATUSES, Field, DateRangeField, Icon, fmtPrice, cx } from "./TaskShared";
+import { TagMultiSelect } from "./TagMultiSelect";
 
 // ============================================================
 // TaskApp・DemoApp共通の検索バー（ステータス・タグ・並び替え・
@@ -25,7 +26,11 @@ export function TaskSearchBar<T>({ search, tags }: Props<T>) {
     sortKey, setSortKey,
     sortDir, setSortDir,
     showFilters, setShowFilters,
-    keyword, setKeyword,
+    titleKeyword, setTitleKeyword,
+    assigneeKeyword, setAssigneeKeyword,
+    contactKeyword, setContactKeyword,
+    notesKeyword, setNotesKeyword,
+    detailTagIds, setDetailTagIds,
     orderedFrom, setOrderedFrom, orderedTo, setOrderedTo,
     deadlineFrom, setDeadlineFrom, deadlineTo, setDeadlineTo,
     priceMin, setPriceMin, priceMax, setPriceMax,
@@ -102,14 +107,31 @@ export function TaskSearchBar<T>({ search, tags }: Props<T>) {
       {showFilters && (
         <div className="container" style={{ marginTop: 10 }}>
           <div className="panel" style={{ padding: "20px 22px", display: "grid", gap: 16 }}>
-            <Field label="キーワード（件名・依頼先名・連絡先・メモ）">
-              <input
-                value={keyword}
-                onChange={e => setKeyword(e.target.value)}
-                placeholder="例: バナー、田中デザイン"
-                className="input"
-              />
-            </Field>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 16 }}>
+              <Field label="件名（部分一致）">
+                <input value={titleKeyword} onChange={e => setTitleKeyword(e.target.value)} placeholder="例: バナー" className="input" />
+              </Field>
+              <Field label="依頼先名（部分一致）">
+                <input value={assigneeKeyword} onChange={e => setAssigneeKeyword(e.target.value)} placeholder="例: 田中デザイン" className="input" />
+              </Field>
+              <Field label="SNS/連絡先（部分一致）">
+                <input value={contactKeyword} onChange={e => setContactKeyword(e.target.value)} placeholder="例: @your_handle" className="input" />
+              </Field>
+              <Field label="メモ（部分一致）">
+                <input value={notesKeyword} onChange={e => setNotesKeyword(e.target.value)} placeholder="メモの一部を入力" className="input" />
+              </Field>
+            </div>
+
+            {tags && tags.length > 0 && (
+              <Field label="タグ（複数選択可）">
+                <TagMultiSelect
+                  tags={tags}
+                  selectedIds={detailTagIds}
+                  onChange={setDetailTagIds}
+                  ariaLabel="詳細検索のタグ（複数選択可）" />
+                <div className="text-meta" style={{ marginTop: 6 }}>選択したタグのいずれかが付いたタスクを検索します。</div>
+              </Field>
+            )}
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 16 }}>
               <DateRangeField label="依頼日" from={orderedFrom} to={orderedTo} onFromChange={setOrderedFrom} onToChange={setOrderedTo} />

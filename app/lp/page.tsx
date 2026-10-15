@@ -31,7 +31,7 @@ const PLANS = [
 const FAQS = [
   { q: "無料プランでいつまでも使えますか？", a: "はい、無料プランは期限なく使えます。画像は合計10枚まで利用でき、カレンダー表示は有料プランで利用できます。" },
   { q: "支払い方法は何が使えますか？", a: "クレジットカード・デビットカードが使えます。決済はStripeで安全に処理され、カード情報は当サービスには保存されません。" },
-  { q: "解約はいつでもできますか？", a: "いつでも解約できます。解約後は次の更新日まで引き続きご利用いただけます。" },
+  { q: "解約はいつでもできますか？", a: "いつでも即時解約できます。未使用期間分は日割り計算し、支払い済み金額を上限として元のカードへ返金します。返金の反映時期はカード会社により異なります。プラン変更時も残り期間に応じて日割り計算されます。" },
   { q: "スマホでも使えますか？", a: "はい、スマホ・タブレット・PCすべてに対応しています。SafariやChromeからホーム画面に追加するとアプリのように使えます。" },
   { q: "データは安全ですか？", a: "データはSupabaseに安全に保存され、SSL通信・行レベルセキュリティにより他のユーザーからのアクセスは完全に遮断されています。" },
 ];
@@ -186,24 +186,17 @@ export default function LandingPage() {
       </section>
 
       {/* フッター */}
-      <footer style={{ borderTop: "1px solid var(--border-soft)", padding: "32px 24px" }}>
-        <div className="container" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
-          <span style={{ fontWeight: 600, fontSize: 14 }}>ツクリスト</span>
-          <div className="row" style={{ flexWrap: "wrap", gap: "4px 16px" }}>
-            {[
-              { href: "/lp", label: "サービス紹介" },
-              { href: "/guide", label: "使い方" },
-              { href: "/terms", label: "利用規約" },
-              { href: "/privacy", label: "プライバシー" },
-              { href: "/tokusho", label: "特定商取引法" },
-            ].map(link => (
-              <a key={link.href} href={link.href} style={{ fontSize: 12, color: "var(--muted)", textDecoration: "none" }}>
-                {link.label}
-              </a>
-            ))}
-          </div>
-          <span style={{ fontSize: 11, color: "var(--meta)" }}>© 2026 ツクリスト</span>
+      <footer className="app-footer">
+        <div className="footer-links">
+          {[
+            { href: "/lp", label: "サービス紹介" },
+            { href: "/guide", label: "使い方" },
+            { href: "/terms", label: "利用規約" },
+            { href: "/privacy", label: "プライバシー" },
+            { href: "/tokusho", label: "特定商取引法" },
+          ].map(link => <a key={link.href} href={link.href}>{link.label}</a>)}
         </div>
+        <div className="text-meta" style={{ marginTop: 10 }}>© 2026 ツクリスト</div>
       </footer>
     </div>
   );
