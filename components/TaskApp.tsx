@@ -338,7 +338,6 @@ export default function TaskApp() {
   const [showLogoutWarning, setShowLogoutWarning] = useState(false);
 
   useEffect(() => {
-    let initialSessionResolved = false;
     let cancelled = false;
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
@@ -346,20 +345,7 @@ export default function TaskApp() {
         setUser(session.user);
         return;
       }
-      if (initialSessionResolved && event === "SIGNED_OUT") {
-        window.location.href = "/login";
-      }
-    });
-
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (cancelled) return;
-      initialSessionResolved = true;
-      if (session) {
-        setUser(session.user);
-      } else if (!error) {
-        window.location.href = "/login";
-      } else {
-        console.error("ログイン状態を確認できませんでした", error);
+      if (event === "INITIAL_SESSION" || event === "SIGNED_OUT") {
         window.location.href = "/login";
       }
     });

@@ -5,11 +5,6 @@ import { createAdminClient, getUserFromRequest } from "@/lib/server/admin";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
-function subscriptionIdOf(invoice: Stripe.Invoice): string | null {
-  const subscription = invoice.subscription;
-  return typeof subscription === "string" ? subscription : subscription?.id ?? null;
-}
-
 async function refundableAmount(paymentIntentId: string): Promise<number> {
   const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId, {
     expand: ["latest_charge"],
@@ -23,28 +18,51 @@ async function refundableAmount(paymentIntentId: string): Promise<number> {
   return Math.max(0, charge.amount_captured - charge.amount_refunded);
 }
 
-async function paymentIntentsForCurrentPeriod(
+async function refundablePaymentsForCurrentPeriod(
   subscriptionId: string,
   periodStart: number,
   periodEnd: number,
-  latestInvoiceId: string | null,
-): Promise<string[]> {
+): Promise<Array<{ paymentIntentId: string; amount: number }>> {
   const invoices = await stripe.invoices.list({
     subscription: subscriptionId,
     status: "paid",
     limit: 100,
+    expand: ["data.lines"],
   });
 
-  return Array.from(new Set(invoices.data
-    .filter(invoice =>
-      subscriptionIdOf(invoice) === subscriptionId &&
-      (invoice.id === latestInvoiceId ||
-        (invoice.period_start < periodEnd && invoice.period_end > periodStart)) &&
-      !!invoice.payment_intent
-    )
-    .map(invoice => typeof invoice.payment_intent === "string"
+  const now = Math.floor(Date.now() / 1000);
+  const refundablePayments: Array<{ paymentIntentId: string; amount: number }> = [];
+
+  for (const invoice of invoices.data) {
+    if (!invoice.payment_intent) continue;
+
+    const lines = invoice.lines.data.filter(line =>
+      line.type === "subscription" &&
+      line.period.start < periodEnd &&
+      line.period.end > periodStart
+    );
+    const billedAmount = lines.reduce((sum, line) => sum + line.amount, 0);
+    if (billedAmount <= 0) continue;
+
+    const unearnedAmount = lines.reduce((sum, line) => {
+      const lineStart = Math.max(line.period.start, periodStart);
+      const lineEnd = Math.min(line.period.end, periodEnd);
+      const duration = lineEnd - lineStart;
+      if (duration <= 0) return sum;
+      const unusedSeconds = Math.max(0, lineEnd - Math.max(now, lineStart));
+      return sum + line.amount * (unusedSeconds / duration);
+    }, 0);
+    const unusedRatio = Math.max(0, Math.min(1, unearnedAmount / billedAmount));
+    const amount = Math.min(invoice.amount_paid, Math.floor(invoice.amount_paid * unusedRatio));
+    if (amount <= 0) continue;
+
+    const paymentIntentId = typeof invoice.payment_intent === "string"
       ? invoice.payment_intent
-      : invoice.payment_intent!.id)));
+      : invoice.payment_intent.id;
+    refundablePayments.push({ paymentIntentId, amount });
+  }
+
+  return refundablePayments;
 }
 
 export async function POST(request: NextRequest) {
@@ -83,9 +101,6 @@ export async function POST(request: NextRequest) {
     let periodStart = Number(metadata.app_cancel_refund_period_start);
     let periodEnd = Number(metadata.app_cancel_refund_period_end);
     let refundReason = metadata.app_cancel_refund_reason ?? "";
-    const latestInvoice = subscription.latest_invoice;
-    const latestInvoiceId = metadata.app_cancel_refund_invoice_id ||
-      (typeof latestInvoice === "string" ? latestInvoice : latestInvoice?.id ?? null);
     const pendingRefund = metadata.app_cancel_refund_status === "pending";
     const refundReady = metadata.app_cancel_refund_status === "ready";
 
@@ -100,33 +115,17 @@ export async function POST(request: NextRequest) {
       periodStart = subscription.current_period_start;
       periodEnd = subscription.current_period_end;
 
-      const preview = await stripe.invoices.retrieveUpcoming({
-        subscription: subscription.id,
-        subscription_cancel_now: true,
-        subscription_proration_behavior: "always_invoice",
-      });
-      const proratedAmount = preview.lines.data
-        .filter(line =>
-          line.proration &&
-          line.amount < 0 &&
-          line.period.start < periodEnd &&
-          line.period.end > periodStart
-        )
-        .reduce((total, line) => total - line.amount, 0);
-
-      refundAmount = proratedAmount;
-      if (proratedAmount > 0) {
-        const paymentIntents = await paymentIntentsForCurrentPeriod(
-          subscription.id, periodStart, periodEnd, latestInvoiceId
-        );
-        let refundable = 0;
-        for (const paymentIntentId of paymentIntents) {
-          refundable += await refundableAmount(paymentIntentId);
-        }
-        if (refundable === 0) refundReason = "no_refundable_payment";
-        refundAmount = Math.min(refundAmount, refundable);
+      const payments = await refundablePaymentsForCurrentPeriod(subscription.id, periodStart, periodEnd);
+      refundAmount = 0;
+      for (const payment of payments) {
+        refundAmount += Math.min(payment.amount, await refundableAmount(payment.paymentIntentId));
+      }
+      if (refundAmount === 0) {
+        refundReason = periodEnd <= Math.floor(Date.now() / 1000)
+          ? "no_unused_time"
+          : "no_refundable_payment";
       } else {
-        refundReason = "no_proration";
+        refundReason = "";
       }
 
       subscription = await stripe.subscriptions.update(subscription.id, {
@@ -135,7 +134,6 @@ export async function POST(request: NextRequest) {
           app_cancel_refund_amount: String(refundAmount),
           app_cancel_refund_period_start: String(periodStart),
           app_cancel_refund_period_end: String(periodEnd),
-          app_cancel_refund_invoice_id: latestInvoiceId ?? "",
           app_cancel_refund_reason: refundReason,
         },
       });
@@ -145,12 +143,10 @@ export async function POST(request: NextRequest) {
 
     let refundedAmount = refundReady ? refundAmount : 0;
     if (!refundReady && refundAmount > 0) {
-      const paymentIntents = await paymentIntentsForCurrentPeriod(
-        subscription.id, periodStart, periodEnd, latestInvoiceId
-      );
+      const payments = await refundablePaymentsForCurrentPeriod(subscription.id, periodStart, periodEnd);
       let remaining = refundAmount;
 
-      for (const paymentIntentId of paymentIntents) {
+      for (const { paymentIntentId, amount: periodAmount } of payments) {
         if (remaining <= 0) break;
 
         const priorRefunds = await stripe.refunds.list({ payment_intent: paymentIntentId, limit: 100 });
@@ -164,7 +160,7 @@ export async function POST(request: NextRequest) {
         }
 
         const available = await refundableAmount(paymentIntentId);
-        const amount = Math.min(remaining, available);
+        const amount = Math.min(remaining, periodAmount, available);
         if (amount <= 0) continue;
 
         const refund = await stripe.refunds.create(
@@ -194,7 +190,6 @@ export async function POST(request: NextRequest) {
           app_cancel_refund_amount: String(refundedAmount),
           app_cancel_refund_period_start: String(periodStart),
           app_cancel_refund_period_end: String(periodEnd),
-          app_cancel_refund_invoice_id: latestInvoiceId ?? "",
           app_cancel_refund_reason: refundReason,
         },
       });
