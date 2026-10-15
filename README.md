@@ -177,7 +177,7 @@ vercel dev
    `invoice.payment_failed` / `invoice.paid`
    （同じイベントが再送されても1回しか処理しません。処理に失敗した場合は管理者へメールが届きます。
    `stripe_events` を含むSupabase migrationも適用してください。）
-5. **Customer portal** の設定を作成します。プラン変更はスタンダード・プレミアム間を有効にし、`subscription_update.proration_behavior` を `always_invoice` にします。解約機能はCustomer portalでは無効にしてください。アプリ内で解約処理と日割り額のカード返金を行います。
+5. **Customer portal** の設定を作成します。Configuration IDを登録すると、アプリが `STRIPE_STANDARD_PRICE_ID` / `STRIPE_PREMIUM_PRICE_ID` の商品にプラン変更対象をそろえ、変更時の日割り精算を即時請求（`always_invoice`）に設定します。また、カード返金を伴うアプリ内解約と競合しないよう、ポータル内の解約を無効にします。設定の変更にはStripe APIキーに書き込み権限が必要です。
 6. 作成した設定の Configuration ID を `STRIPE_BILLING_PORTAL_CONFIGURATION_ID` として Vercel に登録し、再デプロイします。未設定時は設定されていないポータルへ誤って遷移しないよう、アプリからプラン管理を開けません。
 
 > テストキー（`sk_test_`）と本番キー（`sk_live_`）を混在させないこと。

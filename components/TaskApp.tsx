@@ -338,21 +338,36 @@ export default function TaskApp() {
   const [showLogoutWarning, setShowLogoutWarning] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        window.location.href = "/login";
-      } else {
+    let initialSessionResolved = false;
+    let cancelled = false;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (cancelled) return;
+      if (session) {
         setUser(session.user);
+        return;
+      }
+      if (initialSessionResolved && event === "SIGNED_OUT") {
+        window.location.href = "/login";
       }
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
-      if (!session) {
+
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (cancelled) return;
+      initialSessionResolved = true;
+      if (session) {
+        setUser(session.user);
+      } else if (!error) {
         window.location.href = "/login";
       } else {
-        setUser(session.user);
+        console.error("ログイン状態を確認できませんでした", error);
+        window.location.href = "/login";
       }
     });
-    return () => subscription.unsubscribe();
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, []);
 
   // 表示形式（リスト/カレンダー）の記憶

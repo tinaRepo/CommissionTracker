@@ -43,17 +43,61 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const portalConfiguration = await stripe.billingPortal.configurations.retrieve(configuration);
-    if (
-      portalConfiguration.features.subscription_cancel.enabled ||
-      !portalConfiguration.features.subscription_update.enabled ||
-      portalConfiguration.features.subscription_update.proration_behavior !== "always_invoice"
-    ) {
-      console.error("Stripe billing portal configuration must disable cancellation and enable immediate prorated plan updates");
+    const priceIds = [
+      process.env.STRIPE_STANDARD_PRICE_ID,
+      process.env.STRIPE_PREMIUM_PRICE_ID,
+    ].filter((priceId): priceId is string => !!priceId);
+    if (priceIds.length !== 2) {
+      console.error("Stripe standard and premium price IDs are required for the billing portal");
       return NextResponse.json(
-        { error: "プラン管理の設定が未完了です。サポートへお問い合わせください。" },
+        { error: "プラン管理の設定が完了していません。時間をおいて再度お試しください。" },
         { status: 500 }
       );
+    }
+
+    const prices = await Promise.all(priceIds.map(priceId => stripe.prices.retrieve(priceId)));
+    if (prices.some(price => !price.active || !price.recurring || price.currency !== "jpy")) {
+      console.error("Stripe billing portal prices must be active recurring JPY prices");
+      return NextResponse.json(
+        { error: "プラン管理の設定に問題があります。サポートへお問い合わせください。" },
+        { status: 500 }
+      );
+    }
+
+    const pricesByProduct = new Map<string, string[]>();
+    for (const price of prices) {
+      const productId = typeof price.product === "string" ? price.product : price.product.id;
+      pricesByProduct.set(productId, [...(pricesByProduct.get(productId) ?? []), price.id].sort());
+    }
+    const expectedProducts = [...pricesByProduct.entries()]
+      .map(([product, productPrices]) => ({ product, prices: productPrices }))
+      .sort((a, b) => a.product.localeCompare(b.product));
+
+    const portalConfiguration = await stripe.billingPortal.configurations.retrieve(configuration);
+    const planUpdates = portalConfiguration.features.subscription_update;
+    const currentProducts = (planUpdates.products ?? [])
+      .map(product => ({ product: product.product, prices: [...product.prices].sort() }))
+      .sort((a, b) => a.product.localeCompare(b.product));
+    const configNeedsUpdate =
+      portalConfiguration.features.subscription_cancel.enabled ||
+      !planUpdates.enabled ||
+      planUpdates.proration_behavior !== "always_invoice" ||
+      JSON.stringify(currentProducts) !== JSON.stringify(expectedProducts) ||
+      planUpdates.default_allowed_updates.length !== 1 ||
+      planUpdates.default_allowed_updates[0] !== "price";
+
+    if (configNeedsUpdate) {
+      await stripe.billingPortal.configurations.update(configuration, {
+        features: {
+          subscription_cancel: { enabled: false },
+          subscription_update: {
+            enabled: true,
+            default_allowed_updates: ["price"],
+            products: expectedProducts,
+            proration_behavior: "always_invoice",
+          },
+        },
+      });
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
