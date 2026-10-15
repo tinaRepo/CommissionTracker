@@ -186,24 +186,17 @@ export default function LandingPage() {
       </section>
 
       {/* フッター */}
-      <footer style={{ borderTop: "1px solid var(--border-soft)", padding: "32px 24px" }}>
-        <div className="container" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
-          <span style={{ fontWeight: 600, fontSize: 14 }}>ツクリスト</span>
-          <div className="row" style={{ flexWrap: "wrap", gap: "4px 16px" }}>
-            {[
-              { href: "/lp", label: "サービス紹介" },
-              { href: "/guide", label: "使い方" },
-              { href: "/terms", label: "利用規約" },
-              { href: "/privacy", label: "プライバシー" },
-              { href: "/tokusho", label: "特定商取引法" },
-            ].map(link => (
-              <a key={link.href} href={link.href} style={{ fontSize: 12, color: "var(--muted)", textDecoration: "none" }}>
-                {link.label}
-              </a>
-            ))}
-          </div>
-          <span style={{ fontSize: 11, color: "var(--meta)" }}>© 2026 ツクリスト</span>
+      <footer className="app-footer">
+        <div className="footer-links">
+          {[
+            { href: "/lp", label: "サービス紹介" },
+            { href: "/guide", label: "使い方" },
+            { href: "/terms", label: "利用規約" },
+            { href: "/privacy", label: "プライバシー" },
+            { href: "/tokusho", label: "特定商取引法" },
+          ].map(link => <a key={link.href} href={link.href}>{link.label}</a>)}
         </div>
+        <div className="text-meta" style={{ marginTop: 10 }}>© 2026 ツクリスト</div>
       </footer>
     </div>
   );
