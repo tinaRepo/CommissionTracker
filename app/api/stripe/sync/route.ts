@@ -76,7 +76,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "プラン情報が先に更新されました。画面を再読み込みしてください。" }, { status: 409 });
     }
 
-    return NextResponse.json({ plan: values.plan, subscription_status: values.subscription_status });
+    return NextResponse.json({
+      plan: values.plan,
+      subscription_status: values.subscription_status,
+      cancel_at_period_end: subscription.cancel_at_period_end,
+      current_period_end: subscription.current_period_end,
+    });
   } catch (error) {
     console.error("Stripe subscription sync error:", error);
     return NextResponse.json({ error: "プラン情報を更新できませんでした。" }, { status: 500 });

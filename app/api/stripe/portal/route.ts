@@ -64,14 +64,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const pricesByProduct = new Map<string, string[]>();
-    for (const price of prices) {
-      const productId = typeof price.product === "string" ? price.product : price.product.id;
-      pricesByProduct.set(productId, [...(pricesByProduct.get(productId) ?? []), price.id].sort());
+    const premiumPrice = prices.find(price => price.id === process.env.STRIPE_PREMIUM_PRICE_ID);
+    if (!premiumPrice) {
+      console.error("Stripe premium price is missing from the billing portal prices");
+      return NextResponse.json(
+        { error: "プラン管理の設定に問題があります。サポートへお問い合わせください。" },
+        { status: 500 }
+      );
     }
-    const expectedProducts = [...pricesByProduct.entries()]
-      .map(([product, productPrices]) => ({ product, prices: productPrices }))
-      .sort((a, b) => a.product.localeCompare(b.product));
+    const premiumProductId = typeof premiumPrice.product === "string"
+      ? premiumPrice.product
+      : premiumPrice.product.id;
+    const expectedProducts = [{ product: premiumProductId, prices: [premiumPrice.id] }];
 
     const portalConfiguration = await stripe.billingPortal.configurations.retrieve(configuration);
     const planUpdates = portalConfiguration.features.subscription_update;
@@ -79,7 +83,9 @@ export async function POST(request: NextRequest) {
       .map(product => ({ product: product.product, prices: [...product.prices].sort() }))
       .sort((a, b) => a.product.localeCompare(b.product));
     const configNeedsUpdate =
-      portalConfiguration.features.subscription_cancel.enabled ||
+      !portalConfiguration.features.subscription_cancel.enabled ||
+      portalConfiguration.features.subscription_cancel.mode !== "at_period_end" ||
+      portalConfiguration.features.subscription_cancel.proration_behavior !== "none" ||
       !planUpdates.enabled ||
       planUpdates.proration_behavior !== "always_invoice" ||
       JSON.stringify(currentProducts) !== JSON.stringify(expectedProducts) ||
@@ -89,11 +95,15 @@ export async function POST(request: NextRequest) {
     if (configNeedsUpdate) {
       await stripe.billingPortal.configurations.update(configuration, {
         features: {
-          subscription_cancel: { enabled: false },
+          subscription_cancel: {
+            enabled: true,
+            mode: "at_period_end",
+            proration_behavior: "none",
+          },
           subscription_update: {
             enabled: true,
             default_allowed_updates: ["price"],
-            products: expectedProducts,
+            products: [{ product: premiumProductId, prices: [premiumPrice.id] }],
             proration_behavior: "always_invoice",
           },
         },

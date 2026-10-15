@@ -134,7 +134,7 @@ vercel dev
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`   | Stripe の公開鍵               |                                                                                       |
 | `STRIPE_SECRET_KEY`                    | Stripe の秘密鍵               | ⚠️ サーバーサイド専用                                                                  |
 | `STRIPE_WEBHOOK_SECRET`                | Stripe Webhook のシークレット |                                                                                       |
-| `STRIPE_BILLING_PORTAL_CONFIGURATION_ID` | プラン変更按分対応ポータルの Configuration ID | Stripe Dashboard で作成した設定を指定 |
+| `STRIPE_BILLING_PORTAL_CONFIGURATION_ID` | 上位プラン変更・期間終了時解約対応ポータルの Configuration ID | Stripe Dashboard で作成した設定を指定 |
 | `STRIPE_STANDARD_PRICE_ID`             | スタンダードプランの Price ID | サーバーサイド用                                                                      |
 | `STRIPE_PREMIUM_PRICE_ID`              | プレミアムプランの Price ID   | サーバーサイド用                                                                      |
 | `NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID` | スタンダードプランの Price ID | フロント用                                                                            |
@@ -177,7 +177,7 @@ vercel dev
    `invoice.payment_failed` / `invoice.paid`
    （同じイベントが再送されても1回しか処理しません。処理に失敗した場合は管理者へメールが届きます。
    `stripe_events` を含むSupabase migrationも適用してください。）
-5. **Customer portal** の設定を作成します。Configuration IDを登録すると、アプリが `STRIPE_STANDARD_PRICE_ID` / `STRIPE_PREMIUM_PRICE_ID` の商品にプラン変更対象をそろえ、変更時の日割り精算を即時請求（`always_invoice`）に設定します。また、カード返金を伴うアプリ内解約と競合しないよう、ポータル内の解約を無効にします。設定の変更にはStripe APIキーに書き込み権限が必要です。
+5. **Customer portal** の設定を作成します。Configuration IDを登録すると、アプリが上位の `STRIPE_PREMIUM_PRICE_ID` のみを変更先として設定し、アップグレード時の日割り差額を即時請求（`always_invoice`）にします。ポータル内・アプリ内の解約は契約期間終了時に反映され、期間終了までは現在のプランを利用できます。解約時の返金は自動処理せず、返金が必要な場合はお問い合わせで個別に対応します。設定の変更にはStripe APIキーに書き込み権限が必要です。
 6. 作成した設定の Configuration ID を `STRIPE_BILLING_PORTAL_CONFIGURATION_ID` として Vercel に登録し、再デプロイします。未設定時は設定されていないポータルへ誤って遷移しないよう、アプリからプラン管理を開けません。
 
 > テストキー（`sk_test_`）と本番キー（`sk_live_`）を混在させないこと。
