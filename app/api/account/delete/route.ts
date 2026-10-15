@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { EMAIL_FROM } from "@/lib/site";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { checkRateLimit, createAdminClient, getUserFromRequest } from "@/lib/server/admin";
@@ -66,7 +67,7 @@ export async function POST(request: NextRequest) {
       if (process.env.RESEND_API_KEY) {
         const resend = new Resend(process.env.RESEND_API_KEY);
         await resend.emails.send({
-          from: "ツクリスト <onboarding@resend.dev>",
+          from: EMAIL_FROM,
           to: user.email,
           subject: "【ツクリスト】アカウントを削除しました",
           html: `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1d1d1f">

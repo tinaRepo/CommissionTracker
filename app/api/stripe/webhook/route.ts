@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import { Resend } from "resend";
+import { EMAIL_FROM } from "@/lib/site";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
@@ -118,7 +119,7 @@ async function notifyPaymentFailed(admin: SupabaseClient, customerId: string) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
   const resend = new Resend(process.env.RESEND_API_KEY);
   await resend.emails.send({
-    from: "ツクリスト <onboarding@resend.dev>",
+    from: EMAIL_FROM,
     to: email,
     subject: "【ツクリスト】お支払いを確認できませんでした",
     html: `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1d1d1f">

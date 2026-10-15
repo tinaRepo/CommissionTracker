@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createClient } from "@supabase/supabase-js";
 import { createHash } from "crypto";
+import { EMAIL_FROM } from "@/lib/site";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -81,7 +82,7 @@ export async function POST(req: NextRequest) {
 
     const adminEmail = process.env.ADMIN_EMAIL!;
     const appName = "ツクリスト";
-    const fromAddr = "noreply@resend.dev"; // 独自ドメイン設定後は変更
+    const fromAddr = EMAIL_FROM;
     const replyTo = verifiedEmail ?? (email || null);
 
     // ── 管理者への通知メール ──────────────────────────────────

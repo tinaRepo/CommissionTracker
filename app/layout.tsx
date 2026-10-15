@@ -1,11 +1,12 @@
 import { PageViewTracker } from '../components/PageViewTracker';
 import AdSenseLoader from "@/components/AdSenseLoader";
 import type { Metadata } from "next";
+import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 import "./components.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://tsukurist.vercel.app"),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "ツクリスト | 納期・タスク管理ツール",
     template: "%s | ツクリスト",

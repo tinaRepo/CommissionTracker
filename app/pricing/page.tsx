@@ -1,6 +1,7 @@
 "use client";
 
 import { Icon } from "@/components/TaskShared";
+import { SUPPORT_EMAIL } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -317,7 +318,7 @@ export default function PricingPage() {
                     : "契約期間終了時に解約予定です。それまでは現在のプランをご利用いただけます。返金が必要な場合はお問い合わせください。"}
                 </p>
                 <a
-                  href="mailto:amukat0823@gmail.com?subject=%E8%BF%94%E9%87%91%E3%81%AE%E3%81%94%E7%9B%B8%E8%AB%87"
+                  href={`mailto:${SUPPORT_EMAIL}?subject=%E8%BF%94%E9%87%91%E3%81%AE%E3%81%94%E7%9B%B8%E8%AB%87`}
                   style={{ display: "inline-block", marginTop: 8, fontSize: 13 }}
                 >
                   返金についてお問い合わせ
@@ -330,7 +331,7 @@ export default function PricingPage() {
                 </button>
                 <p className="text-meta" style={{ margin: "8px auto 0", maxWidth: 520, lineHeight: 1.7 }}>
                   解約後も契約期間の終了日まではご利用いただけます。返金が必要な場合は
-                  {" "}<a href="mailto:amukat0823@gmail.com?subject=%E8%BF%94%E9%87%91%E3%81%AE%E3%81%94%E7%9B%B8%E8%AB%87">お問い合わせください</a>。
+                  {" "}<a href={`mailto:${SUPPORT_EMAIL}?subject=%E8%BF%94%E9%87%91%E3%81%AE%E3%81%94%E7%9B%B8%E8%AB%87`}>お問い合わせください</a>。
                 </p>
               </>
             )}

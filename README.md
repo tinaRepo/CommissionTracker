@@ -67,8 +67,10 @@ DBの変更・反映方法は [docs/database-operations.md](docs/database-operat
 
 | 項目          | 値                               |
 | ------------- | -------------------------------- |
-| Site URL      | `https://your-app.vercel.app`    |
-| Redirect URLs | `https://your-app.vercel.app/**` |
+| Site URL      | `https://tsukurist.com`          |
+| Redirect URLs | `https://tsukurist.com/**`、Vercel Preview のURL、`http://localhost:3000/**` |
+
+Vercel Preview の認証リダイレクトを使う場合は、実際の Preview URL（またはプロジェクト専用の Preview URL パターン）も Redirect URLs に追加します。Googleログインを使う場合、Google Cloud Console の承認済みリダイレクト URI は引き続き `https://<project-ref>.supabase.co/auth/v1/callback` です。
 
 ### 1-5. API キーの確認
 
@@ -121,7 +123,8 @@ vercel dev
 
 1. GitHub にリポジトリを push する
 2. [Vercel](https://vercel.com) → **Add New Project** → リポジトリを選択
-3. **Environment Variables** に以下を追加してデプロイ（雛形は `.env.example`）
+3. Project → **Settings → Domains** に `tsukurist.com` と `www.tsukurist.com` を登録し、表示されたDNSレコードをCloudflareのDNSに設定します。`www.tsukurist.com` はVercelで `tsukurist.com` にリダイレクトする設定にします。DNSレコードはVercelが表示する値を使い、メール用のMX/TXTレコードは削除・上書きしないでください。
+4. **Environment Variables** に以下を追加してデプロイ（雛形は `.env.example`）
 
 | 環境変数                               | 値                            | 備考                                                                                  |
 | -------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------- |
@@ -129,8 +132,8 @@ vercel dev
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY`        | Supabase の anon key          |                                                                                       |
 | `SUPABASE_SERVICE_ROLE_KEY`            | Supabase の service_role key  | ⚠️ サーバーサイド専用                                                                  |
 | `RESEND_API_KEY`                       | Resend の API キー            |                                                                                       |
-| `ADMIN_EMAIL`                          | 削除申請メールの受信アドレス  |                                                                                       |
-| `NEXT_PUBLIC_APP_URL`                  | Vercel のデプロイ URL         | 例: `https://your-app.vercel.app`（パスなし。通知のリンク先に使用）                   |
+| `ADMIN_EMAIL`                          | 管理通知・お問い合わせの受信先 | 本番・Preview とも `support@tsukurist.com` |
+| `NEXT_PUBLIC_APP_URL`                  | アプリの公開URL               | Production: `https://tsukurist.com`。Preview: 対象Vercel PreviewのURL（パスなし） |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`   | Stripe の公開鍵               |                                                                                       |
 | `STRIPE_SECRET_KEY`                    | Stripe の秘密鍵               | ⚠️ サーバーサイド専用                                                                  |
 | `STRIPE_WEBHOOK_SECRET`                | Stripe Webhook のシークレット |                                                                                       |
@@ -141,9 +144,11 @@ vercel dev
 | `NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID`  | プレミアムプランの Price ID   | フロント用                                                                            |
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY`         | Web Push の公開鍵             |                                                                                       |
 | `VAPID_PRIVATE_KEY`                    | Web Push の秘密鍵             |                                                                                       |
-| `VAPID_EMAIL`                          | Web Push 送信元メール         | 例: `mailto:xxx@example.com`                                                          |
+| `VAPID_EMAIL`                          | Web Push 送信元メール         | `mailto:support@tsukurist.com`                                                        |
 | `CRON_SECRET`                          | Cron Job 認証用シークレット   | ⚠️ 16文字以上。自分で生成する（[4. 外部サービス設定](#cron-jobの認証cron_secret)参照） |
 | `HEALTHCHECKS_PING_URL`                | 死活監視の ping URL（任意）   | Healthchecks.io 等で作成。Cron 成功のたびに ping し、途切れると通知される             |
+
+VercelのEnvironment Variablesは、ProductionとPreviewそれぞれに設定します。`NEXT_PUBLIC_APP_URL` はProductionでは `https://tsukurist.com`、PreviewではVercelのPreview URLにしてください。Previewもメール送信元と宛先は本番と同じ `support@tsukurist.com` を使うため、Previewから送信した通知も本番の受信箱に届きます。決済・メール・アカウント削除のテスト時は注意してください。
 
 > ⚠️ 環境変数を追加・変更した後は必ず **Redeploy** すること
 
@@ -155,14 +160,13 @@ vercel dev
 
 アカウント削除申請の通知メール、お問い合わせフォームの管理者通知・ユーザー自動返信メールに使用します。
 
-1. [resend.com](https://resend.com) でアカウント作成（無料・月 3,000 通まで）
-2. **Dashboard → API Keys → Create API Key** で発行
-3. 発行したキーを `RESEND_API_KEY` として Vercel に設定
-4. `ADMIN_EMAIL` に受信先アドレスを設定
+1. [resend.com](https://resend.com) でアカウントを作成し、送信ドメイン `tsukurist.com` を追加します。
+2. Resendが表示するSPF/DKIM等のDNSレコードをCloudflareに登録し、Resend側でドメイン認証が完了したことを確認します。既存のSPFレコードがある場合は、別のSPFレコードを追加せず、送信サービスを同じレコードに統合してください。
+3. **Dashboard → API Keys → Create API Key** で発行し、`RESEND_API_KEY` としてVercelのProduction・Preview両方に設定します。
+4. `ADMIN_EMAIL` を `support@tsukurist.com` に設定します。アプリからのメールは `ツクリスト <support@tsukurist.com>` を送信元として送ります。
+5. 受信にはメールボックス提供元が必要です。Cloudflare Email Routingを使う場合は `support@tsukurist.com` から既存の受信箱への転送を設定し、Cloudflareに案内されるMX/TXTレコードを追加します。メールボックスサービスを契約する場合は、そのサービスのMXレコードを設定してください。Cloudflareでのドメイン取得だけではメールボックスは作成されません。
 
-> 無料プランは `onboarding@resend.dev` からの送信のみ。独自ドメインで送信したい場合は DNS 設定が必要です。
-
-> Supabase Authのメール送信元を独自ドメインにする場合は、Resend SMTPを設定してください。
+Preview環境も認証済みドメインからメールを送るため、検証メールが実ユーザーへ届かないよう宛先に注意してください。Supabase Authの確認メール・パスワード再設定メールも `support@tsukurist.com` から送るには、Supabase Dashboard → **Project Settings → Authentication → SMTP Settings** でカスタムSMTPを有効にし、ResendのSMTP情報（ホスト・ポート・ユーザー名・APIキー）と送信元 `support@tsukurist.com` を設定します。Previewでの認証メールも本番の受信箱に届きます。
 
 ### Stripe（サブスクリプション）
 
@@ -171,7 +175,7 @@ vercel dev
 1. [stripe.com](https://stripe.com) でアカウント作成
 2. **Products** でスタンダード（¥300/月）・プレミアム（¥800/月）の商品を作成
 3. 各 Price ID を環境変数に設定
-4. **Webhooks** に `https://your-app.vercel.app/api/stripe/webhook` を登録し、次のイベントを有効化：
+4. **Webhooks** に本番URL `https://tsukurist.com/api/stripe/webhook` を登録し、次のイベントを有効化：
    `checkout.session.completed` / `checkout.session.async_payment_succeeded` /
    `customer.subscription.created` / `customer.subscription.updated` / `customer.subscription.deleted` /
    `invoice.payment_failed` / `invoice.paid`

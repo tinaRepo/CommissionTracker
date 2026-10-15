@@ -1,6 +1,7 @@
 "use client";
 
 import { Icon } from "@/components/TaskShared";
+import { SITE_URL, SUPPORT_EMAIL } from "@/lib/site";
 // ページメタデータ
 export default function TokushoPage() {
   return (
@@ -18,9 +19,9 @@ export default function TokushoPage() {
               ["運営責任者", "中沢拓真"],
               ["所在地", "請求があった場合は遅滞なく開示します"],
               ["電話番号", "お問い合わせいただいた場合に遅滞なく開示いたします"],
-              ["メールアドレス・お問い合わせ", "amukat0823@gmail.com"],
+              ["メールアドレス・お問い合わせ", <a key="support-email" href={`mailto:${SUPPORT_EMAIL}`} style={{ color: "var(--accent)" }}>{SUPPORT_EMAIL}</a>],
               ["サービス名", "ツクリスト"],
-              ["サービスURL", "https://tsukurist.vercel.app"],
+              ["サービスURL", SITE_URL],
               ["販売価格",
                 "■ 無料プラン：0円\n■ スタンダードプラン：月額300円（税込）\n■ プレミアムプラン：月額800円（税込）\n※料金はすべて日本円・税込表示"],
               ["代金の支払い方法", "クレジットカード決済（Stripe）\n対応カード：Visa・Mastercard・American Express・JCB等"],
@@ -33,9 +34,9 @@ export default function TokushoPage() {
               ["返品・返金ポリシー",
                 "デジタルコンテンツの性質上、原則として返金・キャンセルは承っておりません。\nただし、サービスの重大な不具合等により提供できなかった場合はこの限りではありません。\nご不明な点はお問い合わせフォームよりご連絡ください。"],
               ["動作環境", "最新バージョンのChrome・Safari・Firefox・Edge（インターネット接続が必要）"],
-              ["個人情報の取り扱い", "プライバシーポリシー（https://tsukurist.vercel.app/privacy）に従い適切に管理します。"],
+              ["個人情報の取り扱い", `プライバシーポリシー（${SITE_URL}/privacy）に従い適切に管理します。`],
             ].map(([label, value]) => (
-              <tr key={label} style={{ borderBottom: "1px solid var(--border-soft)" }}>
+              <tr key={String(label)} style={{ borderBottom: "1px solid var(--border-soft)" }}>
                 <td style={{ padding: "14px 12px", fontWeight: 600, color: "var(--muted)", width: 200, verticalAlign: "top", background: "var(--bg)", fontSize: 13, whiteSpace: "nowrap" }}>{label}</td>
                 <td style={{ padding: "14px 12px", color: "var(--fg-2)", lineHeight: 1.8, whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{value}</td>
               </tr>

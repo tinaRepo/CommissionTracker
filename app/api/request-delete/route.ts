@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { EMAIL_FROM } from "@/lib/site";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
 
     // 管理者にメール送信
     const { error: mailErr } = await resend.emails.send({
-      from: "ツクリスト <onboarding@resend.dev>",
+      from: EMAIL_FROM,
       to: adminEmail,
       subject: `【削除申請】${subjectName} さんからアカウント削除の申請が届きました`,
       html: `

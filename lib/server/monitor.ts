@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { checkRateLimit } from "./admin";
+import { EMAIL_FROM } from "@/lib/site";
 
 // ============================================================
 // 監視まわりの共通処理
@@ -27,7 +28,7 @@ export async function alertAdmin(
 
     const resend = new Resend(process.env.RESEND_API_KEY);
     await resend.emails.send({
-      from: "ツクリスト 監視 <onboarding@resend.dev>",
+      from: EMAIL_FROM,
       to,
       subject: `【ツクリスト障害】${subject}`.replace(/[\r\n]+/g, " ").slice(0, 150),
       html: `<div style="font-family:sans-serif"><p>${esc(subject)}</p><pre style="background:#f5f5f7;padding:12px;border-radius:8px;white-space:pre-wrap">${esc(detail).slice(0, 4000)}</pre><p style="color:#6e6e73;font-size:12px">${esc(new Date().toISOString())}</p></div>`,
