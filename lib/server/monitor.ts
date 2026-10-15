@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { checkRateLimit } from "./admin";
+import { adminAlertEmail, getSupportEmail, getSupportFrom } from "@/lib/email-templates";
 
 // ============================================================
 // 監視まわりの共通処理
@@ -10,10 +11,6 @@ import { checkRateLimit } from "./admin";
 //   - pingHealthchecks : Healthchecks.io 等の「死活監視（Dead man's switch）」へ通知（任意）
 // ============================================================
 
-function esc(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
 export async function alertAdmin(
   admin: SupabaseClient, key: string, subject: string, detail: string
 ): Promise<void> {
@@ -22,15 +19,14 @@ export async function alertAdmin(
     const rl = await checkRateLimit(admin, `alert:${key}`, 1, 3600);
     if (rl !== "ok") return;
 
-    const to = process.env.ADMIN_EMAIL;
-    if (!to || !process.env.RESEND_API_KEY) return;
+    if (!process.env.RESEND_API_KEY) return;
+    const to = getSupportEmail();
 
     const resend = new Resend(process.env.RESEND_API_KEY);
     await resend.emails.send({
-      from: "ツクリスト 監視 <onboarding@resend.dev>",
+      from: getSupportFrom(),
       to,
-      subject: `【ツクリスト障害】${subject}`.replace(/[\r\n]+/g, " ").slice(0, 150),
-      html: `<div style="font-family:sans-serif"><p>${esc(subject)}</p><pre style="background:#f5f5f7;padding:12px;border-radius:8px;white-space:pre-wrap">${esc(detail).slice(0, 4000)}</pre><p style="color:#6e6e73;font-size:12px">${esc(new Date().toISOString())}</p></div>`,
+      ...adminAlertEmail(subject, detail, new Date().toISOString()),
     });
   } catch (e) {
     // アラート自体の失敗でメイン処理を止めない

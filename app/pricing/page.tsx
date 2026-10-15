@@ -1,6 +1,7 @@
 "use client";
 
 import { Icon } from "@/components/TaskShared";
+import { SUPPORT_EMAIL } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,8 @@ export default function PricingPage() {
   const [hasSubscription, setHasSubscription] = useState(false);
   const [checkoutStatus, setCheckoutStatus] = useState<string | null>(null);
   const [billingRefreshing, setBillingRefreshing] = useState(false);
+  const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState(false);
+  const [currentPeriodEnd, setCurrentPeriodEnd] = useState<number | null>(null);
 
   // ユーザーのセッションを取得し、現在のプランとサブスクリプション状況を設定する
   useEffect(() => {
@@ -62,9 +65,14 @@ export default function PricingPage() {
               method: "POST",
               headers: { "Authorization": `Bearer ${session.access_token}` },
             });
+            const result = await response.json();
             if (!response.ok) {
-              const result = await response.json();
               console.error("Stripe portal return sync failed:", result.error);
+            } else if (!cancelled) {
+              setCurrentPlan(result.plan ?? "free");
+              setHasSubscription(["active", "past_due"].includes(result.subscription_status ?? ""));
+              setCancelAtPeriodEnd(!!result.cancel_at_period_end);
+              setCurrentPeriodEnd(result.current_period_end ?? null);
             }
           } catch (error) {
             console.error("Stripe portal return sync request failed:", error);
@@ -74,7 +82,7 @@ export default function PricingPage() {
 
         const { data, error } = await supabase
           .from("user_profiles")
-          .select("plan, stripe_customer_id, subscription_status")
+          .select("plan, stripe_customer_id, stripe_subscription_id, subscription_status")
           .eq("id", session.user.id)
           .single();
         if (error) {
@@ -82,6 +90,26 @@ export default function PricingPage() {
         } else if (data && !cancelled) {
           setCurrentPlan(data.plan ?? "free");
           setHasSubscription(!!data.stripe_customer_id && ["active", "past_due"].includes(data.subscription_status ?? ""));
+          if (data.stripe_subscription_id && !returnedFromPortal) {
+            setBillingRefreshing(true);
+            try {
+              const response = await fetch("/api/stripe/sync", {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${session.access_token}` },
+              });
+              const result = await response.json();
+              if (!response.ok) {
+                console.error("Stripe subscription sync failed:", result.error);
+              } else if (!cancelled) {
+                setCurrentPlan(result.plan ?? "free");
+                setHasSubscription(["active", "past_due"].includes(result.subscription_status ?? ""));
+                setCancelAtPeriodEnd(!!result.cancel_at_period_end);
+                setCurrentPeriodEnd(result.current_period_end ?? null);
+              }
+            } catch (error) {
+              console.error("Stripe subscription sync request failed:", error);
+            }
+          }
         }
       } finally {
         if (!cancelled) setBillingRefreshing(false);
@@ -138,7 +166,7 @@ export default function PricingPage() {
   }
 
   async function handleCancelSubscription() {
-    if (!window.confirm("有料プランを今すぐ解約します。未使用期間分は日割り計算し、支払い済み金額を上限として元のカードへ返金します。解約しますか？")) return;
+    if (!window.confirm("解約を予約します。現在の契約期間終了日までは有料プランを引き続き利用できます。期間終了後は自動更新されません。解約しますか？")) return;
 
     setLoading("cancel");
     try {
@@ -150,19 +178,18 @@ export default function PricingPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        alert(data.error ?? "解約・返金の処理を完了できませんでした。");
+        alert(data.error ?? "解約予約を完了できませんでした。");
         return;
       }
 
-      setCurrentPlan("free");
-      setHasSubscription(false);
-      alert(data.refunded
-        ? "解約しました。未使用期間分の日割り返金を元のカードへ依頼しました。返金の反映時期はカード会社により異なります。"
-        : data.refundReason === "no_proration"
-          ? "解約しました。Stripeの日割り計算で返金対象となる未使用期間分はありませんでした。"
-          : "解約しましたが、現在の契約期間に紐づく返金可能なカード決済を確認できませんでした。サンドボックスでも返金処理は可能です。返金について確認が必要な場合はサポートへお問い合わせください。");
+      setCancelAtPeriodEnd(data.cancelAtPeriodEnd);
+      setCurrentPeriodEnd(data.currentPeriodEnd ?? null);
+      const endDate = data.currentPeriodEnd
+        ? new Date(data.currentPeriodEnd * 1000).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" })
+        : "契約期間終了日";
+      alert(`${endDate}に解約されます。それまでは現在のプランを引き続きご利用いただけます。返金が必要な場合はお問い合わせください。`);
     } catch {
-      alert("解約・返金の処理を完了できませんでした。時間をおいて再度お試しください。");
+      alert("解約予約を完了できませんでした。時間をおいて再度お試しください。");
     } finally {
       setLoading(null);
     }
@@ -194,7 +221,7 @@ export default function PricingPage() {
             {billingRefreshing && <span style={{ marginLeft: 8 }}>更新中…</span>}
           </div>
           <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 8 }}>プランを選択してください</h1>
-          <p className="text-muted" style={{ fontSize: 14 }}>月額制・プラン変更や解約はいつでも可能</p>
+          <p className="text-muted" style={{ fontSize: 14 }}>月額制・アップグレードや解約の予約はいつでも可能</p>
         </div>
 
         <div style={{
@@ -256,9 +283,13 @@ export default function PricingPage() {
 
                 {isCurrent ? (
                   <div className="btn btn-secondary btn-block" style={{ cursor: "default" }}>利用中</div>
+                ) : hasSubscription && plan.price > (PLANS.find(p => p.key === currentPlan)?.price ?? 0) ? (
+                  <div className="btn btn-secondary btn-block" style={{ cursor: "default", color: "var(--meta)" }}>
+                    上位プランへの変更は管理画面から
+                  </div>
                 ) : hasSubscription ? (
                   <div className="btn btn-secondary btn-block" style={{ cursor: "default", color: "var(--meta)" }}>
-                    プラン・支払い管理をご利用ください
+                    下位プランは現在の契約期間終了後にお申し込みください
                   </div>
                 ) : (
                   <button onClick={() => plan.priceId && handleSubscribe(plan.priceId)} disabled={!!loading} className="btn btn-primary btn-block">
@@ -275,16 +306,35 @@ export default function PricingPage() {
             <button onClick={handlePortal} disabled={loading === "portal"} className="btn btn-secondary">
               {loading === "portal" ? "処理中…" : "プラン・支払い管理"}
             </button>
-            <div className="text-meta" style={{ marginTop: 8 }}>Stripeでプラン変更や支払い方法を管理できます</div>
+            <div className="text-meta" style={{ marginTop: 8 }}>Stripeで上位プランへの変更や支払い方法を管理できます</div>
             <p className="text-meta" style={{ margin: "8px auto 0", maxWidth: 520, lineHeight: 1.7 }}>
-              プラン変更は残り期間に応じて日割り計算されます。プランの解約はこの画面から行えます。
+              上位プランへの変更時は残り期間に応じた差額を日割り計算して請求します。解約は契約期間の終了時に反映されます。
             </p>
-            <button onClick={handleCancelSubscription} disabled={!!loading} className="btn btn-danger" style={{ marginTop: 16 }}>
-              {loading === "cancel" ? "解約処理中…" : "有料プランを解約する"}
-            </button>
-            <p className="text-meta" style={{ margin: "8px auto 0", maxWidth: 520, lineHeight: 1.7 }}>
-              解約は即時に反映されます。未使用期間分は日割り計算し、支払い済み金額を上限として元のカードへ返金します。
-            </p>
+            {cancelAtPeriodEnd ? (
+              <>
+                <p className="text-meta" style={{ margin: "16px auto 0", maxWidth: 520, lineHeight: 1.7 }}>
+                  {currentPeriodEnd
+                    ? `${new Date(currentPeriodEnd * 1000).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" })}に解約予定です。それまでは現在のプランをご利用いただけます。返金が必要な場合はお問い合わせください。`
+                    : "契約期間終了時に解約予定です。それまでは現在のプランをご利用いただけます。返金が必要な場合はお問い合わせください。"}
+                </p>
+                <a
+                  href={`mailto:${SUPPORT_EMAIL}?subject=%E8%BF%94%E9%87%91%E3%81%AE%E3%81%94%E7%9B%B8%E8%AB%87`}
+                  style={{ display: "inline-block", marginTop: 8, fontSize: 13 }}
+                >
+                  返金についてお問い合わせ
+                </a>
+              </>
+            ) : (
+              <>
+                <button onClick={handleCancelSubscription} disabled={!!loading} className="btn btn-danger" style={{ marginTop: 16 }}>
+                  {loading === "cancel" ? "解約予約中…" : "有料プランを解約する"}
+                </button>
+                <p className="text-meta" style={{ margin: "8px auto 0", maxWidth: 520, lineHeight: 1.7 }}>
+                  解約後も契約期間の終了日まではご利用いただけます。返金が必要な場合は
+                  {" "}<a href={`mailto:${SUPPORT_EMAIL}?subject=%E8%BF%94%E9%87%91%E3%81%AE%E3%81%94%E7%9B%B8%E8%AB%87`}>お問い合わせください</a>。
+                </p>
+              </>
+            )}
           </div>
         )}
 

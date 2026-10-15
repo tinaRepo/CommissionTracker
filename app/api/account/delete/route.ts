@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { accountDeletedEmail, getNoReplyFrom } from "@/lib/email-templates";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { checkRateLimit, createAdminClient, getUserFromRequest } from "@/lib/server/admin";
@@ -66,13 +67,9 @@ export async function POST(request: NextRequest) {
       if (process.env.RESEND_API_KEY) {
         const resend = new Resend(process.env.RESEND_API_KEY);
         await resend.emails.send({
-          from: "ツクリスト <onboarding@resend.dev>",
+          from: getNoReplyFrom(),
           to: user.email,
-          subject: "【ツクリスト】アカウントを削除しました",
-          html: `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1d1d1f">
-            <h2 style="font-weight:600">アカウントを削除しました</h2>
-            <p style="line-height:1.8">ご利用ありがとうございました。登録データ・アップロード画像・通知の宛先情報を削除し、有料プランをご利用中だった場合は解約しました。</p>
-            <p style="line-height:1.8;color:#6e6e73;font-size:13px">心当たりがない場合は、お問い合わせフォームからご連絡ください。</p></div>`,
+          ...accountDeletedEmail(),
         });
       }
     } catch (e) {

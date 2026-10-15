@@ -1,6 +1,8 @@
 "use client";
 
 import { Icon } from "@/components/TaskShared";
+import { SITE_URL } from "@/lib/site";
+import { SUPPORT_EMAIL } from "@/lib/site";
 // ページメタデータ
 export default function TokushoPage() {
   return (
@@ -18,9 +20,9 @@ export default function TokushoPage() {
               ["運営責任者", "中沢拓真"],
               ["所在地", "請求があった場合は遅滞なく開示します"],
               ["電話番号", "お問い合わせいただいた場合に遅滞なく開示いたします"],
-              ["メールアドレス・お問い合わせ", "amukat0823@gmail.com"],
+              ["メールアドレス・お問い合わせ", <a key="support-email" href={`mailto:${SUPPORT_EMAIL}`} style={{ color: "var(--accent)" }}>{SUPPORT_EMAIL}</a>],
               ["サービス名", "ツクリスト"],
-              ["サービスURL", "https://tsukurist.vercel.app"],
+              ["サービスURL", SITE_URL],
               ["販売価格",
                 "■ 無料プラン：0円\n■ スタンダードプラン：月額300円（税込）\n■ プレミアムプラン：月額800円（税込）\n※料金はすべて日本円・税込表示"],
               ["代金の支払い方法", "クレジットカード決済（Stripe）\n対応カード：Visa・Mastercard・American Express・JCB等"],
@@ -29,13 +31,13 @@ export default function TokushoPage() {
               ["サービス提供方法", "インターネット上のWebアプリケーションとして提供します。"],
               ["契約期間", "月単位の自動更新制です。解約するまで毎月自動で更新されます。"],
               ["解約・キャンセル",
-                "アプリ内のプラン画面からいつでも解約できます。解約は即時に反映されます。\n未使用期間分は日割り計算し、支払い済み金額を上限として元のカードへ返金します。返金の反映時期はカード会社により異なります。\nプラン変更時も残り期間に応じた差額を日割り計算します。アカウント削除時の解約は返金の対象外です。"],
+                "アプリ内のプラン画面またはStripeのカスタマーポータルからいつでも解約を予約できます。解約は契約期間終了時に反映され、終了日までは現在のプランをご利用いただけます。\n有料プランへのアップグレード時は、残り期間に応じた差額を日割り計算して請求します。解約による返金は原則行いません。返金が必要な場合はお問い合わせください。アカウント削除時は即時解約となり、残り期間分の返金はありません。"],
               ["返品・返金ポリシー",
                 "デジタルコンテンツの性質上、原則として返金・キャンセルは承っておりません。\nただし、サービスの重大な不具合等により提供できなかった場合はこの限りではありません。\nご不明な点はお問い合わせフォームよりご連絡ください。"],
               ["動作環境", "最新バージョンのChrome・Safari・Firefox・Edge（インターネット接続が必要）"],
-              ["個人情報の取り扱い", "プライバシーポリシー（https://tsukurist.vercel.app/privacy）に従い適切に管理します。"],
+              ["個人情報の取り扱い", `プライバシーポリシー（${SITE_URL}/privacy）に従い適切に管理します。`],
             ].map(([label, value]) => (
-              <tr key={label} style={{ borderBottom: "1px solid var(--border-soft)" }}>
+              <tr key={String(label)} style={{ borderBottom: "1px solid var(--border-soft)" }}>
                 <td style={{ padding: "14px 12px", fontWeight: 600, color: "var(--muted)", width: 200, verticalAlign: "top", background: "var(--bg)", fontSize: 13, whiteSpace: "nowrap" }}>{label}</td>
                 <td style={{ padding: "14px 12px", color: "var(--fg-2)", lineHeight: 1.8, whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{value}</td>
               </tr>

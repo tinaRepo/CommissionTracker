@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 
-// ⚠ 実際のデプロイドメインが確定したら差し替えること
-export const SITE_URL = "https://tsukurist.vercel.app";
+export { SITE_URL } from "@/lib/site";
 
 export function createPublicPageMetadata(title: string, description: string, pathname: string): Metadata {
     return {

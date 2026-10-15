@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createClient } from "@supabase/supabase-js";
 import { createHash } from "crypto";
+import {
+  contactNotificationEmail,
+  contactReceiptEmail,
+  getNoReplyFrom,
+  getSupportEmail,
+  getSupportFrom,
+} from "@/lib/email-templates";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -79,95 +86,23 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const adminEmail = process.env.ADMIN_EMAIL!;
-    const appName = "ツクリスト";
-    const fromAddr = "noreply@resend.dev"; // 独自ドメイン設定後は変更
+    const adminEmail = getSupportEmail();
     const replyTo = verifiedEmail ?? (email || null);
+    const notification = contactNotificationEmail({ name, replyTo, verifiedEmail, subject, body });
 
-    // ── 管理者への通知メール ──────────────────────────────────
     await resend.emails.send({
-      from: fromAddr,
+      from: getSupportFrom(),
       to: adminEmail,
       ...(replyTo ? { replyTo } : {}), // 返信先をユーザーに設定
-      subject: `[お問い合わせ] ${subject}`,
-      html: `
-        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:640px;margin:0 auto;padding:20px;color:#1d1d1f">
-          <div style="margin-bottom:24px">
-            <div style="font-size:12px;color:#6e6e73;font-weight:600">
-              ${appName}
-            </div>
-            <h1 style="margin:8px 0 0;font-size:24px;font-weight:600;color:#1d1d1f">
-              新しいお問い合わせ
-            </h1>
-          </div>
-          <div style="border:1px solid #e0e0e0;border-radius:12px;overflow:hidden">
-            <table style="width:100%;border-collapse:collapse;font-size:14px">
-              <tr>
-                <td style="background:#f5f5f7;padding:14px;font-weight:600;width:120px">お名前</td>
-                <td style="padding:14px">${esc(name)}</td>
-              </tr>
-              <tr>
-                <td style="background:#f5f5f7;padding:14px;font-weight:600">メール</td>
-                <td style="padding:14px">${replyTo ? esc(replyTo) : "（未入力）"}${verifiedEmail ? "（ログイン確認済み）" : replyTo ? "（未確認）" : ""}</td>
-              </tr>
-              <tr>
-                <td style="background:#f5f5f7;padding:14px;font-weight:600">件名</td>
-                <td style="padding:14px">${esc(subject)}</td>
-              </tr>
-            </table>
-          </div>
-          <div style="margin-top:20px">
-            <div style="font-size:13px;font-weight:600;color:#6e6e73;margin-bottom:8px">お問い合わせ内容</div>
-            <div style="background:#fafafc;border:1px solid #e0e0e0;border-radius:12px;padding:16px;line-height:1.8;white-space:pre-wrap;">${esc(body)}</div>
-          </div>
-          <div style="margin-top:24px;padding-top:16px;border-top:1px solid #e0e0e0;font-size:12px;color:#6e6e73;">${replyTo ? "返信ボタンからユーザーへ直接返信できます。" : "メールアドレスは入力されていません。"}
-          </div>
-        </div>
-      `,
+      ...notification,
     });
 
-    // ── ユーザーへの自動返信（ログイン済みで、メールアドレスを確認できた場合のみ）────
     if (verifiedEmail) {
+      const receipt = contactReceiptEmail({ name, subject, body });
       await resend.emails.send({
-        from: fromAddr,
+        from: getNoReplyFrom(),
         to: verifiedEmail,
-        subject: `【${appName}】お問い合わせを受け付けました`,
-        html: `
-          <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:640px;margin:0 auto;background:#ffffff;color:#1d1d1f;">
-            <div style="background:#272729;padding:32px 24px;border-radius:18px 18px 0 0;color:#ffffff;">
-              <div style="font-size:14px;opacity:0.8">
-                ${appName}
-              </div>
-              <h1 style="margin:8px 0 0;font-size:24px;line-height:1.4;font-weight:600;color:#ffffff;">
-                お問い合わせを受け付けました
-              </h1>
-            </div>
-            <div style="border:1px solid #e0e0e0;border-top:none;border-radius:0 0 18px 18px;padding:24px;">
-              <p style="margin:0 0 20px;line-height:1.9;">
-                ${esc(name)} 様
-              </p>
-              <p style="margin:0 0 20px;line-height:1.9;">
-                ${appName}をご利用いただきありがとうございます。<br>
-                以下の内容でお問い合わせを受け付けました。<br>
-                通常2〜3営業日以内にご返信いたします。
-              </p>
-              <div style="background:#f5f5f7;border-radius:12px;padding:18px;margin:24px 0;">
-                <div style="margin-bottom:12px">
-                  <div style="font-size:12px;color:#6e6e73;margin-bottom:4px;">件名</div>
-                  <div style="font-weight:600;">${esc(subject)}</div>
-                </div>
-                <div>
-                  <div style="font-size:12px;color:#6e6e73;margin-bottom:4px;">お問い合わせ内容</div>
-                  <div style="line-height:1.8;white-space:pre-wrap;">${esc(body)}</div>
-                </div>
-              </div>
-            </div>
-            <p style="margin:24px 0 0;color:#6e6e73;font-size:13px;line-height:1.8;">
-              このメールは自動送信されています。<br>
-              本メールへの返信には対応しておりません。
-            </p>
-          </div>
-        `,
+        ...receipt,
       });
     }
 
@@ -176,14 +111,4 @@ export async function POST(req: NextRequest) {
     console.error("contact route error:", e);
     return NextResponse.json({ error: "メール送信に失敗しました" }, { status: 500 });
   }
-}
-
-/** XSS防止のHTMLエスケープ */
-function esc(str: string): string {
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
 }
