@@ -94,9 +94,38 @@ export default function PricingPage() {
       });
       const data = await res.json();
       if (data.url) window.location.href = data.url;
-      else alert("エラーが発生しました");
+      else alert(data.error ?? "エラーが発生しました");
     } catch {
       alert("エラーが発生しました");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function handleCancelSubscription() {
+    if (!window.confirm("有料プランを今すぐ解約します。未使用期間分は日割り計算し、支払い済み金額を上限として元のカードへ返金します。解約しますか？")) return;
+
+    setLoading("cancel");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token ?? "";
+      const res = await fetch("/api/stripe/cancel", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error ?? "解約・返金の処理を完了できませんでした。");
+        return;
+      }
+
+      setCurrentPlan("free");
+      setHasSubscription(false);
+      alert(data.refunded
+        ? "解約しました。未使用期間分の日割り返金を元のカードへ依頼しました。返金の反映時期はカード会社により異なります。"
+        : "解約しました。今回、返金対象となる未使用期間分はありませんでした。");
+    } catch {
+      alert("解約・返金の処理を完了できませんでした。時間をおいて再度お試しください。");
     } finally {
       setLoading(null);
     }
@@ -127,21 +156,21 @@ export default function PricingPage() {
             <strong style={{ color: "var(--fg)" }}> {PLANS.find(p => p.key === currentPlan)?.label ?? "無料"}</strong>
           </div>
           <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 8 }}>プランを選択してください</h1>
-          <p className="text-muted" style={{ fontSize: 14 }}>いつでもキャンセル可能・月額制</p>
+          <p className="text-muted" style={{ fontSize: 14 }}>月額制・プラン変更や解約はいつでも可能</p>
         </div>
 
         <div style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap",
-          marginBottom: 28, padding: "18px 20px", background: "var(--bg)",
+          display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
+          marginBottom: 28, padding: "22px 20px", background: "var(--bg)",
           border: "1px solid var(--border-soft)", borderRadius: "var(--radius-md)",
         }}>
-          <div>
-            <div style={{ fontWeight: 600, marginBottom: 4 }}>プラン選択の前にデモでお試しいただけます</div>
-            <div className="text-muted" style={{ fontSize: 13, lineHeight: 1.6 }}>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontWeight: 600, marginBottom: 6 }}>プラン選択の前にデモでお試しいただけます</div>
+            <div className="text-muted" style={{ fontSize: 13, lineHeight: 1.7 }}>
               デモ画面では、カレンダー表示のイメージや共有ページのサンプルをご覧いただけます。
             </div>
           </div>
-          <a href="/demo" className="btn btn-secondary" style={{ textDecoration: "none", flexShrink: 0 }}>
+          <a href="/demo" className="btn btn-secondary" style={{ textDecoration: "none" }}>
             デモ画面を見る
           </a>
         </div>
@@ -206,16 +235,22 @@ export default function PricingPage() {
         {hasSubscription && (
           <div style={{ textAlign: "center" }}>
             <button onClick={handlePortal} disabled={loading === "portal"} className="btn btn-secondary">
-              {loading === "portal" ? "処理中…" : "プラン・支払い管理（解約・変更はこちら）"}
+              {loading === "portal" ? "処理中…" : "プラン・支払い管理"}
             </button>
-            <div className="text-meta" style={{ marginTop: 8 }}>Stripeのカスタマーポータルに移動します</div>
+            <div className="text-meta" style={{ marginTop: 8 }}>Stripeでプラン変更や支払い方法を管理できます</div>
             <p className="text-meta" style={{ margin: "8px auto 0", maxWidth: 520, lineHeight: 1.7 }}>
-              解約手続き後も契約期間終了までは現在のプランをご利用いただけます。契約終了までは、他のプランへの変更・新規契約はできません。
+              プラン変更は残り期間に応じて日割り計算されます。プランの解約はこの画面から行えます。
+            </p>
+            <button onClick={handleCancelSubscription} disabled={!!loading} className="btn btn-danger" style={{ marginTop: 16 }}>
+              {loading === "cancel" ? "解約処理中…" : "有料プランを解約する"}
+            </button>
+            <p className="text-meta" style={{ margin: "8px auto 0", maxWidth: 520, lineHeight: 1.7 }}>
+              解約は即時に反映されます。未使用期間分は日割り計算し、支払い済み金額を上限として元のカードへ返金します。
             </p>
           </div>
         )}
 
-        <div style={{ marginTop: 40, padding: "16px 20px", background: "var(--bg)", borderRadius: "var(--radius-md)", fontSize: 13, color: "var(--muted)", lineHeight: 1.7, textAlign: "center" }}>
+        <div style={{ maxWidth: 640, margin: "40px auto 0", padding: "16px 20px", background: "var(--bg)", border: "1px solid var(--border-soft)", borderRadius: "var(--radius-md)", fontSize: 13, color: "var(--muted)", lineHeight: 1.8, textAlign: "center" }}>
           決済はStripeで安全に処理されます。カード情報は当サービスのサーバーには保存されません。
         </div>
       </main>
