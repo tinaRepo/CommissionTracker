@@ -149,7 +149,10 @@ function DemoImageSection({ task, onChange }: {
   );
 }
 
-export default function DemoApp() {
+export default function DemoApp({ returnPath, onBack }: {
+  returnPath: string | null;
+  onBack: () => void;
+}) {
   const [tasks, setTasks] = useState<DemoTask[]>([]);
   const search = useTaskSearch(tasks);
   const [showForm, setShowForm] = useState(false);
@@ -230,9 +233,12 @@ export default function DemoApp() {
       {/* デモバナー */}
       <div className="row" style={{
         background: "var(--fg)", color: "var(--bg)",
-        justifyContent: "center", padding: "10px 16px", fontSize: 13, fontWeight: 600
+        justifyContent: "center", padding: "10px 16px", fontSize: 13, fontWeight: 600, gap: 16, flexWrap: "wrap"
       }}>
         デモモード中 — データはリロードで消えます。
+        <button onClick={onBack} disabled={!returnPath} className="btn btn-inverse-outline btn-sm">
+          {returnPath === "/pricing" ? "課金ページに戻る" : "ログイン画面に戻る"}
+        </button>
       </div>
 
       {/* Header */}
