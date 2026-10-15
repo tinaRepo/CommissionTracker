@@ -407,6 +407,18 @@
   height: 44px;
 }
 
+.tag-multi-select-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  list-style: none;
+  cursor: pointer;
+}
+
+.tag-multi-select-summary::-webkit-details-marker {
+  display: none;
+}
+
 .input:focus,
 .textarea:focus,
 .select:focus {
@@ -1068,34 +1080,6 @@
   max-width: 120px;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-/* フォーム内のタグ選択（トグル式） */
-.tag-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
-  min-height: 32px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--fg-2);
-  font-size: 13px;
-  transition: background var(--duration-fast) var(--ease-standard),
-    border-color var(--duration-fast) var(--ease-standard),
-    transform var(--duration-fast) var(--ease-standard);
-}
-
-.tag-chip:active {
-  transform: scale(0.95);
-}
-
-.tag-chip.on {
-  background: var(--accent-soft);
-  border-color: var(--accent);
-  color: var(--accent);
-  font-weight: 600;
 }
 
 /* ---------------- Segmented control（リスト / カレンダー切替） ---------------- */

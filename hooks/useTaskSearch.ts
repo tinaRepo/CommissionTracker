@@ -41,8 +41,11 @@ export type UseTaskSearchResult<T> = {
   // 詳細検索パネルの開閉・条件（開閉式UI用）
   showFilters: boolean;
   setShowFilters: (v: boolean) => void;
-  keyword: string;
-  setKeyword: (v: string) => void;
+  titleKeyword: string; setTitleKeyword: (v: string) => void;
+  assigneeKeyword: string; setAssigneeKeyword: (v: string) => void;
+  contactKeyword: string; setContactKeyword: (v: string) => void;
+  notesKeyword: string; setNotesKeyword: (v: string) => void;
+  detailTagIds: string[]; setDetailTagIds: (v: string[]) => void;
   orderedFrom: string; setOrderedFrom: (v: string) => void;
   orderedTo: string; setOrderedTo: (v: string) => void;
   deadlineFrom: string; setDeadlineFrom: (v: string) => void;
@@ -82,7 +85,11 @@ export function useTaskSearch<T extends SearchableTask>(items: T[]): UseTaskSear
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   const [showFilters, setShowFilters] = useState(false);
-  const [keyword, setKeyword] = useState(""); // 件名・依頼先名・連絡先・メモのキーワード検索
+  const [titleKeyword, setTitleKeyword] = useState("");
+  const [assigneeKeyword, setAssigneeKeyword] = useState("");
+  const [contactKeyword, setContactKeyword] = useState("");
+  const [notesKeyword, setNotesKeyword] = useState("");
+  const [detailTagIds, setDetailTagIds] = useState<string[]>([]);
   const [orderedFrom, setOrderedFrom] = useState("");
   const [orderedTo, setOrderedTo] = useState("");
   const [deadlineFrom, setDeadlineFrom] = useState("");
@@ -95,14 +102,16 @@ export function useTaskSearch<T extends SearchableTask>(items: T[]): UseTaskSear
     let list = filterStatus === "all" ? items : items.filter(t => t.status === filterStatus);
     if (filterTag !== "all") list = list.filter(t => (t.tag_ids ?? []).includes(filterTag));
 
-    const kw = keyword.trim().toLowerCase();
-    if (kw) {
-      list = list.filter(t =>
-        t.title.toLowerCase().includes(kw) ||
-        t.assignee_name.toLowerCase().includes(kw) ||
-        (t.contact ?? "").toLowerCase().includes(kw) ||
-        (t.notes ?? "").toLowerCase().includes(kw)
-      );
+    const titleKw = titleKeyword.trim().toLowerCase();
+    const assigneeKw = assigneeKeyword.trim().toLowerCase();
+    const contactKw = contactKeyword.trim().toLowerCase();
+    const notesKw = notesKeyword.trim().toLowerCase();
+    if (titleKw) list = list.filter(t => t.title.toLowerCase().includes(titleKw));
+    if (assigneeKw) list = list.filter(t => t.assignee_name.toLowerCase().includes(assigneeKw));
+    if (contactKw) list = list.filter(t => (t.contact ?? "").toLowerCase().includes(contactKw));
+    if (notesKw) list = list.filter(t => (t.notes ?? "").toLowerCase().includes(notesKw));
+    if (detailTagIds.length > 0) {
+      list = list.filter(t => detailTagIds.some(id => (t.tag_ids ?? []).includes(id)));
     }
     list = list.filter(t => inDateRange(t.ordered_at, orderedFrom, orderedTo));
     list = list.filter(t => inDateRange(t.deadline, deadlineFrom, deadlineTo));
@@ -121,7 +130,7 @@ export function useTaskSearch<T extends SearchableTask>(items: T[]): UseTaskSear
       if (av > bv) return sortDir === "asc" ? 1 : -1;
       return 0;
     });
-  }, [items, filterStatus, filterTag, sortKey, sortDir, keyword, orderedFrom, orderedTo, deadlineFrom, deadlineTo, priceMin, priceMax]);
+  }, [items, filterStatus, filterTag, sortKey, sortDir, titleKeyword, assigneeKeyword, contactKeyword, notesKeyword, detailTagIds, orderedFrom, orderedTo, deadlineFrom, deadlineTo, priceMin, priceMax]);
 
   // 検索結果（filtered）の合計金額。「合計金額を表示」チェックがオンの時だけUIに出す。
   const totalPrice = useMemo(
@@ -129,11 +138,16 @@ export function useTaskSearch<T extends SearchableTask>(items: T[]): UseTaskSear
     [filtered]
   );
 
-  const activeFilterCount = [keyword, orderedFrom, orderedTo, deadlineFrom, deadlineTo, priceMin, priceMax]
+  const activeFilterCount = [titleKeyword, assigneeKeyword, contactKeyword, notesKeyword, orderedFrom, orderedTo, deadlineFrom, deadlineTo, priceMin, priceMax]
     .filter(v => v.trim() !== "").length;
+  const totalActiveFilterCount = activeFilterCount + (detailTagIds.length > 0 ? 1 : 0);
 
   function clearAdvancedFilters() {
-    setKeyword("");
+    setTitleKeyword("");
+    setAssigneeKeyword("");
+    setContactKeyword("");
+    setNotesKeyword("");
+    setDetailTagIds([]);
     setOrderedFrom(""); setOrderedTo("");
     setDeadlineFrom(""); setDeadlineTo("");
     setPriceMin(""); setPriceMax("");
@@ -145,7 +159,11 @@ export function useTaskSearch<T extends SearchableTask>(items: T[]): UseTaskSear
     sortKey, setSortKey,
     sortDir, setSortDir,
     showFilters, setShowFilters,
-    keyword, setKeyword,
+    titleKeyword, setTitleKeyword,
+    assigneeKeyword, setAssigneeKeyword,
+    contactKeyword, setContactKeyword,
+    notesKeyword, setNotesKeyword,
+    detailTagIds, setDetailTagIds,
     orderedFrom, setOrderedFrom,
     orderedTo, setOrderedTo,
     deadlineFrom, setDeadlineFrom,
@@ -155,7 +173,7 @@ export function useTaskSearch<T extends SearchableTask>(items: T[]): UseTaskSear
     showTotalPrice, setShowTotalPrice,
     filtered,
     totalPrice,
-    activeFilterCount,
+    activeFilterCount: totalActiveFilterCount,
     clearAdvancedFilters,
   };
 }
