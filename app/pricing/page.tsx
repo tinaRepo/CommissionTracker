@@ -38,24 +38,59 @@ export default function PricingPage() {
   const [loading, setLoading] = useState<string | null>(null);
   const [hasSubscription, setHasSubscription] = useState(false);
   const [checkoutStatus, setCheckoutStatus] = useState<string | null>(null);
+  const [billingRefreshing, setBillingRefreshing] = useState(false);
 
   // ユーザーのセッションを取得し、現在のプランとサブスクリプション状況を設定する
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setCheckoutStatus(params.get("checkout"));
+    const returnedFromPortal = params.get("billing") === "return";
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) { window.location.href = "/login"; return; }
-      const { data } = await supabase
-        .from("user_profiles")
-        .select("plan, stripe_customer_id, subscription_status")
-        .eq("id", session.user.id)
-        .single();
-      if (data) {
-        setCurrentPlan(data.plan ?? "free");
-        setHasSubscription(!!data.stripe_customer_id && ["active", "past_due"].includes(data.subscription_status ?? ""));
+    let cancelled = false;
+    supabase.auth.getSession().then(async ({ data: { session }, error: sessionError }) => {
+      if (!session) {
+        if (sessionError) console.error("ログイン状態の確認に失敗しました", sessionError);
+        window.location.href = "/login";
+        return;
       }
+      if (cancelled) return;
+      try {
+        if (returnedFromPortal) {
+          setBillingRefreshing(true);
+          try {
+            const response = await fetch("/api/stripe/sync", {
+              method: "POST",
+              headers: { "Authorization": `Bearer ${session.access_token}` },
+            });
+            if (!response.ok) {
+              const result = await response.json();
+              console.error("Stripe portal return sync failed:", result.error);
+            }
+          } catch (error) {
+            console.error("Stripe portal return sync request failed:", error);
+          }
+          window.history.replaceState({}, "", window.location.pathname);
+        }
+
+        const { data, error } = await supabase
+          .from("user_profiles")
+          .select("plan, stripe_customer_id, subscription_status")
+          .eq("id", session.user.id)
+          .single();
+        if (error) {
+          console.error("プラン情報の取得に失敗しました", error);
+        } else if (data && !cancelled) {
+          setCurrentPlan(data.plan ?? "free");
+          setHasSubscription(!!data.stripe_customer_id && ["active", "past_due"].includes(data.subscription_status ?? ""));
+        }
+      } finally {
+        if (!cancelled) setBillingRefreshing(false);
+      }
+    }).catch(error => {
+      console.error("プラン画面の初期化に失敗しました", error);
+      if (!cancelled) setBillingRefreshing(false);
     });
+    return () => { cancelled = true; };
   }, []);
 
   // 有料プランを申し込む処理
@@ -156,6 +191,7 @@ export default function PricingPage() {
         <div style={{ textAlign: "center", marginBottom: 40 }}>
           <div className="text-muted" style={{ fontSize: 14, marginBottom: 8 }}>現在のプラン：
             <strong style={{ color: "var(--fg)" }}> {PLANS.find(p => p.key === currentPlan)?.label ?? "無料"}</strong>
+            {billingRefreshing && <span style={{ marginLeft: 8 }}>更新中…</span>}
           </div>
           <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 8 }}>プランを選択してください</h1>
           <p className="text-muted" style={{ fontSize: 14 }}>月額制・プラン変更や解約はいつでも可能</p>

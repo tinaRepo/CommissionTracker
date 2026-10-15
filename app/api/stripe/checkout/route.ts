@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       if (customerLinkError) throw customerLinkError;
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
+    const appUrl = new URL(request.url).origin;
 
     // チェックアウトセッション作成
     //   payment_method_types は指定しない（Stripeダッシュボードの「支払い方法」設定に従う動的な支払い方法）

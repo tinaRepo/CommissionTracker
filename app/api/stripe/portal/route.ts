@@ -100,12 +100,12 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
+    const appUrl = new URL(request.url).origin;
 
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: profile.stripe_customer_id,
       configuration,
-      return_url: `${appUrl}/pricing`,
+      return_url: `${appUrl}/pricing?billing=return`,
     });
 
     return NextResponse.json({ url: portalSession.url });
