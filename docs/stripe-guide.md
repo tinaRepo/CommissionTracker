@@ -60,7 +60,7 @@ Portal APIは、Customer Portal設定を取得・必要に応じて更新し、P
 
 1. Test mode / Live modeそれぞれでBilling → Customer portalの設定を作成し、Configuration ID（`bpc_...`）を控えます。
 2. 各環境の `STRIPE_BILLING_PORTAL_CONFIGURATION_ID` に該当するIDを設定します。
-3. Portalを開くAPIは既存Configurationを読み取り、次の動作になるよう必要な機能を更新します。
+3. Portalを開くAPIはプロセス起動後の初回利用時と5分ごとにConfiguration / Priceを検証し、必要な場合は次の動作になるよう設定を更新します。検証結果を短時間キャッシュして、毎回のStripe往復を避けます。
    - 解約を有効化し、期間終了時に解約（`at_period_end`）
    - 解約時の按分処理なし
    - サブスクリプションのPrice変更を有効化

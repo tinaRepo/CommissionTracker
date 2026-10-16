@@ -270,21 +270,26 @@ function toTask(row: TaskRow): Task {
   return { ...rest, tag_ids: (task_tags ?? []).map(t => t.tag_id) };
 }
 
-export async function fetchTasks(): Promise<Task[]> {
-  // PostgRESTの1リクエスト上限（max_rows=1000）を超えても全件取得できるようページングする
+export async function fetchTasks(onFirstPage?: (tasks: Task[]) => void): Promise<Task[]> {
+  // 小さな最初のページを先に通知し、画面表示後も残りを取得できるようページングする
+  const FIRST_PAGE = 100;
   const PAGE = 1000;
   const all: Task[] = [];
-  for (let from = 0; ; from += PAGE) {
+  for (let from = 0; ; ) {
+    const pageSize = from === 0 ? FIRST_PAGE : PAGE;
     const { data, error } = await supabase
       .from("tasks")
       .select(TASK_SELECT)
       .order("created_at", { ascending: false })
       .order("id", { ascending: true }) // 同時刻の行で順序が揺れないようにする
-      .range(from, from + PAGE - 1);
+      .range(from, from + pageSize - 1);
     if (error) throw error;
     const rows = (data ?? []) as unknown as TaskRow[];
-    all.push(...rows.map(toTask));
-    if (rows.length < PAGE) break;
+    const pageTasks = rows.map(toTask);
+    if (from === 0) onFirstPage?.(pageTasks);
+    all.push(...pageTasks);
+    if (rows.length < pageSize) break;
+    from += pageSize;
   }
   return all;
 }
@@ -385,11 +390,19 @@ export async function deleteTag(id: string): Promise<void> {
 }
 
 // タスクのタグを tagIds に置き換える（差分だけ削除・追加する）
-export async function setTaskTags(taskId: string, tagIds: string[]): Promise<void> {
+export async function setTaskTags(
+  taskId: string,
+  tagIds: string[],
+  knownCurrentTagIds?: string[]
+): Promise<void> {
   const wanted = Array.from(new Set(tagIds));
-  const { data: current, error } = await supabase.from("task_tags").select("tag_id").eq("task_id", taskId);
-  if (error) throw error;
-  const have = new Set((current ?? []).map(r => r.tag_id as string));
+  let currentTagIds = knownCurrentTagIds;
+  if (!currentTagIds) {
+    const { data: current, error } = await supabase.from("task_tags").select("tag_id").eq("task_id", taskId);
+    if (error) throw error;
+    currentTagIds = (current ?? []).map(r => r.tag_id as string);
+  }
+  const have = new Set(currentTagIds);
 
   const toRemove = Array.from(have).filter(id => !wanted.includes(id));
   const toAdd = wanted.filter(id => !have.has(id));

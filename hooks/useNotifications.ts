@@ -70,7 +70,8 @@ function getJstCalendarDate(value: string): string | null {
 export function useNotifications(
   userId: string | null,
   accountCreatedAt: string | null,
-  userPlan: string | null = null
+  userPlan: string | null = null,
+  enabled = true
 ): UseNotificationsResult {
   const [loading, setLoading] = useState(false);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -143,8 +144,8 @@ export function useNotifications(
   }, [userId]);
 
   useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
+    if (enabled) void fetchAll();
+  }, [enabled, fetchAll]);
 
   const isBeforeAccountCreation = (publishedAt: string) => {
     if (!accountCreatedAt) return false;

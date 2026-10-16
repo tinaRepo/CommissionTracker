@@ -8,7 +8,6 @@ import {
   PLAN_LIMITS,
   type Task, type TaskStatus, type TaskImage, type TaskInput,
   type ImageType, type UserProfile, type Plan, type Tag,
-  fetchTaskById,
   changeMyPassword, requestSetPasswordEmail, toJapaneseAuthError,
   linkGoogleAccount, unlinkGoogleAccount, hasGoogleIdentity,
   fetchTags, createTag, renameTag, deleteTag, setTaskTags, openBillingPortal,
@@ -292,6 +291,7 @@ export default function TaskApp() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [imageCount, setImageCount] = useState(0);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [visibleTaskCount, setVisibleTaskCount] = useState(100);
   const [tags, setTags] = useState<Tag[]>([]);
   const search = useTaskSearch(tasks);
   const [view, setView] = useState<ViewMode>("list");
@@ -303,6 +303,11 @@ export default function TaskApp() {
   const [offlineMessage, setOfflineMessage] = useState<string | null>(null);
   const syncingChanges = useRef<Promise<void> | null>(null);
   const loadRef = useRef<() => Promise<void>>(async () => {});
+  const loadSequence = useRef(0);
+  const taskOverrides = useRef(new Map<string, Task | null>());
+  const thumbnailPathsByTask = useRef(new Map<string, string>());
+  const requestedThumbnailPaths = useRef(new Set<string>());
+  const [loadingRemainingTasks, setLoadingRemainingTasks] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<FormValues>(EMPTY_FORM);
@@ -428,10 +433,7 @@ export default function TaskApp() {
     const userId = user?.id;
     if (!userId) return;
 
-    const initialServerDataPromise = navigator.onLine
-      ? Promise.all([fetchTasks(), fetchMyProfile(), fetchTags()])
-        .then(data => ({ data }), error => ({ error }))
-      : null;
+    const sequence = ++loadSequence.current;
     let cached: OfflineSnapshot | null = null;
     let changes: OfflineTaskChange[] = [];
     try {
@@ -439,6 +441,7 @@ export default function TaskApp() {
         readOfflineSnapshot(userId),
         listOfflineChanges(userId),
       ]);
+      if (sequence !== loadSequence.current) return;
       setPendingChangesCount(changes.length);
       if (cached) {
         setTasks(applyOfflineChanges(cached.tasks, changes));
@@ -455,6 +458,7 @@ export default function TaskApp() {
     if (!navigator.onLine) {
       setIsOnline(false);
       setLoading(false);
+      setLoadingRemainingTasks(false);
       if (!cached) setOfflineMessage("オフライン用のデータがありません。一度オンラインでタスクを読み込んでください。");
       return;
     }
@@ -472,20 +476,56 @@ export default function TaskApp() {
           : "一部の変更を同期できませんでした。内容を確認して再試行してください。");
       }
 
-      if (!initialServerDataPromise) throw new Error("オンラインデータを取得できませんでした");
-      const initialServerData = await initialServerDataPromise;
-      if ("error" in initialServerData) throw initialServerData.error;
-      let [serverTasks, serverProfile, serverTags] = initialServerData.data;
-      if (changes.length > 0 && syncSucceeded) serverTasks = await fetchTasks();
-      const remainingChanges = await listOfflineChanges(userId);
+      if (sequence !== loadSequence.current) return;
+
+      let resolveFirstPage!: (tasks: Task[]) => void;
+      let rejectFirstPage!: (reason: unknown) => void;
+      const firstPagePromise = new Promise<Task[]>((resolve, reject) => {
+        resolveFirstPage = resolve;
+        rejectFirstPage = reject;
+      });
+      const tasksPromise = fetchTasks(resolveFirstPage);
+      void tasksPromise.catch(rejectFirstPage);
+      const profileAndTagsPromise = Promise.all([fetchMyProfile(), fetchTags()]);
+
+      if (!cached) {
+        const [firstPage, [firstProfile, firstTags], pendingChanges] = await Promise.all([
+          firstPagePromise,
+          profileAndTagsPromise,
+          listOfflineChanges(userId),
+        ]);
+        if (sequence !== loadSequence.current) return;
+        setTasks(applyOfflineChanges(firstPage, pendingChanges));
+        setProfile(firstProfile);
+        setTags(firstTags);
+        setImageCount(firstPage.reduce((sum, task) => sum + (task.images?.length ?? 0), 0));
+        setPendingChangesCount(pendingChanges.length);
+        setLoading(false);
+        setLoadingRemainingTasks(true);
+      }
+
+      const [fetchedTasks, [serverProfile, serverTags], remainingChanges] = await Promise.all([
+        tasksPromise,
+        profileAndTagsPromise,
+        listOfflineChanges(userId),
+      ]);
+      if (sequence !== loadSequence.current) return;
+      const overrides = taskOverrides.current;
+      let serverTasks = fetchedTasks.filter(task => !overrides.has(task.id));
+      for (const [taskId, task] of overrides) {
+        if (task) serverTasks.push(task);
+      }
+      serverTasks.sort((a, b) => b.created_at.localeCompare(a.created_at) || a.id.localeCompare(b.id));
+      taskOverrides.current = new Map();
       const visibleTasks = applyOfflineChanges(serverTasks, remainingChanges);
       setTasks(visibleTasks);
       setProfile(serverProfile ?? cached?.profile ?? null);
       setTags(serverTags);
-      setImageCount(serverTasks.reduce((sum, task) => sum + (task.images?.length ?? 0), 0));
+      setImageCount(visibleTasks.reduce((sum, task) => sum + (task.images?.length ?? 0), 0));
       setPendingChangesCount(remainingChanges.length);
       if (syncSucceeded && remainingChanges.length === 0) setOfflineMessage(null);
       setLoading(false);
+      setLoadingRemainingTasks(false);
 
       const snapshot: OfflineSnapshot = {
         userId, tasks: serverTasks, tags: serverTags,
@@ -498,23 +538,10 @@ export default function TaskApp() {
         setOfflineMessage("タスクは表示されていますが、オフライン用データを保存できませんでした。");
       }
 
-      const firstImagePaths = visibleTasks
-        .map(task => task.images?.[0]?.storage_path)
-        .filter((path): path is string => !!path);
-      if (firstImagePaths.length === 0) { setThumbnailUrls({}); return; }
-      try {
-        const pathToUrl = await getSignedImageUrls(firstImagePaths);
-        const byTaskId: Record<string, string> = {};
-        visibleTasks.forEach(task => {
-          const path = task.images?.[0]?.storage_path;
-          if (path && pathToUrl[path]) byTaskId[task.id] = pathToUrl[path];
-        });
-        setThumbnailUrls(byTaskId);
-      } catch {
-        setThumbnailUrls({});
-      }
     } catch (error) {
+      if (sequence !== loadSequence.current) return;
       console.error("サーバーデータの読み込みに失敗しました", error);
+      setLoadingRemainingTasks(false);
       if (isNetworkUnavailable(error)) {
         setIsOnline(false);
         setOfflineMessage(cached
@@ -560,7 +587,12 @@ export default function TaskApp() {
     return () => { cancelled = true; };
   }, [user]);
 
-  const notifications = useNotifications(user?.id ?? null, profile?.created_at ?? null, profile?.plan ?? null);
+  const notifications = useNotifications(
+    user?.id ?? null,
+    profile?.created_at ?? null,
+    profile?.plan ?? null,
+    !!profile && (!loadingRemainingTasks || showNotifications)
+  );
 
   const tagById = useMemo(() => new Map(tags.map(t => [t.id, t])), [tags]);
   const tagsOf = (t: Task) =>
@@ -572,6 +604,7 @@ export default function TaskApp() {
     await saveOfflineChange({
       userId: user.id, tasks: nextTasks, tags, profile, savedAt: new Date().toISOString(),
     }, change);
+    taskOverrides.current.set(change.taskId, nextTasks.find(task => task.id === change.taskId) ?? null);
     setTasks(nextTasks);
     setPendingChangesCount((await listOfflineChanges(user.id)).length);
     setOfflineMessage("変更を端末に保存しました。オンラインに戻ると自動で同期します。");
@@ -715,6 +748,62 @@ export default function TaskApp() {
   }
 
   const filtered = search.filtered;
+  const taskFilterKey = JSON.stringify([
+    search.filterStatus, search.filterTag, search.sortKey, search.sortDir,
+    search.titleKeyword, search.assigneeKeyword, search.contactKeyword, search.notesKeyword,
+    search.detailTagIds, search.orderedFrom, search.orderedTo,
+    search.deadlineFrom, search.deadlineTo, search.priceMin, search.priceMax,
+  ]);
+  const displayedTasks = filtered.slice(0, visibleTaskCount);
+
+  useEffect(() => {
+    setVisibleTaskCount(100);
+  }, [taskFilterKey]);
+
+  useEffect(() => {
+    const imagePaths = new Map(
+      tasks.map(task => [task.id, task.images?.[0]?.storage_path])
+    );
+    setThumbnailUrls(current => {
+      let next = current;
+      for (const taskId of Object.keys(current)) {
+        const path = imagePaths.get(taskId);
+        if (!path || thumbnailPathsByTask.current.get(taskId) !== path) {
+          if (next === current) next = { ...current };
+          delete next[taskId];
+          thumbnailPathsByTask.current.delete(taskId);
+        }
+      }
+      return next;
+    });
+  }, [tasks]);
+
+  useEffect(() => {
+    const imageTasks = displayedTasks
+      .map(task => ({ taskId: task.id, path: task.images?.[0]?.storage_path }))
+      .filter((item): item is { taskId: string; path: string } => !!item.path);
+    const pendingTasks = imageTasks.filter(item =>
+      !thumbnailUrls[item.taskId] && !requestedThumbnailPaths.current.has(item.path)
+    );
+    if (pendingTasks.length === 0) return;
+
+    const paths = Array.from(new Set(pendingTasks.map(item => item.path)));
+    paths.forEach(path => requestedThumbnailPaths.current.add(path));
+    void getSignedImageUrls(paths).then(pathToUrl => {
+      const byTaskId: Record<string, string> = {};
+      pendingTasks.forEach(({ taskId, path }) => {
+        const url = pathToUrl[path];
+        if (url) {
+          byTaskId[taskId] = url;
+          thumbnailPathsByTask.current.set(taskId, path);
+        }
+      });
+      setThumbnailUrls(current => ({ ...current, ...byTaskId }));
+    }).catch(error => {
+      paths.forEach(path => requestedThumbnailPaths.current.delete(path));
+      console.error("タスク画像のサムネイルURL取得に失敗しました", error);
+    });
+  }, [displayedTasks, thumbnailUrls]);
 
   const stats = useMemo(() => ({
     total: tasks.length,
@@ -750,6 +839,8 @@ export default function TaskApp() {
       tagIds: form.tagIds, createdAt,
     };
     try {
+      let savedTask: Task;
+      let uploadedImages: TaskImage[] = [];
       if (!isOnline || !navigator.onLine) {
         await storeOfflineChange(change);
         pendingImages.forEach(image => URL.revokeObjectURL(image.previewUrl));
@@ -762,15 +853,29 @@ export default function TaskApp() {
         return;
       }
       if (editId) {
-        await updateTask(editId, payload);
-        await setTaskTags(editId, form.tagIds);
+        const existingTask = tasks.find(task => task.id === editId);
+        const previousTagIds = existingTask?.tag_ids ?? [];
+        const tagsChanged =
+          previousTagIds.length !== form.tagIds.length ||
+          previousTagIds.some(id => !form.tagIds.includes(id));
+        const [updatedTask] = await Promise.all([
+          updateTask(editId, payload),
+          tagsChanged ? setTaskTags(editId, form.tagIds) : Promise.resolve(),
+        ]);
+        savedTask = {
+          ...existingTask,
+          ...updatedTask,
+          images: existingTask?.images ?? [],
+          tag_ids: form.tagIds,
+        };
       } else {
         const newTask = await createTask(payload, taskId);
-        await setTaskTags(taskId, form.tagIds);
+        if (form.tagIds.length > 0) await setTaskTags(taskId, form.tagIds, []);
+        savedTask = { ...newTask, images: [], tag_ids: form.tagIds };
         if (pendingImages.length > 0) {
           for (const pi of pendingImages) {
             try {
-              await uploadImage(newTask.id, pi.file, pi.imageType, plan);
+              uploadedImages.push(await uploadImage(newTask.id, pi.file, pi.imageType, plan));
             } catch (error) {
               if (isNetworkUnavailable(error)) throw error;
             }
@@ -779,10 +884,23 @@ export default function TaskApp() {
           setPendingImages([]);
         }
       }
-      await load();
-      if (detailId) {
-        fetchTaskById(detailId).then(setDetailItem).catch(() => setDetailItem(null));
+      if (uploadedImages.length > 0) {
+        savedTask = { ...savedTask, images: uploadedImages };
       }
+      taskOverrides.current.set(savedTask.id, savedTask);
+      const nextTasks = [...tasks.filter(task => task.id !== savedTask.id), savedTask]
+        .sort((a, b) => b.created_at.localeCompare(a.created_at) || a.id.localeCompare(b.id));
+      setTasks(nextTasks);
+      setImageCount(count => count + uploadedImages.length);
+      void saveOfflineSnapshot({
+        userId: user.id,
+        tasks: nextTasks,
+        tags,
+        profile,
+        savedAt: new Date().toISOString(),
+      }).catch(error => {
+        console.error("オフライン用データの保存に失敗しました", error);
+      });
       setShowForm(false); setEditId(null);
     } catch (error) {
       if (isNetworkUnavailable(error)) {
@@ -819,10 +937,20 @@ export default function TaskApp() {
         return;
       }
       await deleteTask(id);
-      await load();
-      if (detailId) {
-        fetchTaskById(detailId).then(setDetailItem).catch(() => setDetailItem(null));
-      }
+      taskOverrides.current.set(id, null);
+      const deletedTask = tasks.find(task => task.id === id);
+      const nextTasks = tasks.filter(task => task.id !== id);
+      setTasks(nextTasks);
+      setImageCount(count => Math.max(0, count - (deletedTask?.images?.length ?? 0)));
+      void saveOfflineSnapshot({
+        userId: user.id,
+        tasks: nextTasks,
+        tags,
+        profile,
+        savedAt: new Date().toISOString(),
+      }).catch(error => {
+        console.error("オフライン用データの保存に失敗しました", error);
+      });
     } catch (error) {
       if (isNetworkUnavailable(error) && user) {
         try {
@@ -1082,6 +1210,14 @@ export default function TaskApp() {
         </div>
       )}
 
+      {loadingRemainingTasks && (
+        <div className="container" role="status" aria-live="polite" style={{
+          paddingTop: 10, color: "var(--muted)", fontSize: 12,
+        }}>
+          残りのタスクを読み込み中…
+        </div>
+      )}
+
       {/* 支払い失敗の警告（Stripeの再試行中） */}
       {paymentIssue && (
         <div className="container" style={{ paddingTop: 12 }}>
@@ -1123,10 +1259,12 @@ export default function TaskApp() {
         ) : (
           <>
             {filtered.length === 0 && (
-              <div style={{ textAlign: "center", color: "var(--meta)", marginTop: 60, fontSize: 14 }}>タスクがありません</div>
+              <div style={{ textAlign: "center", color: "var(--meta)", marginTop: 60, fontSize: 14 }}>
+                {loadingRemainingTasks ? "検索対象を読み込み中…" : "タスクがありません"}
+              </div>
             )}
             <div style={{ display: "grid", gap: 10 }}>
-              {filtered.map(t => (
+              {displayedTasks.map(t => (
                 <TaskListCard
                   key={t.id}
                   title={t.title}
@@ -1142,6 +1280,16 @@ export default function TaskApp() {
                 />
               ))}
             </div>
+            {filtered.length > displayedTasks.length && (
+              <div style={{ textAlign: "center", marginTop: 20 }}>
+                <button
+                  onClick={() => setVisibleTaskCount(count => count + 100)}
+                  className="btn btn-secondary"
+                >
+                  さらに100件表示（{displayedTasks.length} / {filtered.length}件）
+                </button>
+              </div>
+            )}
           </>
         )}
       </main>

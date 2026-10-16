@@ -39,6 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     let customerId = profile?.stripe_customer_id;
+    let customerLinkPromise: Promise<void> | undefined;
 
     // Stripeカスタマーがなければ作成
     if (!customerId) {
@@ -47,27 +48,32 @@ export async function POST(request: NextRequest) {
         metadata: { supabase_user_id: user.id },
       });
       customerId = customer.id;
-      const { error: customerLinkError } = await admin
-        .from("user_profiles")
-        .update({ stripe_customer_id: customerId })
-        .eq("id", user.id);
-      if (customerLinkError) throw customerLinkError;
+      customerLinkPromise = (async () => {
+        const { error } = await admin
+          .from("user_profiles")
+          .update({ stripe_customer_id: customerId })
+          .eq("id", user.id);
+        if (error) throw error;
+      })();
     }
 
     const appUrl = new URL(request.url).origin;
 
     // チェックアウトセッション作成
     //   payment_method_types は指定しない（Stripeダッシュボードの「支払い方法」設定に従う動的な支払い方法）
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      client_reference_id: user.id,
-      line_items: [{ price: priceId, quantity: 1 }],
-      mode: "subscription",
-      subscription_data: { metadata: { supabase_user_id: user.id } },
-      success_url: `${appUrl}/?checkout=success`,
-      cancel_url: `${appUrl}/pricing?checkout=cancelled`,
-      locale: "ja",
-    });
+    const [session] = await Promise.all([
+      stripe.checkout.sessions.create({
+        customer: customerId,
+        client_reference_id: user.id,
+        line_items: [{ price: priceId, quantity: 1 }],
+        mode: "subscription",
+        subscription_data: { metadata: { supabase_user_id: user.id } },
+        success_url: `${appUrl}/?checkout=success`,
+        cancel_url: `${appUrl}/pricing?checkout=cancelled`,
+        locale: "ja",
+      }),
+      customerLinkPromise ?? Promise.resolve(),
+    ]);
 
     return NextResponse.json({ url: session.url });
   } catch (e: any) {
