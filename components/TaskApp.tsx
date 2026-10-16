@@ -589,7 +589,7 @@ export default function TaskApp() {
 
   const notifications = useNotifications(
     user?.id ?? null,
-    profile?.created_at ?? null,
+    user?.created_at ?? profile?.created_at ?? null,
     profile?.plan ?? null,
     !!profile && (!loadingRemainingTasks || showNotifications)
   );
