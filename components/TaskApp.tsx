@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState, useEffect, useMemo, useRef } from "react";
 import {
   supabase, fetchTasks, createTask, upsertOfflineTask, updateTask,
@@ -213,7 +214,8 @@ function ImageSection({ task, plan, isOnline, onUpdated }: {
                 border: "1px solid var(--border-soft)", background: "var(--surface)"
               }}>
                 {url ? (
-                  <img src={url} alt={img.file_name} onClick={() => { setPreview(url); setPreviewFileName(img.file_name); }}
+                  <Image src={url} alt={img.file_name} width={200} height={200} sizes="(max-width: 640px) 50vw, 200px"
+                    onClick={() => { setPreview(url); setPreviewFileName(img.file_name); }}
                     style={{ width: "100%", aspectRatio: "1", objectFit: "cover", cursor: "pointer" }} />
                 ) : (
                   <div style={{ width: "100%", aspectRatio: "1" }} />
@@ -269,8 +271,10 @@ function ImageSection({ task, plan, isOnline, onUpdated }: {
           position: "fixed", inset: 0, background: "rgba(11,11,15,0.85)",
           zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center", cursor: "zoom-out"
         }}>
-          <img src={preview} alt="preview"
-            style={{ maxWidth: "90vw", maxHeight: "90vh", borderRadius: "var(--radius-lg)", boxShadow: "var(--shadow-lg)" }} />
+          <div style={{ position: "relative", width: "90vw", height: "90vh" }}>
+            <Image src={preview} alt="preview" fill sizes="90vw"
+              style={{ objectFit: "contain", borderRadius: "var(--radius-lg)", boxShadow: "var(--shadow-lg)" }} />
+          </div>
           <button
             onClick={e => { e.stopPropagation(); handleDownload(preview, previewFileName); }}
             disabled={!isOnline}

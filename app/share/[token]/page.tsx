@@ -1,4 +1,5 @@
 import { getPublicShareData, type PublicShareData } from "@/lib/server/public-share";
+import Image from "next/image";
 
 export const dynamic = "force-dynamic";
 
@@ -60,8 +61,10 @@ export default async function PublicSharePage({ params }: { params: { token: str
             <div className="share-page-gallery">
               {data.galleryImages.map(image => (
                 <figure key={image.id} style={{ minWidth: 0 }}>
-                  <img src={image.url} alt={image.caption || "制作実績"} loading="lazy" decoding="async"
-                    style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: "var(--radius-md)" }} />
+                  <div style={{ position: "relative", aspectRatio: "1" }}>
+                    <Image src={image.url} alt={image.caption || "制作実績"} fill sizes="(max-width: 640px) 50vw, 300px"
+                      style={{ objectFit: "cover", borderRadius: "var(--radius-md)" }} />
+                  </div>
                   {image.caption && <figcaption className="text-meta" style={{ marginTop: 6, overflowWrap: "anywhere" }}>{image.caption}</figcaption>}
                 </figure>
               ))}

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import type { TaskStatus, ImageType } from "@/lib/supabase";
 
 // ============================================================
@@ -229,7 +230,7 @@ export function TaskListCard({
       {imageCount > 0 && (
         <div style={{ position: "relative", flexShrink: 0 }}>
           {thumbnailUrl ? (
-            <img src={thumbnailUrl} alt="thumbnail"
+            <Image src={thumbnailUrl} alt="thumbnail" width={56} height={56} sizes="56px"
               style={{ width: 56, height: 56, borderRadius: "var(--radius-md)", objectFit: "cover", border: "1px solid var(--border-soft)", display: "block" }} />
           ) : (
             <div style={{ width: 56, height: 56, borderRadius: "var(--radius-md)", background: "var(--surface-2)" }} />
