@@ -172,7 +172,7 @@ function runV2Polish() {
       '<button onClick={addItem} className="btn btn-secondary btn-sm"><Icon name="plus" size={14} /> 追加</button>'));
 
   // 管理者ページ（更新ボタンを歯車→更新アイコンへ）
-  editFile("app/mgmt-c7f2a91e/page.tsx", (t, r) =>
+  editFile("app/admin/page.tsx", (t, r) =>
     r.once(t,
       '<button onClick={loadUsers} className="icon-btn"><Icon name="settings" size={15} /></button>',
       '<button onClick={loadUsers} className="icon-btn" title="再読み込み" aria-label="再読み込み"><Icon name="refresh" size={15} /></button>'));

@@ -1145,7 +1145,7 @@ export default function TaskApp() {
                   </button>
                 )}
                 {profile?.is_admin && (
-                  <button onClick={() => window.location.href = "/mgmt-c7f2a91e"} disabled={!isOnline} className="user-menu-item accent">
+                  <button onClick={() => window.location.href = "/admin"} disabled={!isOnline} className="user-menu-item accent">
                     <span className="user-menu-item-icon"><Icon name="users" size={17} /></span>
                     <span>管理者ページ</span>
                   </button>

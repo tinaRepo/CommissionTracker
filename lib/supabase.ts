@@ -28,6 +28,7 @@ export interface UserProfile {
   has_password: boolean;
   last_login_provider?: string;
   last_sign_in_at?: string;
+  last_data_updated_at?: string | null;
   stripe_customer_id?: string | null;
   subscription_status?: string | null; // active / inactive / past_due
   created_at: string;
