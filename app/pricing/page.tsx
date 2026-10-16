@@ -288,7 +288,11 @@ export default function PricingPage() {
                     上位プランへの変更は管理画面から
                   </div>
                 ) : hasSubscription ? (
-                  <div className="btn btn-secondary btn-block" style={{ cursor: "default", color: "var(--meta)" }}>
+                  <div className="btn btn-secondary btn-block" style={{
+                    display: "flex", minHeight: 54, padding: "8px 12px", cursor: "default",
+                    color: "var(--meta)", fontSize: 12, lineHeight: 1.45,
+                    textAlign: "center", whiteSpace: "normal",
+                  }}>
                     下位プランは現在の契約期間終了後にお申し込みください
                   </div>
                 ) : (
