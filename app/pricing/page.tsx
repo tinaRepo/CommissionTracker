@@ -230,7 +230,10 @@ export default function PricingPage() {
           border: "1px solid var(--border-soft)", borderRadius: "var(--radius-md)",
         }}>
           <div style={{ textAlign: "center" }}>
-            <div style={{ fontWeight: 600, marginBottom: 6 }}>プラン選択の前にデモでお試しいただけます</div>
+            <div style={{ fontWeight: 600, marginBottom: 6, lineHeight: 1.6 }}>
+              プラン選択の前に<br />
+              デモでお試しいただけます
+            </div>
             <div className="text-muted" style={{ fontSize: 13, lineHeight: 1.7 }}>
               デモ画面では、カレンダー表示のイメージや共有ページのサンプルをご覧いただけます。
             </div>
@@ -293,7 +296,10 @@ export default function PricingPage() {
                     color: "var(--meta)", fontSize: 12, lineHeight: 1.45,
                     textAlign: "center", whiteSpace: "normal",
                   }}>
-                    下位プランは現在の契約期間終了後にお申し込みください
+                    <span>
+                      下記プランは現在の契約期間終了後に<br />
+                      お申し込みください
+                    </span>
                   </div>
                 ) : (
                   <button onClick={() => plan.priceId && handleSubscribe(plan.priceId)} disabled={!!loading} className="btn btn-primary btn-block">
@@ -316,10 +322,10 @@ export default function PricingPage() {
             </p>
             {cancelAtPeriodEnd ? (
               <>
-                <p className="text-meta" style={{ margin: "16px auto 0", maxWidth: 520, lineHeight: 1.7 }}>
+                <p className="text-meta" style={{ margin: "16px auto 0", maxWidth: 520, lineHeight: 1.7, textAlign: "center", whiteSpace: "pre-line" }}>
                   {currentPeriodEnd
-                    ? `${new Date(currentPeriodEnd * 1000).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" })}に解約予定です。それまでは現在のプランをご利用いただけます。返金が必要な場合はお問い合わせください。`
-                    : "契約期間終了時に解約予定です。それまでは現在のプランをご利用いただけます。返金が必要な場合はお問い合わせください。"}
+                    ? `${new Date(currentPeriodEnd * 1000).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" })}に解約予定です。\nそれまでは現在のプランをご利用いただけます。\n返金が必要な場合はお問い合わせください。`
+                    : "契約期間終了時に解約予定です。\nそれまでは現在のプランをご利用いただけます。\n返金が必要な場合はお問い合わせください。"}
                 </p>
                 <a
                   href={`mailto:${SUPPORT_EMAIL}?subject=%E8%BF%94%E9%87%91%E3%81%AE%E3%81%94%E7%9B%B8%E8%AB%87`}
@@ -343,7 +349,8 @@ export default function PricingPage() {
         )}
 
         <div style={{ maxWidth: 640, margin: "40px auto 0", padding: "16px 20px", background: "var(--bg)", border: "1px solid var(--border-soft)", borderRadius: "var(--radius-md)", fontSize: 13, color: "var(--muted)", lineHeight: 1.8, textAlign: "center" }}>
-          決済はStripeで安全に処理されます。カード情報は当サービスのサーバーには保存されません。
+          決済はStripeで安全に処理されます。<br />
+          カード情報は当サービスのサーバーには保存されません。
         </div>
       </main>
     </div>
