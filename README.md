@@ -51,8 +51,8 @@ DBの変更・反映方法は [docs/database-operations.md](docs/database-operat
 **Dashboard → Authentication → Providers** で以下を有効化します。
 
 **Email**
-- デフォルトで有効
-- *Confirm email* はオフ推奨（開発中）
+- Email/Passwordを利用する場合は有効化します。
+- メール確認の有効・無効は本番と検証環境で意図を分けて設定してください。本番で無効化する場合は、本人確認を省略する影響を考慮します。
 
 **Google**
 1. [Google Cloud Console](https://console.cloud.google.com) で OAuth アプリを作成
@@ -68,9 +68,9 @@ DBの変更・反映方法は [docs/database-operations.md](docs/database-operat
 | 項目          | 値                               |
 | ------------- | -------------------------------- |
 | Site URL      | `https://tsukurist.com`          |
-| Redirect URLs | `https://tsukurist.com/**`、Vercel Preview のURL、`http://localhost:3000/**` |
+| Redirect URLs | `https://tsukurist.com/**`、使用するVercel Preview URL、`http://localhost:3000/**` |
 
-Vercel Preview の認証リダイレクトを使う場合は、実際の Preview URL（またはプロジェクト専用の Preview URL パターン）も Redirect URLs に追加します。Googleログインを使う場合、Google Cloud Console の承認済みリダイレクト URI は引き続き `https://<project-ref>.supabase.co/auth/v1/callback` です。
+Vercel Preview の認証リダイレクトを使う場合は、実際に使うPreview URLもRedirect URLsに追加します。Googleログインを使う場合、Google Cloud Consoleの承認済みリダイレクトURIは `https://<project-ref>.supabase.co/auth/v1/callback` です。詳しくは [Googleログイン設定](docs/google-login.md) を参照してください。
 
 ### 1-5. API キーの確認
 
@@ -86,7 +86,7 @@ Vercel Preview の認証リダイレクトを使う場合は、実際の Preview
 
 ## 2. ローカル動作確認（任意）
 
-`vercel dev` を使うと、コミット・デプロイなしでローカルから本番 DB に接続してアプリを確認できます。
+`vercel dev` を使うと、コミット・デプロイなしでローカルからVercel環境変数を使ってアプリを確認できます。開発時は誤操作を避けるため、可能な限り検証用Supabaseプロジェクトを接続してください。
 
 ### 初回セットアップ（1 回だけ）
 
@@ -134,7 +134,7 @@ vercel dev
 | `RESEND_API_KEY`                       | Resend の API キー            |                                                                                       |
 | `SUPPORT_EMAIL`                        | サポート窓口兼管理通知の受信先・送信元 | 本番・Preview とも `support@tsukurist.com` |
 | `NOREPLY_EMAIL`                        | 自動通知メールの送信元 | 本番・Preview とも `noreply@tsukurist.com` |
-| `NEXT_PUBLIC_APP_URL`                  | アプリの公開URL               | Production: `https://tsukurist.com`。Preview: 対象Vercel PreviewのURL（パスなし） |
+| `NEXT_PUBLIC_APP_URL`                  | アプリの公開URL               | Production: `https://tsukurist.com`。Preview: 対象Vercel PreviewのURL（パスなし）。Webhookメール・通知のリンク先に使用 |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`   | Stripe の公開鍵               |                                                                                       |
 | `STRIPE_SECRET_KEY`                    | Stripe の秘密鍵               | ⚠️ サーバーサイド専用                                                                  |
 | `STRIPE_WEBHOOK_SECRET`                | Stripe Webhook のシークレット |                                                                                       |
@@ -149,7 +149,7 @@ vercel dev
 | `CRON_SECRET`                          | Cron Job 認証用シークレット   | ⚠️ 16文字以上。自分で生成する（[4. 外部サービス設定](#cron-jobの認証cron_secret)参照） |
 | `HEALTHCHECKS_PING_URL`                | 死活監視の ping URL（任意）   | Healthchecks.io 等で作成。Cron 成功のたびに ping し、途切れると通知される             |
 
-VercelのEnvironment Variablesは、ProductionとPreviewそれぞれに設定します。`NEXT_PUBLIC_APP_URL` はProductionでは `https://tsukurist.com`、PreviewではVercelのPreview URLにしてください。Previewもメール送信元と宛先は本番と同じ `support@tsukurist.com` を使うため、Previewから送信した通知も本番の受信箱に届きます。決済・メール・アカウント削除のテスト時は注意してください。
+VercelのEnvironment Variablesは、ProductionとPreviewそれぞれに設定します。`NEXT_PUBLIC_APP_URL` はProductionでは `https://tsukurist.com`、PreviewではVercelのPreview URLにしてください。Stripe CheckoutとCustomer Portalの戻り先はリクエスト元のoriginから生成されます。Previewも `support@tsukurist.com` と `noreply@tsukurist.com` から送信します。問い合わせ・管理通知は本番のサポート受信箱に届くため、Previewでのメール・決済・アカウント削除テストには注意してください。
 
 > ⚠️ 環境変数を追加・変更した後は必ず **Redeploy** すること
 
@@ -168,25 +168,17 @@ VercelのEnvironment Variablesは、ProductionとPreviewそれぞれに設定し
 4. VercelのProduction・Preview両方で `SUPPORT_EMAIL=support@tsukurist.com`、`NOREPLY_EMAIL=noreply@tsukurist.com` を設定します。問い合わせ通知・管理通知は `SUPPORT_EMAIL` を送信元・受信先として使用し、ユーザー向け自動返信や決済通知は `NOREPLY_EMAIL` を送信元として使用します。両アドレスともResendで認証した `tsukurist.com` ドメインを使用します。
 5. 受信にはメールボックス提供元が必要です。Cloudflare Email Routingを使う場合は `support@tsukurist.com` から既存の受信箱への転送を設定し、Cloudflareに案内されるMX/TXTレコードを追加します。メールボックスサービスを契約する場合は、そのサービスのMXレコードを設定してください。Cloudflareでのドメイン取得だけではメールボックスは作成されません。
 
-Preview環境も認証済みドメインからメールを送るため、検証メールが実ユーザーへ届かないよう宛先に注意してください。Supabase Authの確認メール・パスワード再設定メールも `support@tsukurist.com` から送るには、Supabase Dashboard → **Project Settings → Authentication → SMTP Settings** でカスタムSMTPを有効にし、ResendのSMTP情報（ホスト・ポート・ユーザー名・APIキー）と送信元 `support@tsukurist.com` を設定します。Previewでの認証メールも本番の受信箱に届きます。
+Preview環境も認証済みドメインからメールを送るため、検証メールの宛先に注意してください。Supabase Authの確認メール・パスワード再設定メールも独自ドメインから送るには、Supabase Dashboard → **Project Settings → Authentication → SMTP Settings** でカスタムSMTPを有効にし、ResendのSMTP情報（ホスト・ポート・ユーザー名・APIキー）と送信元 `noreply@tsukurist.com` を設定します。Previewでの認証メールも本番ドメインから送信されます。
 
 ### Stripe（サブスクリプション）
 
-月額課金（スタンダード・プレミアム）に使用します。
+設定手順・Customer Portal・Webhook・テストから本番切り替えまでの詳細は [Stripe運用ガイド](docs/stripe-guide.md) を参照してください。
 
-1. [stripe.com](https://stripe.com) でアカウント作成
-2. **Products** でスタンダード（¥300/月）・プレミアム（¥800/月）の商品を作成
-3. 各 Price ID を環境変数に設定
-4. **Webhooks** に本番URL `https://tsukurist.com/api/stripe/webhook` を登録し、次のイベントを有効化：
-   `checkout.session.completed` / `checkout.session.async_payment_succeeded` /
-   `customer.subscription.created` / `customer.subscription.updated` / `customer.subscription.deleted` /
-   `invoice.payment_failed` / `invoice.paid`
-   （同じイベントが再送されても1回しか処理しません。処理に失敗した場合は管理者へメールが届きます。
-   `stripe_events` を含むSupabase migrationも適用してください。）
-5. **Customer portal** の設定を作成します。Configuration IDを登録すると、アプリが上位の `STRIPE_PREMIUM_PRICE_ID` のみを変更先として設定し、アップグレード時の日割り差額を即時請求（`always_invoice`）にします。ポータル内・アプリ内の解約は契約期間終了時に反映され、期間終了までは現在のプランを利用できます。解約時の返金は自動処理せず、返金が必要な場合はお問い合わせで個別に対応します。設定の変更にはStripe APIキーに書き込み権限が必要です。
-6. 作成した設定の Configuration ID を `STRIPE_BILLING_PORTAL_CONFIGURATION_ID` として Vercel に登録し、再デプロイします。未設定時は設定されていないポータルへ誤って遷移しないよう、アプリからプラン管理を開けません。
+本番の商品はスタンダード（月額300円）・プレミアム（月額800円）の recurring JPY Price とし、Price IDをサーバー・フロント用の各環境変数へ登録します。本番Webhookは `https://tsukurist.com/api/stripe/webhook` に設定します。Webhook対象イベント、Portal Configuration IDの取得、Preview/Test modeの分離などはStripe運用ガイドを参照してください。
 
 > テストキー（`sk_test_`）と本番キー（`sk_live_`）を混在させないこと。
+
+アップグレード時は残り期間に応じた差額を即時請求し、解約は契約期間終了時に反映します。自動返金は行わず、返金の相談はサポート窓口で受け付けます。
 
 ### Web Push（プッシュ通知）
 
@@ -225,7 +217,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 ```bash
 # ヘッダーなし → 401 になること（通知は送られない）
-curl -i https://your-app.vercel.app/api/cron/deadline-notify
+curl -i https://tsukurist.com/api/cron/deadline-notify
 ```
 
 > ⚠️ 正しいヘッダー付きで呼ぶと**実際に購読中ユーザーへ通知が送信されます**。
@@ -303,6 +295,7 @@ where id = 'ここに UUID を貼る';
 
 **課金**
 - ✅ Stripe サブスク（月額課金・解約・カスタマーポータル）
+- ✅ プレミアムへのアップグレード時は残り期間分の差額を日割り請求。解約は期間終了時に反映し、自動返金は行わない
 - ✅ 支払い失敗への対応（`past_due`の記録・ユーザーへの連絡メール・画面上の警告と支払い方法の更新ボタン。復旧時に自動で戻る）
 - ✅ Webhookの冪等化・順序非依存（最新のサブスク状態をStripeから取得して反映）
 
@@ -318,7 +311,7 @@ where id = 'ここに UUID を貼る';
 - ✅ メンテナンスモード（管理者ページから公開停止・再開、利用者向け案内文を設定）
 
 **UI / UX**
-- ✅ DESIGN.md（Apple系デザインシステム）準拠のデザイントークン（単色アクセント・フラット・pill ボタン）
+- ✅ 共通CSSトークンとコンポーネントスタイル（`app/globals.css`、`app/components.css`）
 - ✅ 自前SVGのラインアイコン（`components/TaskShared.tsx` の `Icon`。絵文字・記号文字は使わない）
 - ✅ 全モーダル固定サイズ統一（`height: calc(100vh - 32px)` + `maxHeight: 600`）
 - ✅ タイトル・ボタン固定 / コンテンツスクロールのモーダル構造
@@ -326,6 +319,7 @@ where id = 'ここに UUID を貼る';
 - ✅ ユーザーメニューのテキスト折り返し防止
 
 **その他**
+- ✅ 共有用公開ページ（公開項目を選択。SNSリンク最大3件、実績画像最大20枚・各説明文最大120文字。タスク名や依頼詳細は公開しない）
 - ✅ デモモード（ログイン不要・メモリのみ・お知らせ・お問い合わせボタン付き。検索UX・お知らせ閲覧はTaskAppと共通コンポーネント、お知らせは未読管理なしの読み取り専用）
 - ✅ PWA 対応（ホーム画面追加。Androidではインストール操作、iOSではSafariの共有メニューから追加する方法を案内するバナーを表示。表示履歴はAPI管理のHttpOnly Cookieに保存）
 - ✅ LP・利用規約・プライバシーポリシー・特定商取引法ページ
@@ -403,7 +397,7 @@ Google Search Console・Google AdSenseの設定は、[docs/seo-ads-guide.md](doc
 
 ## 10. デザイン方針
 
-見た目は [DESIGN.md](DESIGN.md)（Apple系デザインシステム）に準拠しています。
+色・角丸・影などの実装値は `app/globals.css` と `app/components.css` が基準です。[DESIGN.md](DESIGN.md) はAppleのWebサイトを分析した参考資料であり、アプリ画面の完全な仕様書ではありません。
 
 - 色・角丸・影・フォントは `app/globals.css` のトークン（`var(--xxx)`）、
   ボタン・カード・バッジ・モーダル等は `app/components.css` の共通クラスで定義する。
@@ -423,4 +417,6 @@ Google Search Console・Google AdSenseの設定は、[docs/seo-ads-guide.md](doc
 - [開発・運用ガイド](docs/development-guide.md)：構成、実装ルール、検証・リリース手順
 - [DB運用ガイド](docs/database-operations.md)：マイグレーション、RLS、権限付与
 - [Googleログイン設定](docs/google-login.md)：OAuth・リダイレクトURL設定
+- [Stripe運用ガイド](docs/stripe-guide.md)：商品・Webhook・Customer Portal・テスト運用
+- [独自ドメイン設定・移行ガイド](docs/domain-migration.md)：本番ドメイン、Vercel Preview、メール設定
 - [SEO・広告ガイド](docs/seo-ads-guide.md)：Search Console・AdSense運用

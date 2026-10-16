@@ -42,7 +42,7 @@ Google Cloud ConsoleとSupabase Dashboardの両方でOAuthを設定します。
    - 必要な場合は、新ドメイン配下のVercel Preview URLも追加します。
 3. **Google Cloud Console**の承認済みリダイレクトURIは、通常は変更不要です。Googleから最初に戻る先はアプリではなくSupabaseのCallback URL（`https://<project-ref>.supabase.co/auth/v1/callback`）です。Supabaseプロジェクトを変更した場合、またはSupabase Authの独自ドメインを使っている場合に限り、Google Cloud側のURIもSupabase Dashboardに表示される値へ更新します。
 4. Vercelの`NEXT_PUBLIC_APP_URL`を新しいドメインに変更します。メール、プッシュ通知、課金後の戻り先などに使われます。
-5. コード内の公開URLも確認します。`lib/seo.ts`の`SITE_URL`、`app/layout.tsx`の`metadataBase`、サイトURLを直接記載しているページ・設定を新しいドメインに合わせます。
+5. コード内の公開URLも確認します。`SITE_URL`の定義は`lib/site.ts`にあり、`lib/seo.ts`から再エクスポートされています。`app/layout.tsx`の`metadataBase`やサイトURLを直接記載しているページ・設定も新しいドメインに合わせます。
 6. 新しいドメインでGoogleログインし、次を確認します。
    - OAuth完了後に新しいドメインの`/auth/callback`を経由してアプリへ戻る。
    - そのコールバック応答に`Set-Cookie: ct_last_login_provider=google`があり、続く`/api/auth/last-login-provider`の応答が`{"provider":"google"}`になる。

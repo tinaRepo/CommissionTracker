@@ -21,6 +21,7 @@
 - `scripts/`: 一回限りのデータ移行などの運用スクリプト
 
 詳細なセットアップは[README](../README.md)、DB変更は[DB運用ガイド](./database-operations.md)を参照してください。
+Stripeのテスト・本番設定と課金挙動は[Stripe運用ガイド](./stripe-guide.md)、本番ドメインとメール設定は[独自ドメイン設定・移行ガイド](./domain-migration.md)を参照してください。
 
 ## ローカル開発と検証
 
