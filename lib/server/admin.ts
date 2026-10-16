@@ -22,6 +22,42 @@ export async function getUserFromRequest(request: Request, admin: SupabaseClient
   return data.user;
 }
 
+export type AdminRequestAuth =
+  | { ok: true; user: User }
+  | { ok: false; status: 401 | 403 | 500; error: string };
+
+export async function getAdminFromRequest(request: Request, admin: SupabaseClient): Promise<AdminRequestAuth> {
+  const match = (request.headers.get("authorization") ?? "").match(/^Bearer ([^\s]+)$/i);
+  if (!match) return { ok: false, status: 401, error: "Unauthorized" };
+
+  const token = match[1];
+  const { data: { user }, error: userError } = await admin.auth.getUser(token);
+  if (userError || !user) return { ok: false, status: 401, error: "Unauthorized" };
+
+  const { data: assurance, error: assuranceError } =
+    await admin.auth.mfa.getAuthenticatorAssuranceLevel(token);
+  if (assuranceError) {
+    console.error("admin MFA assurance check failed:", assuranceError);
+    return { ok: false, status: 500, error: "管理者認証を確認できませんでした" };
+  }
+  if (assurance.currentLevel !== "aal2") {
+    return { ok: false, status: 403, error: "MFA_REQUIRED" };
+  }
+
+  const { data: profile, error: profileError } = await admin
+    .from("user_profiles")
+    .select("is_admin")
+    .eq("id", user.id)
+    .maybeSingle();
+  if (profileError) {
+    console.error("admin profile check failed:", profileError);
+    return { ok: false, status: 500, error: "管理者権限を確認できませんでした" };
+  }
+  if (!profile?.is_admin) return { ok: false, status: 403, error: "Forbidden" };
+
+  return { ok: true, user };
+}
+
 // レート制限の判定（RPC: check_rate_limit）。判定に失敗したら "error"（呼び出し側は安全側＝拒否にする）
 export async function checkRateLimit(
   admin: SupabaseClient, key: string, limit: number, windowSeconds: number

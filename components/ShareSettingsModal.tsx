@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Icon } from "./TaskShared";
@@ -424,7 +425,7 @@ export default function ShareSettingsModal({ open, onClose, online = true }: Pro
                             <input type="checkbox" checked={galleryImageIds.includes(image.id)} onChange={() => toggleGalleryImage(image.id)} />
                             実績に掲載
                           </label>
-                          {image.previewUrl && <img src={image.previewUrl} alt="" loading="lazy" style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: 6, marginTop: 6 }} />}
+                          {image.previewUrl && <Image src={image.previewUrl} alt="" width={256} height={256} sizes="(max-width: 640px) 50vw, 256px" style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: 6, marginTop: 6 }} />}
                           <span className="text-meta" style={{ display: "block", marginTop: 5, overflowWrap: "anywhere" }}>{image.fileName}</span>
                           <span className="text-meta" style={{ display: "block", overflowWrap: "anywhere" }}>{image.taskTitle}</span>
                           {galleryImageIds.includes(image.id) && (

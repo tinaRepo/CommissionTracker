@@ -1,29 +1,15 @@
 import webpush from "web-push";
-import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { createAdminClient, getAdminFromRequest } from "@/lib/server/admin";
 
 // お知らせ・バージョン情報の新規作成時に、対象ユーザーの購読者へプッシュ通知を送るAPI
 // （1ユーザーが複数端末で購読している場合は、すべての端末に送る）
 export async function POST(request: NextRequest) {
     try {
-        // ── 呼び出し元が管理者かチェック ──
-        const authHeader = request.headers.get("authorization") ?? "";
-        const token = authHeader.replace("Bearer ", "");
-        if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-        const adminSupabase = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_ROLE_KEY!,
-            { auth: { autoRefreshToken: false, persistSession: false } }
-        );
-
-        const { data: { user: caller }, error: callerErr } = await adminSupabase.auth.getUser(token);
-        if (callerErr || !caller) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-        const { data: callerProfile } = await adminSupabase
-            .from("user_profiles").select("is_admin").eq("id", caller.id).single();
-        if (!callerProfile?.is_admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        const adminSupabase = createAdminClient();
+        const auth = await getAdminFromRequest(request, adminSupabase);
+        if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
         const { title, body, targetPlans, targetUserIds } = await request.json();
         if (!title || !body || typeof title !== "string" || typeof body !== "string") {

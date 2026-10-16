@@ -105,7 +105,7 @@ export function accountDeletionRequestEmail(input: {
           <tr><td style="padding:8px 0;color:#6e6e73;">ユーザーID</td><td style="padding:8px 0;color:#6e6e73;font-family:monospace;font-size:12px;">${esc(userId)}</td></tr>
           <tr><td style="padding:8px 0;color:#6e6e73;">申請日時</td><td style="padding:8px 0;">${esc(requestedAt)}</td></tr>
         </table>
-        <div style="margin-top:28px;"><a href="${esc(appUrl)}/mgmt-c7f2a91e" style="display:inline-block;background:#0066cc;color:#fff;text-decoration:none;padding:12px 24px;border-radius:9999px;font-size:14px;">管理者ページでユーザーを削除する</a></div>
+        <div style="margin-top:28px;"><a href="${esc(appUrl)}/admin" style="display:inline-block;background:#0066cc;color:#fff;text-decoration:none;padding:12px 24px;border-radius:9999px;font-size:14px;">管理者ページでユーザーを削除する</a></div>
         <p style="margin-top:24px;font-size:12px;color:#7a7a7a;">このメールはツクリストから自動送信されました。</p>
       </div>
     `,

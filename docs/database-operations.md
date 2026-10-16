@@ -35,6 +35,12 @@ grant select, insert, update, delete on public.example to authenticated;
 
 権限付与を忘れるとデータAPIが `permission denied`（42501）を返します。具体的な付与例は既存のmigrationで確認してください。
 
+## 管理者の二段階認証とユーザー最終更新日時
+
+`20261016000001_V2.0.0_admin_mfa_and_user_activity.sql` は、`public.is_admin()` をAAL2（認証アプリの二段階認証済み）セッションに限定し、管理画面のユーザー一覧に表示する `user_profiles.last_data_updated_at` を追加します。タスク・画像・タグ・共有設定・ユーザー設定などの作成、変更、削除をトリガーで記録し、既存データからも最終更新日時を補完します。最終ログイン時刻は活動日時として扱いません。
+
+Supabase Dashboardの **Authentication → Multi-Factor Authentication** でTOTPを有効にしてください。管理者画面をデプロイする前に、検証環境でこのmigrationを適用して管理者のTOTP設定、AAL1での管理操作拒否、AAL2での操作、最終更新日時の反映を確認し、本番にも同じmigrationを適用してください。
+
 ## Stripe Webhookの確認
 
 Webhookの冪等性テーブル `public.stripe_events` は `20261006000000_V2.0.0_features.sql` で作成されます。Vercelが接続するSupabaseプロジェクトにこのmigrationが適用されていることを確認してください。
