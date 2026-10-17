@@ -220,7 +220,15 @@ function AnnouncementDetail({ announcement, formatDate, onBack }: {
         </div>
         <h2 style={{ fontSize: 16, fontWeight: 600, lineHeight: 1.4, minWidth: 0, overflowWrap: "anywhere" }}>{announcement.title}</h2>
       </div>
-      <p style={{ fontSize: 14, lineHeight: 1.85, color: "var(--fg-2)", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{announcement.content}</p>
+      <p style={{ fontSize: 14, lineHeight: 1.85, color: "var(--fg-2)", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+        {announcement.content.split(/(https:\/\/[^\s]+)/g).map((part, index) =>
+          part.startsWith("https://") ? (
+            <a key={index} href={part} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)", textDecoration: "underline" }}>
+              {part}
+            </a>
+          ) : part
+        )}
+      </p>
     </div>
   );
 }
