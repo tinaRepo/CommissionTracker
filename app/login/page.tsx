@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase, isValidEmailFormat, DISPLAY_NAME_MAX_LENGTH, PASSWORD_MIN_LENGTH, toJapaneseAuthError } from "@/lib/supabase";
 import ContactModal from "@/components/ContactModal";
-import { GoogleLogo } from "@/components/TaskShared";
+import { GoogleLogo, Icon } from "@/components/TaskShared";
 
 type Mode = "login" | "signup" | "reset";
 
@@ -13,6 +13,7 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
@@ -240,12 +241,19 @@ export default function LoginPage() {
             value={email} onChange={e => setEmail(e.target.value)} className="input"
           />
           {mode !== "reset" && (
-            <input
-              type="password" placeholder={mode === "signup" ? `パスワード（${PASSWORD_MIN_LENGTH}文字以上）` : "パスワード"}
-              autoComplete="current-password"
-              value={password} onChange={e => setPassword(e.target.value)}
-              minLength={mode === "signup" ? PASSWORD_MIN_LENGTH : undefined} className="input"
-            />
+            <div style={{ position: "relative" }}>
+              <input
+                type={showPassword ? "text" : "password"} placeholder={mode === "signup" ? `パスワード（${PASSWORD_MIN_LENGTH}文字以上）` : "パスワード"}
+                autoComplete="current-password"
+                value={password} onChange={e => setPassword(e.target.value)}
+                minLength={mode === "signup" ? PASSWORD_MIN_LENGTH : undefined} className="input" style={{ paddingRight: 48 }}
+              />
+              <button type="button" onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "パスワードを隠す" : "パスワードを表示"}
+                className="icon-btn" style={{ position: "absolute", right: 6, top: 5, color: "var(--muted)" }}>
+                <Icon name={showPassword ? "eyeOff" : "eye"} size={18} />
+              </button>
+            </div>
           )}
           <button type="submit" style={{ display: "none" }} />
         </form>

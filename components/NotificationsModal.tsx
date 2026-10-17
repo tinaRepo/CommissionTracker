@@ -191,12 +191,12 @@ function AnnouncementRow({ announcement, isUnread, formatDate, onClick }: {
     <button onClick={onClick} className="card card-interactive row"
       style={{ width: "100%", textAlign: "left", gap: 12, padding: "13px 14px", border: isUnread ? "1px solid var(--accent)" : undefined }}>
       <div style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, background: isUnread ? "var(--danger)" : "transparent", marginTop: 2 }} />
-      <div className="grow">
+      <div className="grow" style={{ minWidth: 0 }}>
         <div className="row" style={{ gap: 8, marginBottom: 5, flexWrap: "wrap" }}>
           <TypeBadge type={announcement.type} />
           <span className="text-meta">{formatDate(announcement.published_at)}</span>
         </div>
-        <p style={{ margin: 0, fontSize: 14, fontWeight: isUnread ? 600 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <p style={{ margin: 0, fontSize: 14, fontWeight: isUnread ? 600 : 400, overflowWrap: "anywhere" }}>
           {announcement.title}
         </p>
       </div>
@@ -209,7 +209,7 @@ function AnnouncementDetail({ announcement, formatDate, onBack }: {
   announcement: Announcement; formatDate: (s: string) => string; onBack: () => void;
 }) {
   return (
-    <div>
+    <div style={{ minWidth: 0 }}>
       <button onClick={onBack} style={{ background: "none", border: "none", fontSize: 13, color: "var(--accent)", fontWeight: 600, padding: "0 0 16px", display: "inline-flex", alignItems: "center", gap: 4 }}>
         <Icon name="arrowLeft" size={14} /> 一覧に戻る
       </button>
@@ -218,9 +218,9 @@ function AnnouncementDetail({ announcement, formatDate, onBack }: {
           <TypeBadge type={announcement.type} />
           <span className="text-meta">{formatDate(announcement.published_at)}</span>
         </div>
-        <h2 style={{ fontSize: 16, fontWeight: 600, lineHeight: 1.4 }}>{announcement.title}</h2>
+        <h2 style={{ fontSize: 16, fontWeight: 600, lineHeight: 1.4, minWidth: 0, overflowWrap: "anywhere" }}>{announcement.title}</h2>
       </div>
-      <p style={{ fontSize: 14, lineHeight: 1.85, color: "var(--fg-2)", whiteSpace: "pre-wrap" }}>{announcement.content}</p>
+      <p style={{ fontSize: 14, lineHeight: 1.85, color: "var(--fg-2)", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{announcement.content}</p>
     </div>
   );
 }
