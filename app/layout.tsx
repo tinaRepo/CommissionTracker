@@ -1,31 +1,37 @@
-import Script from "next/script";
 import { PageViewTracker } from '../components/PageViewTracker';
+import AdSenseLoader from "@/components/AdSenseLoader";
 import type { Metadata } from "next";
+import { SITE_URL } from "@/lib/site";
 import "./globals.css";
+import "./components.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://commission-tracker-nine.vercel.app"),
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "Commission Tracker | 絵の依頼管理ツール",
-    template: "%s | Commission Tracker",
+    default: "ツクリスト | 納期・タスク管理ツール",
+    template: "%s | ツクリスト",
   },
-  description: "イラスト・絵の依頼を一元管理できる無料Webアプリ。依頼状況・納期・金額・ラフ画像をまとめて管理。絵師への依頼をもう迷子にしない。",
-  applicationName: "Commission Tracker",
-  keywords: ["イラスト依頼", "絵の依頼", "依頼管理", "イラスト依頼管理", "納期管理"],
+  description: "依頼・タスクの納期を一元管理できる無料Webアプリ。依頼状況・納期・金額・確認用画像をまとめて管理。作り手への依頼をもう迷子にしない。",
+  applicationName: "ツクリスト",
+  keywords: ["タスク管理", "納期管理", "依頼管理", "外注管理", "スケジュール管理"],
   manifest: "/manifest.json",
   openGraph: {
     type: "website",
     locale: "ja_JP",
-    siteName: "Commission Tracker",
-    title: "Commission Tracker | 絵の依頼管理ツール",
+    siteName: "ツクリスト",
+    title: "ツクリスト | 納期・タスク管理ツール",
     description: "依頼状況・納期・金額・画像をまとめて管理できる無料Webアプリ。",
-    images: [{ url: "/web-app-manifest-512x512.png", width: 512, height: 512, alt: "Commission Tracker" }],
+    images: [{ url: "/web-app-manifest-512x512.png", width: 512, height: 512, alt: "ツクリスト" }],
   },
-  twitter: { card: "summary", title: "Commission Tracker | 絵の依頼管理ツール" },
-  other: { "mobile-web-app-capable": "yes" },
+  twitter: { card: "summary", title: "ツクリスト | 納期・タスク管理ツール" },
+  other: {
+    "mobile-web-app-capable": "yes",
+    // AdSenseのサイト所有確認用（広告は読み込まない）。広告スクリプトは AdSenseLoader が公開ページだけで読み込む
+    "google-adsense-account": "ca-pub-4461599437148086",
+  },
   appleWebApp: {
     capable: true,
-    title: "Commission Tracker",
+    title: "ツクリスト",
     statusBarStyle: "default",
   },
   icons: {
@@ -44,35 +50,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ja">
-      <head>
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4461599437148086"
-          crossOrigin="anonymous"
-        />
-      </head>
       <body>
         {children}
         <PageViewTracker />
+        <AdSenseLoader />
 
-        <Script
-          src="https://www.googletagmanager.com/gtag/js?id=G-VL43MH743Z"
-          strategy="lazyOnload"
-          crossOrigin="anonymous"
-        />
 
-        {/* 初期化 */}
-        <Script id="ga-init" strategy="lazyOnload">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            window.gtag = gtag;
-            gtag('js', new Date());
-            gtag('config', 'G-VL43MH743Z', {
-                send_page_view: false
-            });
-          `}
-        </Script>
       </body>
     </html>
   );

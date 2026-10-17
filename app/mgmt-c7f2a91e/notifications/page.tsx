@@ -1,5 +1,5 @@
-import AdminNotificationsPage from "@/components/AdminNotificationsPage";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return <AdminNotificationsPage />;
+export default function LegacyAdminNotificationsPage() {
+  redirect("/admin/notifications");
 }

@@ -1,23 +1,28 @@
 "use client";
+
+import { Icon } from "@/components/TaskShared";
+import { SITE_URL } from "@/lib/site";
+import { SUPPORT_EMAIL } from "@/lib/site";
+// ページメタデータ
 export default function TokushoPage() {
   return (
-    <div style={{ minHeight:"100vh", background:"#faf8f5", fontFamily:"'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif" }}>
-      <header style={{ background:"linear-gradient(135deg,#1a0a2e 0%,#2d1a4a 60%,#1a2a4a 100%)", padding:"20px 24px", display:"flex", alignItems:"center", gap:12, boxShadow:"0 4px 32px #0004" }}>
-        <button onClick={() => window.history.back()} style={{ background:"#ffffff18", border:"1px solid #ffffff30", color:"#c4b5fd", borderRadius:8, padding:"6px 12px", fontSize:12, cursor:"pointer", fontWeight:600 }}>← 戻る</button>
-        <span style={{ color:"#fff", fontSize:18, fontWeight:800 }}>特定商取引法に基づく表記</span>
+    <div style={{ minHeight: "100vh", background: "var(--surface)" }}>
+      <header className="doc-header">
+        <button onClick={() => window.history.back()} className="doc-back-btn"><Icon name="arrowLeft" size={14} /> 戻る</button>
+        <span className="title">特定商取引法に基づく表記</span>
       </header>
-      <main style={{ maxWidth:720, margin:"0 auto", padding:"32px 24px 80px" }}>
+      <main className="container-narrow" style={{ padding: "32px 24px 80px" }}>
 
-        <table style={{ width:"100%", borderCollapse:"collapse", fontSize:14 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
           <tbody>
             {[
               ["販売業者", "請求があった場合は遅滞なく開示します"],
               ["運営責任者", "中沢拓真"],
               ["所在地", "請求があった場合は遅滞なく開示します"],
               ["電話番号", "お問い合わせいただいた場合に遅滞なく開示いたします"],
-              ["メールアドレス・お問い合わせ", "amukat0823@gmail.com"],
-              ["サービス名", "Commission Tracker"],
-              ["サービスURL", "https://commission-tracker-nine.vercel.app"],
+              ["メールアドレス・お問い合わせ", <a key="support-email" href={`mailto:${SUPPORT_EMAIL}`} style={{ color: "var(--accent)" }}>{SUPPORT_EMAIL}</a>],
+              ["サービス名", "ツクリスト"],
+              ["サービスURL", SITE_URL],
               ["販売価格",
                 "■ 無料プラン：0円\n■ スタンダードプラン：月額300円（税込）\n■ プレミアムプラン：月額800円（税込）\n※料金はすべて日本円・税込表示"],
               ["代金の支払い方法", "クレジットカード決済（Stripe）\n対応カード：Visa・Mastercard・American Express・JCB等"],
@@ -26,15 +31,15 @@ export default function TokushoPage() {
               ["サービス提供方法", "インターネット上のWebアプリケーションとして提供します。"],
               ["契約期間", "月単位の自動更新制です。解約するまで毎月自動で更新されます。"],
               ["解約・キャンセル",
-                "カスタマーポータル（アプリ内のプラン管理画面）からいつでも解約できます。\n解約後は次の更新日まで引き続きサービスをご利用いただけます。\n解約後の残存期間に対する返金は原則として行いません。"],
+                "アプリ内のプラン画面またはStripeのカスタマーポータルからいつでも解約を予約できます。解約は契約期間終了時に反映され、終了日までは現在のプランをご利用いただけます。\n有料プランへのアップグレード時は、残り期間に応じた差額を日割り計算して請求します。解約による返金は原則行いません。返金が必要な場合はお問い合わせください。アカウント削除時は即時解約となり、残り期間分の返金はありません。"],
               ["返品・返金ポリシー",
                 "デジタルコンテンツの性質上、原則として返金・キャンセルは承っておりません。\nただし、サービスの重大な不具合等により提供できなかった場合はこの限りではありません。\nご不明な点はお問い合わせフォームよりご連絡ください。"],
               ["動作環境", "最新バージョンのChrome・Safari・Firefox・Edge（インターネット接続が必要）"],
-              ["個人情報の取り扱い", "プライバシーポリシー（https://commission-tracker-nine.vercel.app/privacy）に従い適切に管理します。"],
+              ["個人情報の取り扱い", `プライバシーポリシー（${SITE_URL}/privacy）に従い適切に管理します。`],
             ].map(([label, value]) => (
-              <tr key={label} style={{ borderBottom:"1px solid #e5e7eb" }}>
-                <td style={{ padding:"14px 12px", fontWeight:700, color:"#555", width:200, verticalAlign:"top", background:"#f8f7ff", fontSize:13, whiteSpace:"nowrap" }}>{label}</td>
-                <td style={{ padding:"14px 12px", color:"#222", lineHeight:1.8, whiteSpace:"pre-wrap", wordBreak:"break-all" }}>{value}</td>
+              <tr key={String(label)} style={{ borderBottom: "1px solid var(--border-soft)" }}>
+                <td style={{ padding: "14px 12px", fontWeight: 600, color: "var(--muted)", width: 200, verticalAlign: "top", background: "var(--bg)", fontSize: 13, whiteSpace: "nowrap" }}>{label}</td>
+                <td style={{ padding: "14px 12px", color: "var(--fg-2)", lineHeight: 1.8, whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{value}</td>
               </tr>
             ))}
           </tbody>

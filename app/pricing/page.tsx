@@ -1,65 +1,128 @@
 "use client";
 
+import { Icon } from "@/components/TaskShared";
+import { SUPPORT_EMAIL } from "@/lib/site";
+
 export const dynamic = "force-dynamic";
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 
+// プラン情報
 const PLANS = [
   {
     key: "free",
     label: "無料",
     price: 0,
-    color: "#6b7280",
-    bg: "#f3f4f6",
-    features: ["依頼の登録・管理", "画像アップロード 合計10枚まで", "ステータス管理", "納期アラート"],
+    features: ["タスクの登録・管理", "画像アップロード 合計10枚まで", "ステータス管理", "納期アラート"],
     priceId: null,
   },
   {
     key: "standard",
     label: "スタンダード",
     price: 300,
-    color: "#3b82f6",
-    bg: "#dbeafe",
-    features: ["依頼の登録・管理", "画像アップロード 合計50枚まで", "ステータス管理", "納期アラート"],
+    features: ["タスクの登録・管理", "カレンダー表示", "画像アップロード 合計50枚まで", "ステータス管理", "納期アラート"],
     priceId: process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID,
   },
   {
     key: "premium",
     label: "プレミアム",
     price: 800,
-    color: "#7c3aed",
-    bg: "#ede9fe",
-    features: ["依頼の登録・管理", "画像アップロード 無制限", "ステータス管理", "納期アラート", "優先サポート"],
+    features: ["タスクの登録・管理", "カレンダー表示", "共有用公開ページ", "画像アップロード 無制限", "ステータス管理", "納期アラート", "優先サポート"],
     priceId: process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID,
   },
 ];
 
+// ページメタデータ
 export default function PricingPage() {
   const [currentPlan, setCurrentPlan] = useState<string>("free");
   const [loading, setLoading] = useState<string | null>(null);
   const [hasSubscription, setHasSubscription] = useState(false);
   const [checkoutStatus, setCheckoutStatus] = useState<string | null>(null);
+  const [billingRefreshing, setBillingRefreshing] = useState(false);
+  const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState(false);
+  const [currentPeriodEnd, setCurrentPeriodEnd] = useState<number | null>(null);
 
+  // ユーザーのセッションを取得し、現在のプランとサブスクリプション状況を設定する
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setCheckoutStatus(params.get("checkout"));
-    
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) { window.location.href = "/login"; return; }
-      const { data } = await supabase
-        .from("user_profiles")
-        .select("plan, stripe_customer_id, subscription_status")
-        .eq("id", session.user.id)
-        .single();
-      if (data) {
-        setCurrentPlan(data.plan ?? "free");
-        setHasSubscription(!!data.stripe_customer_id && data.subscription_status === "active");
+    const returnedFromPortal = params.get("billing") === "return";
+
+    let cancelled = false;
+    supabase.auth.getSession().then(async ({ data: { session }, error: sessionError }) => {
+      if (!session) {
+        if (sessionError) console.error("ログイン状態の確認に失敗しました", sessionError);
+        window.location.href = "/login";
+        return;
       }
+      if (cancelled) return;
+      try {
+        if (returnedFromPortal) {
+          setBillingRefreshing(true);
+          try {
+            const response = await fetch("/api/stripe/sync", {
+              method: "POST",
+              headers: { "Authorization": `Bearer ${session.access_token}` },
+            });
+            const result = await response.json();
+            if (!response.ok) {
+              console.error("Stripe portal return sync failed:", result.error);
+            } else if (!cancelled) {
+              setCurrentPlan(result.plan ?? "free");
+              setHasSubscription(["active", "past_due"].includes(result.subscription_status ?? ""));
+              setCancelAtPeriodEnd(!!result.cancel_at_period_end);
+              setCurrentPeriodEnd(result.current_period_end ?? null);
+            }
+          } catch (error) {
+            console.error("Stripe portal return sync request failed:", error);
+          }
+          window.history.replaceState({}, "", window.location.pathname);
+        }
+
+        const { data, error } = await supabase
+          .from("user_profiles")
+          .select("plan, stripe_customer_id, stripe_subscription_id, subscription_status")
+          .eq("id", session.user.id)
+          .single();
+        if (error) {
+          console.error("プラン情報の取得に失敗しました", error);
+        } else if (data && !cancelled) {
+          setCurrentPlan(data.plan ?? "free");
+          setHasSubscription(!!data.stripe_customer_id && ["active", "past_due"].includes(data.subscription_status ?? ""));
+          if (data.stripe_subscription_id && !returnedFromPortal) {
+            setBillingRefreshing(true);
+            try {
+              const response = await fetch("/api/stripe/sync", {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${session.access_token}` },
+              });
+              const result = await response.json();
+              if (!response.ok) {
+                console.error("Stripe subscription sync failed:", result.error);
+              } else if (!cancelled) {
+                setCurrentPlan(result.plan ?? "free");
+                setHasSubscription(["active", "past_due"].includes(result.subscription_status ?? ""));
+                setCancelAtPeriodEnd(!!result.cancel_at_period_end);
+                setCurrentPeriodEnd(result.current_period_end ?? null);
+              }
+            } catch (error) {
+              console.error("Stripe subscription sync request failed:", error);
+            }
+          }
+        }
+      } finally {
+        if (!cancelled) setBillingRefreshing(false);
+      }
+    }).catch(error => {
+      console.error("プラン画面の初期化に失敗しました", error);
+      if (!cancelled) setBillingRefreshing(false);
     });
+    return () => { cancelled = true; };
   }, []);
 
-  async function handleUpgrade(priceId: string) {
+  // 有料プランを申し込む処理
+  async function handleSubscribe(priceId: string) {
     setLoading(priceId);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -73,7 +136,7 @@ export default function PricingPage() {
       if (data.url) {
         window.location.href = data.url;
       } else {
-        alert(data.error === "already_subscribed" ? "すでにサブスクリプションがあります。プラン管理から変更してください。" : "エラーが発生しました");
+        alert(data.error === "already_subscribed" ? "有効なサブスクリプションがあります。プラン・支払い管理をご利用ください。" : "エラーが発生しました");
       }
     } catch {
       alert("エラーが発生しました");
@@ -82,6 +145,7 @@ export default function PricingPage() {
     }
   }
 
+  // Stripeのカスタマーポータルに遷移する処理
   async function handlePortal() {
     setLoading("portal");
     try {
@@ -93,7 +157,7 @@ export default function PricingPage() {
       });
       const data = await res.json();
       if (data.url) window.location.href = data.url;
-      else alert("エラーが発生しました");
+      else alert(data.error ?? "エラーが発生しました");
     } catch {
       alert("エラーが発生しました");
     } finally {
@@ -101,97 +165,145 @@ export default function PricingPage() {
     }
   }
 
+  async function handleCancelSubscription() {
+    if (!window.confirm("解約を予約します。現在の契約期間終了日までは有料プランを引き続き利用できます。期間終了後は自動更新されません。解約しますか？")) return;
+
+    setLoading("cancel");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token ?? "";
+      const res = await fetch("/api/stripe/cancel", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error ?? "解約予約を完了できませんでした。");
+        return;
+      }
+
+      setCancelAtPeriodEnd(data.cancelAtPeriodEnd);
+      setCurrentPeriodEnd(data.currentPeriodEnd ?? null);
+      const endDate = data.currentPeriodEnd
+        ? new Date(data.currentPeriodEnd * 1000).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" })
+        : "契約期間終了日";
+      alert(`${endDate}に解約されます。それまでは現在のプランを引き続きご利用いただけます。返金が必要な場合はお問い合わせください。`);
+    } catch {
+      alert("解約予約を完了できませんでした。時間をおいて再度お試しください。");
+    } finally {
+      setLoading(null);
+    }
+  }
+
   return (
-    <div style={{ minHeight: "100vh", background: "#faf8f5", fontFamily: "'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif" }}>
-      <header style={{ background: "linear-gradient(135deg,#1a0a2e 0%,#2d1a4a 60%,#1a2a4a 100%)", padding: "20px 24px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 4px 32px #0004" }}>
-        <button onClick={() => window.location.href = "/"} style={{ background: "#ffffff18", border: "1px solid #ffffff30", color: "#c4b5fd", borderRadius: 8, padding: "6px 12px", fontSize: 12, cursor: "pointer", fontWeight: 600 }}>← 戻る</button>
-        <span style={{ color: "#fff", fontSize: 18, fontWeight: 800 }}>プランを選択</span>
+    <div style={{ minHeight: "100vh", background: "var(--surface)" }}>
+      <header className="doc-header">
+        <button onClick={() => window.location.href = "/"} className="doc-back-btn"><Icon name="arrowLeft" size={14} /> 戻る</button>
+        <span className="title">プランを選択</span>
       </header>
 
-      <main style={{ maxWidth: 860, margin: "0 auto", padding: "40px 20px 80px" }}>
+      <main className="container-narrow" style={{ padding: "40px 20px 80px" }}>
 
-        {/* 決済完了・キャンセルメッセージ */}
         {checkoutStatus === "success" && (
-          <div style={{ marginBottom: 24, padding: "14px 18px", background: "#d1fae5", border: "1px solid #6ee7b7", borderRadius: 12, fontSize: 14, color: "#065f46", fontWeight: 600 }}>
-            🎉 プランのアップグレードが完了しました！
+          <div style={{ marginBottom: 24, padding: "14px 18px", background: "var(--success-soft)", borderRadius: "var(--radius-md)", fontSize: 14, color: "var(--success)", fontWeight: 600 }}>
+            プランの申し込みが完了しました！
           </div>
         )}
         {checkoutStatus === "cancelled" && (
-          <div style={{ marginBottom: 24, padding: "14px 18px", background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: 12, fontSize: 14, color: "#b91c1c" }}>
+          <div style={{ marginBottom: 24, padding: "14px 18px", background: "var(--danger-soft)", borderRadius: "var(--radius-md)", fontSize: 14, color: "var(--danger)" }}>
             決済がキャンセルされました。
           </div>
         )}
 
         <div style={{ textAlign: "center", marginBottom: 40 }}>
-          <div style={{ fontSize: 14, color: "#888", marginBottom: 8 }}>現在のプラン：
-            <span style={{ fontWeight: 800, color: "#1a0a2e" }}>
-              {PLANS.find(p => p.key === currentPlan)?.label ?? "無料"}
-            </span>
+          <div className="text-muted" style={{ fontSize: 14, marginBottom: 8 }}>現在のプラン：
+            <strong style={{ color: "var(--fg)" }}> {PLANS.find(p => p.key === currentPlan)?.label ?? "無料"}</strong>
+            {billingRefreshing && <span style={{ marginLeft: 8 }}>更新中…</span>}
           </div>
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: "#1a0a2e", marginBottom: 8 }}>プランを選択してください</h1>
-          <p style={{ fontSize: 14, color: "#888" }}>いつでもキャンセル可能・月額制</p>
+          <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 8 }}>プランを選択してください</h1>
+          <p className="text-muted" style={{ fontSize: 14 }}>月額制・アップグレードや解約の予約はいつでも可能</p>
         </div>
 
-        {/* プランカード */}
+        <div style={{
+          display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
+          marginBottom: 28, padding: "22px 20px", background: "var(--bg)",
+          border: "1px solid var(--border-soft)", borderRadius: "var(--radius-md)",
+        }}>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontWeight: 600, marginBottom: 6, lineHeight: 1.6 }}>
+              プラン選択の前に<br />
+              デモでお試しいただけます
+            </div>
+            <div className="text-muted" style={{ fontSize: 13, lineHeight: 1.7 }}>
+              デモ画面では、カレンダー表示のイメージや共有ページのサンプルをご覧いただけます。
+            </div>
+          </div>
+          <a href="/demo" className="btn btn-secondary" style={{ textDecoration: "none" }}>
+            デモ画面を見る
+          </a>
+        </div>
+
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 16, marginBottom: 32 }}>
           {PLANS.map(plan => {
             const isCurrent = currentPlan === plan.key;
             const isLoading = loading === plan.priceId;
             return (
-              <div key={plan.key} style={{
-                background: "#fff", borderRadius: 20, padding: "28px 24px",
-                border: isCurrent ? `2.5px solid ${plan.color}` : "1.5px solid #e5e7eb",
-                boxShadow: isCurrent ? `0 0 0 4px ${plan.color}20` : "0 2px 12px #0001",
-                position: "relative",
+              <div key={plan.key} className="pricing-card" style={{
+                borderColor: isCurrent ? "var(--accent)" : undefined,
+                boxShadow: isCurrent ? "0 0 0 1px var(--accent)" : undefined,
               }}>
                 {isCurrent && (
-                  <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: plan.color, color: "#fff", borderRadius: 999, padding: "3px 14px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
+                  <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: "var(--accent)", color: "#fff", borderRadius: 999, padding: "3px 14px", fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>
                     現在のプラン
                   </div>
                 )}
                 {plan.key === "premium" && !isCurrent && (
-                  <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: "linear-gradient(135deg,#7c3aed,#4f46e5)", color: "#fff", borderRadius: 999, padding: "3px 14px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
+                  <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: "var(--fg)", color: "var(--bg)", borderRadius: 999, padding: "3px 14px", fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>
                     おすすめ
                   </div>
                 )}
 
-                <div style={{ marginBottom: 16 }}>
-                  <span style={{ background: plan.bg, color: plan.color, borderRadius: 999, padding: "3px 12px", fontSize: 12, fontWeight: 800 }}>{plan.label}</span>
-                </div>
+                <div className="text-meta" style={{ marginBottom: 10, fontWeight: 600 }}>{plan.label}</div>
 
                 <div style={{ marginBottom: 20 }}>
                   {plan.price === 0 ? (
-                    <span style={{ fontSize: 32, fontWeight: 800, color: "#1a0a2e" }}>無料</span>
+                    <span style={{ fontSize: 30, fontWeight: 600 }}>無料</span>
                   ) : (
                     <>
-                      <span style={{ fontSize: 32, fontWeight: 800, color: "#1a0a2e" }}>¥{plan.price.toLocaleString()}</span>
-                      <span style={{ fontSize: 13, color: "#888", marginLeft: 4 }}>/月</span>
+                      <span style={{ fontSize: 30, fontWeight: 600 }}>¥{plan.price.toLocaleString()}</span>
+                      <span className="text-muted" style={{ fontSize: 13, marginLeft: 4 }}>/月</span>
                     </>
                   )}
                 </div>
 
-                <ul style={{ listStyle: "none", padding: 0, margin: "0 0 24px", display: "grid", gap: 8 }}>
+                <ul style={{ listStyle: "none", margin: "0 0 24px", display: "grid", gap: 8 }}>
                   {plan.features.map(f => (
-                    <li key={f} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#444" }}>
-                      <span style={{ color: plan.color, fontWeight: 700 }}>✓</span>{f}
+                    <li key={f} style={{ display: "flex", gap: 8, fontSize: 13, color: "var(--fg-2)" }}>
+                      <span style={{ color: "var(--accent)", display: "inline-flex" }}><Icon name="check" size={16} /></span>{f}
                     </li>
                   ))}
                 </ul>
 
                 {isCurrent ? (
-                  <div style={{ width: "100%", padding: "11px", background: plan.bg, color: plan.color, border: "none", borderRadius: 12, fontWeight: 700, fontSize: 14, textAlign: "center" }}>
-                    利用中
+                  <div className="btn btn-secondary btn-block" style={{ cursor: "default" }}>利用中</div>
+                ) : hasSubscription && plan.price > (PLANS.find(p => p.key === currentPlan)?.price ?? 0) ? (
+                  <div className="btn btn-secondary btn-block" style={{ cursor: "default", color: "var(--meta)" }}>
+                    上位プランへの変更は管理画面から
                   </div>
-                ) : plan.key === "free" ? (
-                  <div style={{ width: "100%", padding: "11px", background: "#f3f4f6", color: "#aaa", border: "none", borderRadius: 12, fontWeight: 700, fontSize: 14, textAlign: "center" }}>
-                    ダウングレードは解約後
+                ) : hasSubscription ? (
+                  <div className="btn btn-secondary btn-block" style={{
+                    display: "flex", minHeight: 54, padding: "8px 12px", cursor: "default",
+                    color: "var(--meta)", fontSize: 12, lineHeight: 1.45,
+                    textAlign: "center", whiteSpace: "normal",
+                  }}>
+                    <span>
+                      下記プランは現在の契約期間終了後に<br />
+                      お申し込みください
+                    </span>
                   </div>
                 ) : (
-                  <button
-                    onClick={() => plan.priceId && handleUpgrade(plan.priceId)}
-                    disabled={!!loading}
-                    style={{ width: "100%", padding: "11px", background: loading ? "#c4b5fd" : `linear-gradient(135deg,${plan.color},${plan.color}cc)`, color: "#fff", border: "none", borderRadius: 12, fontWeight: 700, fontSize: 14, cursor: loading ? "not-allowed" : "pointer" }}>
-                    {isLoading ? "処理中…" : `${plan.label}にアップグレード`}
+                  <button onClick={() => plan.priceId && handleSubscribe(plan.priceId)} disabled={!!loading} className="btn btn-primary btn-block">
+                    {isLoading ? "処理中…" : "このプランを選択"}
                   </button>
                 )}
               </div>
@@ -199,19 +311,46 @@ export default function PricingPage() {
           })}
         </div>
 
-        {/* サブスク管理ボタン */}
         {hasSubscription && (
           <div style={{ textAlign: "center" }}>
-            <button onClick={handlePortal} disabled={loading === "portal"}
-              style={{ background: "#fff", color: "#7c3aed", border: "1.5px solid #c4b5fd", borderRadius: 12, padding: "11px 28px", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
-              {loading === "portal" ? "処理中…" : "🔧 プラン・支払い管理（解約はこちら）"}
+            <button onClick={handlePortal} disabled={loading === "portal"} className="btn btn-secondary">
+              {loading === "portal" ? "処理中…" : "プラン・支払い管理"}
             </button>
-            <div style={{ fontSize: 12, color: "#aaa", marginTop: 8 }}>Stripeのカスタマーポータルに移動します</div>
+            <div className="text-meta" style={{ marginTop: 8 }}>Stripeで上位プランへの変更や支払い方法を管理できます</div>
+            <p className="text-meta" style={{ margin: "8px auto 0", maxWidth: 520, lineHeight: 1.7 }}>
+              上位プランへの変更時は残り期間に応じた差額を日割り計算して請求します。解約は契約期間の終了時に反映されます。
+            </p>
+            {cancelAtPeriodEnd ? (
+              <>
+                <p className="text-meta" style={{ margin: "16px auto 0", maxWidth: 520, lineHeight: 1.7, textAlign: "center", whiteSpace: "pre-line" }}>
+                  {currentPeriodEnd
+                    ? `${new Date(currentPeriodEnd * 1000).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" })}に解約予定です。\nそれまでは現在のプランをご利用いただけます。\n返金が必要な場合はお問い合わせください。`
+                    : "契約期間終了時に解約予定です。\nそれまでは現在のプランをご利用いただけます。\n返金が必要な場合はお問い合わせください。"}
+                </p>
+                <a
+                  href={`mailto:${SUPPORT_EMAIL}?subject=%E8%BF%94%E9%87%91%E3%81%AE%E3%81%94%E7%9B%B8%E8%AB%87`}
+                  style={{ display: "inline-block", marginTop: 8, fontSize: 13 }}
+                >
+                  返金についてお問い合わせ
+                </a>
+              </>
+            ) : (
+              <>
+                <button onClick={handleCancelSubscription} disabled={!!loading} className="btn btn-danger" style={{ marginTop: 16 }}>
+                  {loading === "cancel" ? "解約予約中…" : "有料プランを解約する"}
+                </button>
+                <p className="text-meta" style={{ margin: "8px auto 0", maxWidth: 520, lineHeight: 1.7 }}>
+                  解約後も契約期間の終了日まではご利用いただけます。返金が必要な場合は
+                  {" "}<a href={`mailto:${SUPPORT_EMAIL}?subject=%E8%BF%94%E9%87%91%E3%81%AE%E3%81%94%E7%9B%B8%E8%AB%87`}>お問い合わせください</a>。
+                </p>
+              </>
+            )}
           </div>
         )}
 
-        <div style={{ marginTop: 40, padding: "16px 20px", background: "#f8f7ff", borderRadius: 12, fontSize: 13, color: "#666", lineHeight: 1.7, textAlign: "center" }}>
-          決済はStripeで安全に処理されます。カード情報は当サービスのサーバーには保存されません。<br />
+        <div style={{ maxWidth: 640, margin: "40px auto 0", padding: "16px 20px", background: "var(--bg)", border: "1px solid var(--border-soft)", borderRadius: "var(--radius-md)", fontSize: 13, color: "var(--muted)", lineHeight: 1.8, textAlign: "center" }}>
+          決済はStripeで安全に処理されます。<br />
+          カード情報は当サービスのサーバーには保存されません。
         </div>
       </main>
     </div>

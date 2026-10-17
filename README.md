@@ -1,6 +1,7 @@
-# 🎨 Commission Tracker
+# 📋 ツクリスト
 
-絵の依頼をまとめて管理できる Web アプリです。依頼する側・受ける側（絵師）の両方を対象としています。
+依頼・タスクの納期、金額、確認用画像をまとめて管理できる Web アプリです。
+イラスト依頼に限らず、デザイン・動画・執筆・開発など外注・制作物の依頼全般で使えます。
 
 **技術構成:** Next.js 14 (App Router) + Supabase + Vercel
 
@@ -8,15 +9,30 @@
 
 ## 目次
 
-1. [Supabase セットアップ](#1-supabase-セットアップ)
-2. [ローカル動作確認（任意）](#2-ローカル動作確認任意)
-3. [Vercel デプロイ](#3-vercel-デプロイ)
-4. [外部サービス設定](#4-外部サービス設定)
-5. [管理者設定](#5-管理者設定)
-6. [機能一覧](#6-機能一覧)
-7. [プラン制限](#7-プラン制限)
-8. [パフォーマンスに関する実装方針](#8-パフォーマンスに関する実装方針)
-9. [SEO・広告運用](#9-seo広告運用)
+- [📋 ツクリスト](#-ツクリスト)
+  - [目次](#目次)
+  - [1. Supabase セットアップ](#1-supabase-セットアップ)
+    - [1-1. プロジェクト作成](#1-1-プロジェクト作成)
+    - [1-2. DB・RLS・Storage の構築](#1-2-dbrlsstorage-の構築)
+    - [1-3. 認証プロバイダーの設定](#1-3-認証プロバイダーの設定)
+    - [1-4. URL Configuration](#1-4-url-configuration)
+    - [1-5. API キーの確認](#1-5-api-キーの確認)
+  - [2. ローカル動作確認（任意）](#2-ローカル動作確認任意)
+    - [初回セットアップ（1 回だけ）](#初回セットアップ1-回だけ)
+    - [起動](#起動)
+  - [3. Vercel デプロイ](#3-vercel-デプロイ)
+  - [4. 外部サービス設定](#4-外部サービス設定)
+    - [Resend（メール送信）](#resendメール送信)
+    - [Stripe（サブスクリプション）](#stripeサブスクリプション)
+    - [Web Push（プッシュ通知）](#web-pushプッシュ通知)
+    - [Cron Jobの認証（CRON\_SECRET）](#cron-jobの認証cron_secret)
+  - [5. 管理者設定](#5-管理者設定)
+  - [6. 機能一覧](#6-機能一覧)
+  - [7. プラン制限](#7-プラン制限)
+  - [8. パフォーマンスに関する実装方針](#8-パフォーマンスに関する実装方針)
+  - [9. SEO・広告運用](#9-seo広告運用)
+  - [10. デザイン方針](#10-デザイン方針)
+  - [開発者向け資料](#開発者向け資料)
 
 ---
 
@@ -28,22 +44,22 @@
 
 ### 1-2. DB・RLS・Storage の構築
 
-**supabase-migration-guide.md** を参照して、マイグレーションを実施してください。
+DBの変更・反映方法は [docs/database-operations.md](docs/database-operations.md) を参照してください。
 
 ### 1-3. 認証プロバイダーの設定
 
 **Dashboard → Authentication → Providers** で以下を有効化します。
 
 **Email**
-- デフォルトで有効
-- *Confirm email* はオフ推奨（開発中）
+- Email/Passwordを利用する場合は有効化します。
+- メール確認の有効・無効は本番と検証環境で意図を分けて設定してください。本番で無効化する場合は、本人確認を省略する影響を考慮します。
 
 **Google**
 1. [Google Cloud Console](https://console.cloud.google.com) で OAuth アプリを作成
 2. Client ID / Secret を Supabase の Google プロバイダー設定に入力
 3. Redirect URL: `https://your-project.supabase.co/auth/v1/callback`
 
-> 📄 詳細な設定手順（Manual Linkingの有効化を含む）は `docs/google-login-setup.md` を参照してください。
+> 📄 詳細は [docs/google-login.md](docs/google-login.md) を参照してください。
 
 ### 1-4. URL Configuration
 
@@ -51,8 +67,10 @@
 
 | 項目          | 値                               |
 | ------------- | -------------------------------- |
-| Site URL      | `https://your-app.vercel.app`    |
-| Redirect URLs | `https://your-app.vercel.app/**` |
+| Site URL      | `https://tsukurist.com`          |
+| Redirect URLs | `https://tsukurist.com/**`、使用するVercel Preview URL、`http://localhost:3000/**` |
+
+Vercel Preview の認証リダイレクトを使う場合は、実際に使うPreview URLもRedirect URLsに追加します。Googleログインを使う場合、Google Cloud Consoleの承認済みリダイレクトURIは `https://<project-ref>.supabase.co/auth/v1/callback` です。詳しくは [Googleログイン設定](docs/google-login.md) を参照してください。
 
 ### 1-5. API キーの確認
 
@@ -68,7 +86,7 @@
 
 ## 2. ローカル動作確認（任意）
 
-`vercel dev` を使うと、コミット・デプロイなしでローカルから本番 DB に接続してアプリを確認できます。
+`vercel dev` を使うと、コミット・デプロイなしでローカルからVercel環境変数を使ってアプリを確認できます。開発時は誤操作を避けるため、可能な限り検証用Supabaseプロジェクトを接続してください。
 
 ### 初回セットアップ（1 回だけ）
 
@@ -105,27 +123,33 @@ vercel dev
 
 1. GitHub にリポジトリを push する
 2. [Vercel](https://vercel.com) → **Add New Project** → リポジトリを選択
-3. **Environment Variables** に以下を追加してデプロイ
+3. Project → **Settings → Domains** に `tsukurist.com` と `www.tsukurist.com` を登録し、表示されたDNSレコードをCloudflareのDNSに設定します。`www.tsukurist.com` はVercelで `tsukurist.com` にリダイレクトする設定にします。DNSレコードはVercelが表示する値を使い、メール用のMX/TXTレコードは削除・上書きしないでください。
+4. **Environment Variables** に以下を追加してデプロイ（雛形は `.env.example`）
 
-| 環境変数                               | 値                            | 備考                              |
-| -------------------------------------- | ----------------------------- | --------------------------------- |
-| `NEXT_PUBLIC_SUPABASE_URL`             | Supabase の Project URL       |                                   |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY`        | Supabase の anon key          |                                   |
-| `SUPABASE_SERVICE_ROLE_KEY`            | Supabase の service_role key  | ⚠️ サーバーサイド専用              |
-| `RESEND_API_KEY`                       | Resend の API キー            |                                   |
-| `ADMIN_EMAIL`                          | 削除申請メールの受信アドレス  |                                   |
-| `NEXT_PUBLIC_APP_URL`                  | Vercel のデプロイ URL         | 例: `https://your-app.vercel.app` |
-| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`   | Stripe の公開鍵               |                                   |
-| `STRIPE_SECRET_KEY`                    | Stripe の秘密鍵               | ⚠️ サーバーサイド専用              |
-| `STRIPE_WEBHOOK_SECRET`                | Stripe Webhook のシークレット |                                   |
-| `STRIPE_STANDARD_PRICE_ID`             | スタンダードプランの Price ID | サーバーサイド用                  |
-| `STRIPE_PREMIUM_PRICE_ID`              | プレミアムプランの Price ID   | サーバーサイド用                  |
-| `NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID` | スタンダードプランの Price ID | フロント用                        |
-| `NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID`  | プレミアムプランの Price ID   | フロント用                        |
-| `NEXT_PUBLIC_VAPID_PUBLIC_KEY`         | Web Push の公開鍵             |                                   |
-| `VAPID_PRIVATE_KEY`                    | Web Push の秘密鍵             |                                   |
-| `VAPID_EMAIL`                          | Web Push 送信元メール         | 例: `mailto:xxx@example.com`      |
-| `CRON_SECRET`                          | Cron Job 認証用シークレット   |                                   |
+| 環境変数                               | 値                            | 備考                                                                                  |
+| -------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`             | Supabase の Project URL       |                                                                                       |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY`        | Supabase の anon key          |                                                                                       |
+| `SUPABASE_SERVICE_ROLE_KEY`            | Supabase の service_role key  | ⚠️ サーバーサイド専用                                                                  |
+| `RESEND_API_KEY`                       | Resend の API キー            |                                                                                       |
+| `SUPPORT_EMAIL`                        | サポート窓口兼管理通知の受信先・送信元 | 本番・Preview とも `support@tsukurist.com` |
+| `NOREPLY_EMAIL`                        | 自動通知メールの送信元 | 本番・Preview とも `noreply@tsukurist.com` |
+| `NEXT_PUBLIC_APP_URL`                  | アプリの公開URL               | Production: `https://tsukurist.com`。Preview: 対象Vercel PreviewのURL（パスなし）。Webhookメール・通知のリンク先に使用 |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`   | Stripe の公開鍵               |                                                                                       |
+| `STRIPE_SECRET_KEY`                    | Stripe の秘密鍵               | ⚠️ サーバーサイド専用                                                                  |
+| `STRIPE_WEBHOOK_SECRET`                | Stripe Webhook のシークレット |                                                                                       |
+| `STRIPE_BILLING_PORTAL_CONFIGURATION_ID` | 上位プラン変更・期間終了時解約対応ポータルの Configuration ID | Stripe Dashboard で作成した設定を指定 |
+| `STRIPE_STANDARD_PRICE_ID`             | スタンダードプランの Price ID | サーバーサイド用                                                                      |
+| `STRIPE_PREMIUM_PRICE_ID`              | プレミアムプランの Price ID   | サーバーサイド用                                                                      |
+| `NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID` | スタンダードプランの Price ID | フロント用                                                                            |
+| `NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID`  | プレミアムプランの Price ID   | フロント用                                                                            |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY`         | Web Push の公開鍵             |                                                                                       |
+| `VAPID_PRIVATE_KEY`                    | Web Push の秘密鍵             |                                                                                       |
+| `VAPID_EMAIL`                          | Web Push 送信元メール         | `mailto:support@tsukurist.com`                                                        |
+| `CRON_SECRET`                          | Cron Job 認証用シークレット   | ⚠️ 16文字以上。自分で生成する（[4. 外部サービス設定](#cron-jobの認証cron_secret)参照） |
+| `HEALTHCHECKS_PING_URL`                | 死活監視の ping URL（任意）   | Healthchecks.io 等で作成。Cron 成功のたびに ping し、途切れると通知される             |
+
+VercelのEnvironment Variablesは、ProductionとPreviewそれぞれに設定します。`NEXT_PUBLIC_APP_URL` はProductionでは `https://tsukurist.com`、PreviewではVercelのPreview URLにしてください。Stripe CheckoutとCustomer Portalの戻り先はリクエスト元のoriginから生成されます。Previewも `support@tsukurist.com` と `noreply@tsukurist.com` から送信します。問い合わせ・管理通知は本番のサポート受信箱に届くため、Previewでのメール・決済・アカウント削除テストには注意してください。
 
 > ⚠️ 環境変数を追加・変更した後は必ず **Redeploy** すること
 
@@ -136,35 +160,29 @@ vercel dev
 ### Resend（メール送信）
 
 アカウント削除申請の通知メール、お問い合わせフォームの管理者通知・ユーザー自動返信メールに使用します。
+メールの送信元・件名・本文テンプレートは `lib/email-templates.ts` に集約しています。文面を変更するときはこのファイルを編集してください。
 
-1. [resend.com](https://resend.com) でアカウント作成（無料・月 3,000 通まで）
-2. **Dashboard → API Keys → Create API Key** で発行
-3. 発行したキーを `RESEND_API_KEY` として Vercel に設定
-4. `ADMIN_EMAIL` に受信先アドレスを設定
+1. [resend.com](https://resend.com) でアカウントを作成し、送信ドメイン `tsukurist.com` を追加します。
+2. Resendが表示するSPF/DKIM等のDNSレコードをCloudflareに登録し、Resend側でドメイン認証が完了したことを確認します。既存のSPFレコードがある場合は、別のSPFレコードを追加せず、送信サービスを同じレコードに統合してください。
+3. **Dashboard → API Keys → Create API Key** で発行し、`RESEND_API_KEY` としてVercelのProduction・Preview両方に設定します。
+4. VercelのProduction・Preview両方で `SUPPORT_EMAIL=support@tsukurist.com`、`NOREPLY_EMAIL=noreply@tsukurist.com` を設定します。問い合わせ通知・管理通知は `SUPPORT_EMAIL` を送信元・受信先として使用し、ユーザー向け自動返信や決済通知は `NOREPLY_EMAIL` を送信元として使用します。両アドレスともResendで認証した `tsukurist.com` ドメインを使用します。
+5. 受信にはメールボックス提供元が必要です。Cloudflare Email Routingを使う場合は `support@tsukurist.com` から既存の受信箱への転送を設定し、Cloudflareに案内されるMX/TXTレコードを追加します。メールボックスサービスを契約する場合は、そのサービスのMXレコードを設定してください。Cloudflareでのドメイン取得だけではメールボックスは作成されません。
 
-> 無料プランは `onboarding@resend.dev` からの送信のみ。独自ドメインで送信したい場合は DNS 設定が必要です。
-
-> 📌 **TODO（今後対応予定）**: 現在 Supabase Auth（確認メール・パスワードリセットメール等）は
-> Supabase 標準のメール送信機能を利用していますが、送信元ドメインの独自化・到達率向上のため、
-> 今後 Resend を使ったカスタム SMTP を **Supabase Dashboard → Authentication → Emails →
-> SMTP Settings** に設定する予定です。設定には `RESEND_API_KEY` とは別に、Resend が発行する
-> SMTP 用の認証情報（ホスト・ポート・ユーザー名・パスワード）が必要です。実施後は
-> `docs/handover.md` の該当セクションを更新してください。
+Preview環境も認証済みドメインからメールを送るため、検証メールの宛先に注意してください。Supabase Authの確認メール・パスワード再設定メールも独自ドメインから送るには、Supabase Dashboard → **Project Settings → Authentication → SMTP Settings** でカスタムSMTPを有効にし、ResendのSMTP情報（ホスト・ポート・ユーザー名・APIキー）と送信元 `noreply@tsukurist.com` を設定します。Previewでの認証メールも本番ドメインから送信されます。
 
 ### Stripe（サブスクリプション）
 
-月額課金（スタンダード・プレミアム）に使用します。
+設定手順・Customer Portal・Webhook・テストから本番切り替えまでの詳細は [Stripe運用ガイド](docs/stripe-guide.md) を参照してください。
 
-1. [stripe.com](https://stripe.com) でアカウント作成
-2. **Products** でスタンダード（¥300/月）・プレミアム（¥800/月）の商品を作成
-3. 各 Price ID を環境変数に設定
-4. **Webhooks** に `https://your-app.vercel.app/api/stripe/webhook` を登録し、`checkout.session.completed` / `customer.subscription.deleted` イベントを有効化
+本番の商品はスタンダード（月額300円）・プレミアム（月額800円）の recurring JPY Price とし、Price IDをサーバー・フロント用の各環境変数へ登録します。本番Webhookは `https://tsukurist.com/api/stripe/webhook` に設定します。Webhook対象イベント、Portal Configuration IDの取得、Preview/Test modeの分離などはStripe運用ガイドを参照してください。
 
 > テストキー（`sk_test_`）と本番キー（`sk_live_`）を混在させないこと。
 
+アップグレード時は残り期間に応じた差額を即時請求し、解約は契約期間終了時に反映します。自動返金は行わず、返金の相談はサポート窓口で受け付けます。
+
 ### Web Push（プッシュ通知）
 
-毎朝 8 時の納期リマインダー通知に使用します。
+納期リマインダー通知（毎朝 8 時・日本時間）に使用します。
 
 ```bash
 # VAPID キーペアの生成
@@ -174,6 +192,43 @@ npx web-push generate-vapid-keys
 生成された公開鍵・秘密鍵をそれぞれ `NEXT_PUBLIC_VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` に設定します。
 
 > iOS でのプッシュ通知はホーム画面追加（PWA）が必須です（iOS 16.4 以降）。
+
+### Cron Jobの認証（CRON_SECRET）
+
+納期通知は `vercel.json` の Cron（**毎日 8:00・日本時間**に実行）が `/api/cron/deadline-notify` を呼び出して実行します。
+納期が7日以内の未完了タスクがあるユーザーのうち、プッシュ通知を有効にしている端末へ送信します。
+VercelのCron式はUTC基準で、`0 23 * * *` が毎日8:00（日本時間）に相当します。Healthchecks.ioもCron式 `0 23 * * *`、タイムゾーン `UTC`、Grace Time `15 minutes` に設定してください。
+このルートは **`Authorization: Bearer <CRON_SECRET>` ヘッダーが一致しないリクエストを 401 で拒否**します
+（`CRON_SECRET` が未設定・16 文字未満の場合も常に拒否）。
+
+`CRON_SECRET` は外部サービスから発行されるものではなく、**自分でランダム文字列を生成**して Vercel に登録します。
+
+```bash
+# 1. 生成（どちらか）
+openssl rand -hex 32
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+2. **Vercel Dashboard → Project → Settings → Environment Variables** に `CRON_SECRET` を追加（Production）
+3. **Redeploy** する（Vercel Cron は `CRON_SECRET` が設定されていれば、上記ヘッダーを自動で付けて呼び出す）
+4. ローカルで試す場合は `.env.local` に同じ値を書く（`vercel env pull .env.local` でも取得可）
+
+動作確認:
+
+```bash
+# ヘッダーなし → 401 になること（通知は送られない）
+curl -i https://tsukurist.com/api/cron/deadline-notify
+```
+
+> ⚠️ 正しいヘッダー付きで呼ぶと**実際に購読中ユーザーへ通知が送信されます**。
+> 手動実行は Vercel Dashboard → Project → Settings → Cron Jobs の「Run」ボタンで行うか、検証環境で行ってください。
+>
+> ⚠️ シークレットを `vercel.json` の URL（`?secret=...`）に書かないこと。リポジトリ・ログ・履歴に残ります。
+> 過去にコミットしたシークレットは**必ず再発行（ローテーション）**してください。
+>
+> Cron は **Production デプロイ（main ブランチ）でのみ**実行されます。
+>
+> HobbyプランのCron実行回数制限に合わせ、毎日1回のスケジュールにしています。なお、Hobbyは非商用利用向けのため、課金・広告のある本サービスで利用するプランはVercelの最新の利用条件を確認してください。
 
 ---
 
@@ -189,30 +244,34 @@ set is_admin = true
 where id = 'ここに UUID を貼る';
 ```
 
-4. ログイン後、右上のユーザーメニュー → **「⚙ 管理者ページ」** から管理画面へ
+4. ログイン後、右上のユーザーメニュー → **「管理者ページ」** から管理画面へ
 
-管理者ページ URL: `/mgmt-c7f2a91e`（推測されにくい形式）
-お知らせ・バージョン管理 URL: `/mgmt-c7f2a91e/notifications`
+管理者ページ URL: `/admin`
+お知らせ・バージョン管理 URL: `/admin/notifications`
+
+管理者は管理画面の利用前にTOTP方式の二段階認証（認証アプリ）が必須です。初回アクセス時に画面のQRコードを認証アプリで読み取り、確認コードを入力して設定してください。以後、AAL2の認証状態でないセッションから管理機能は利用できません。
+管理者ページと通知・バージョン情報の管理操作を有効にするには、[DB運用ガイド](./docs/database-operations.md)に従って最新の管理者MFA migrationを適用します。
 
 ---
 
 ## 6. 機能一覧
 
-**依頼管理**
-- ✅ 依頼の登録・編集・削除
-- ✅ ステータス管理（依頼済み / ラフ確認中 / 制作中 / 完成 / キャンセル）
+**タスク管理**
+- ✅ タスク（依頼）の登録・編集・削除
+- ✅ ステータス管理（依頼済み / 確認中 / 対応中 / 完成 / キャンセル）
 - ✅ 納期 7 日前の警告表示
 - ✅ ステータスのプルダウン検索・並び替え
-- ✅ 開閉式の詳細検索パネル（既定は折りたたみ）：キーワード検索（件名・絵師名・X ID・メモ）、
+- ✅ タグ（カテゴリ・案件名など。1タスク10個・全体100個まで。タスクのフォームで作成・選択、一覧のプルダウンで絞り込み、ユーザーメニューから名前変更・削除）
+- ✅ カレンダービュー（月・週。納期の日にタスクを表示。ステータス・検索の絞り込みと連動。表示形式は記憶）
+- ✅ 開閉式の詳細検索パネル（既定は折りたたみ）：キーワード検索（件名・依頼先名・連絡先・メモ）、
   依頼日・納期のFrom-To日付範囲検索、金額の範囲検索
 - ✅ 検索結果の合計金額表示（チェックボックスで切替、既定は非表示）
-- ✅ カレンダービュー（月・週）
 
 **画像**
-- ✅ 依頼登録時に画像をまとめてアップロード（新規登録フォームから追加可能）
-- ✅ ラフ・作業中・完成・その他の画像アップロード（Supabase Storage）
+- ✅ タスク登録時に画像をまとめてアップロード（新規登録フォームから追加可能）
+- ✅ 確認用・作業中・完成・その他の画像アップロード（Supabase Storage `task-images`）
 - ✅ 一覧カードにサムネイル表示（最初の 1 枚。画像枚数はサムネイルに重ねたバッジで表示。署名付きURLはまとめて1回で取得）
-- ✅ 依頼一覧カードはコンパクトな2行構成（タイトル+ステータス／絵師名+納期のみ）。詳細な日付はカードをタップした先の詳細画面で確認
+- ✅ タスク一覧カードはコンパクトな2行構成（タイトル+ステータス／依頼先名+納期のみ）。詳細な日付はカードをタップした先の詳細画面で確認
 - ✅ 画像の拡大プレビュー・削除・ダウンロード（元画質保持）
 - ✅ プランごとの画像枚数制限
 
@@ -220,7 +279,7 @@ where id = 'ここに UUID を貼る';
 - ✅ メール / パスワード・Google ログイン
 - ✅ パスワードリセット（メール送信）
 - ✅ 表示名の設定
-- ✅ アカウント削除申請（Resend でメール通知）
+- ✅ アカウントの即時削除（本人がユーザーメニューから実行。メールアドレス＋パスワード（Googleのみの場合は直近ログイン）で本人確認。Stripeの即時解約・画像削除を含む）
 - ✅ ユーザーごとにデータが完全分離（RLS）
 - ✅ パスワードの設定・変更（ログイン後の画面から。Google登録ユーザーは初回設定可）
 - ✅ 直近のログイン方法の表示（Googleログイン時にアバターへバッジ表示）
@@ -230,15 +289,23 @@ where id = 'ここに UUID を貼る';
 - ✅ 最終ログイン日時の記録
 
 **通知**
-- ✅ プッシュ通知（毎朝 8 時・納期 7 日以内）
+- ✅ 毎朝8時（日本時間）のプッシュ通知（納期 7 日以内。同じ日の重複送信防止。Cron は `CRON_SECRET` のBearer認証で保護。複数端末で購読可能）
 - ✅ 管理者がお知らせを新規作成した時、配信対象ユーザーへプッシュ通知
 - ✅ 管理者が新しいバージョン情報を登録した時、購読中の全ユーザーへプッシュ通知
 - ✅ お知らせ・リリースノート（未読バッジ通知・モーダル表示。取得・未読判定は`hooks/useNotifications.ts`に一本化）
 - ✅ アカウント作成日より前に公開されたお知らせ・リリースノートは自動的に既読扱い（新規登録直後に過去の告知で未読バッジが立たない）
-- ✅ お問い合わせフォーム（モーダル表示・管理者通知・ユーザー自動返信）
+- ✅ お問い合わせフォーム（モーダル表示・管理者通知。自動返信はログイン済みユーザーのみ。IP／ユーザー単位のレート制限あり）
 
 **課金**
 - ✅ Stripe サブスク（月額課金・解約・カスタマーポータル）
+- ✅ プレミアムへのアップグレード時は残り期間分の差額を日割り請求。解約は期間終了時に反映し、自動返金は行わない
+- ✅ 支払い失敗への対応（`past_due`の記録・ユーザーへの連絡メール・画面上の警告と支払い方法の更新ボタン。復旧時に自動で戻る）
+- ✅ Webhookの冪等化・順序非依存（最新のサブスク状態をStripeから取得して反映）
+
+**運用・監視**
+- ✅ `/api/health`（死活監視。`?deep=1` + Bearer でCronの最終成功時刻まで確認）
+- ✅ Cronの実行記録（`job_runs`）と、異常時の管理者メール・Healthchecks.io通知（任意）
+- ✅ CI（型チェック・lint・ビルド）
 
 **管理者**
 - ✅ ユーザー一覧・プラン変更・ユーザー削除
@@ -247,13 +314,16 @@ where id = 'ここに UUID を貼る';
 - ✅ メンテナンスモード（管理者ページから公開停止・再開、利用者向け案内文を設定）
 
 **UI / UX**
+- ✅ 共通CSSトークンとコンポーネントスタイル（`app/globals.css`、`app/components.css`）
+- ✅ 自前SVGのラインアイコン（`components/TaskShared.tsx` の `Icon`。絵文字・記号文字は使わない）
 - ✅ 全モーダル固定サイズ統一（`height: calc(100vh - 32px)` + `maxHeight: 600`）
 - ✅ タイトル・ボタン固定 / コンテンツスクロールのモーダル構造
 - ✅ モーダル表示時の背景スクロールロック（iOS Safari 対応）
 - ✅ ユーザーメニューのテキスト折り返し防止
 
 **その他**
-- ✅ デモモード（ログイン不要・メモリのみ・お知らせ・お問い合わせボタン付き。検索UX・お知らせ閲覧はCommissionAppと共通コンポーネント、お知らせは未読管理なしの読み取り専用）
+- ✅ 共有用公開ページ（公開項目を選択。SNSリンク最大3件、実績画像最大20枚・各説明文最大120文字。タスク名や依頼詳細は公開しない）
+- ✅ デモモード（ログイン不要・メモリのみ・お知らせ・お問い合わせボタン付き。検索UX・お知らせ閲覧はTaskAppと共通コンポーネント、お知らせは未読管理なしの読み取り専用）
 - ✅ PWA 対応（ホーム画面追加。Androidではインストール操作、iOSではSafariの共有メニューから追加する方法を案内するバナーを表示。表示履歴はAPI管理のHttpOnly Cookieに保存）
 - ✅ LP・利用規約・プライバシーポリシー・特定商取引法ページ
 
@@ -272,8 +342,7 @@ where id = 'ここに UUID を貼る';
 ## 8. パフォーマンスに関する実装方針
 
 ログイン直後の表示速度や、お知らせモーダルの表示速度の改善のために取り入れている
-実装方針です。今後コードを追加・変更する際もこの方針に沿ってください（詳細な経緯は
-`docs/handover.md` の「パフォーマンス改善」セクションを参照）。
+実装方針です。今後コードを追加・変更する際もこの方針に沿ってください。
 
 - **画像の署名付きURLはまとめて取得する**：画像を複数枚扱う場面（一覧のサムネイル・
   詳細モーダルなど）では、`lib/supabase.ts` の `getSignedImageUrl()`（1枚用）を
@@ -298,20 +367,19 @@ where id = 'ここに UUID を貼る';
   が既存テーブルへの追加例）。
 - **サードパーティスクリプトは`lazyOnload`を優先する**：GA・広告など計測系の
   外部スクリプトは、メインコンテンツの表示・操作可能化をブロックしないよう
-  `next/script`の`strategy="lazyOnload"`を基本とすること。
+  `next/script`の`strategy="lazyOnload"`を基本とすること（AdSense loaderのみ、
+  `data-nscript`属性を避けるため通常の`<script async>`）。
 - **同じデータを複数箇所で使うなら共有フックに寄せる**：ヘッダーの未読バッジと
   お知らせモーダルのように、複数のUIが同じデータ（お知らせ・リリースノート等）を
   必要とする場合は、コンポーネントごとに個別取得させず`hooks/`配下に共有フックを
   作り、データ取得元を1つに統一すること（実装例: `hooks/useNotifications.ts`）。
-- **本番とデモで表示・検索ロジックが同じ部分は共通化する**：`CommissionApp.tsx`
+- **本番とデモで表示・検索ロジックが同じ部分は共通化する**：`TaskApp.tsx`
   （本番）と`DemoApp.tsx`（ログイン不要のデモ）は見た目・検索条件が同じである
-  べきなのに、コードが別々にコピーされていたため機能追加のたびに片方だけ
-  反映される問題があった。定数・フォーマッタ・UI部品（一覧カードの
-  `CommissionListCard`を含む）は`components/CommissionShared.tsx`、
-  検索・フィルタ・並び替えのロジックは`hooks/useCommissionSearch.ts`、
-  検索バーのUIは`components/CommissionSearchBar.tsx`に集約している。
+  べきなので、定数・フォーマッタ・UI部品（一覧カードの`TaskListCard`・`Icon`を含む）は
+  `components/TaskShared.tsx`、検索・フィルタ・並び替えのロジックは
+  `hooks/useTaskSearch.ts`、検索バーのUIは`components/TaskSearchBar.tsx`に集約している。
   新しい検索条件や見た目の変更は、この3ファイルを編集し、
-  `CommissionApp.tsx`/`DemoApp.tsx`側は極力変更しないこと。
+  `TaskApp.tsx`/`DemoApp.tsx`側は極力変更しないこと。
   一方、画像アップロード・プラン制限など実装の意味が本質的に異なる部分
   （Supabase Storage・課金プラン vs. メモリのみの疑似アップロード）は
   無理に共通化していない。
@@ -320,10 +388,38 @@ where id = 'ここに UUID を貼る';
   折り返しが多発し、カードの高さが不安定に伸びてしまう。折り返しを許容しない
   1行に収めたい場合は、重要度の低い項目を削るか、`flex: "1 1 0%"` +
   `minWidth: 0` + `text-overflow: ellipsis`で省略表示にすること
-  （実装例: `components/CommissionShared.tsx`の`CommissionListCard`）。
+  （実装例: `components/TaskShared.tsx`の`TaskListCard`）。
 
 ---
 
 ## 9. SEO・広告運用
 
-Google Search Console・Google AdSenseの初期設定と定期確認は、[docs/seo-and-ads.md](docs/seo-and-ads.md) を参照してください。
+Google Search Console・Google AdSenseの設定は、[docs/seo-ads-guide.md](docs/seo-ads-guide.md) を参照してください。
+
+---
+
+## 10. デザイン方針
+
+色・角丸・影などの実装値は `app/globals.css` と `app/components.css` が基準です。[DESIGN.md](DESIGN.md) はAppleのWebサイトを分析した参考資料であり、アプリ画面の完全な仕様書ではありません。
+
+- 色・角丸・影・フォントは `app/globals.css` のトークン（`var(--xxx)`）、
+  ボタン・カード・バッジ・モーダル等は `app/components.css` の共通クラスで定義する。
+  **ページ・コンポーネント側で色や影をハードコードしない。**
+- アクセントは Action Blue（`--accent` `#0066cc`）の**単色のみ**。第二のブランド色・グラデーションは使わない
+  （成功・警告・危険などの状態色は別トークン）。
+- 影は浮遊する面（モーダル・ユーザーメニュー）のみ。カード・ボタン・テキストには付けない。
+- 太さは 400 / 600（500 は使わない）。ボタン押下は `scale(0.95)`。
+- アイコンは `components/TaskShared.tsx` の `<Icon name="..." />`（自前SVG）。
+  新しいアイコンは `ICON_PATHS` に追加し、絵文字・記号文字（✓ ← › ▾ ×など）は使わない。
+  ブランドロゴ（Google の G）は線アイコンにせず、`GoogleLogo`（`TaskShared.tsx`・公式SVG）を使う。
+
+---
+
+## 開発者向け資料
+
+- [開発・運用ガイド](docs/development-guide.md)：構成、実装ルール、検証・リリース手順
+- [DB運用ガイド](docs/database-operations.md)：マイグレーション、RLS、権限付与
+- [Googleログイン設定](docs/google-login.md)：OAuth・リダイレクトURL設定
+- [Stripe運用ガイド](docs/stripe-guide.md)：商品・Webhook・Customer Portal・テスト運用
+- [独自ドメイン設定・移行ガイド](docs/domain-migration.md)：本番ドメイン、Vercel Preview、メール設定
+- [SEO・広告ガイド](docs/seo-ads-guide.md)：Search Console・AdSense運用

@@ -1,126 +1,226 @@
 import Stripe from "stripe";
-import { createClient } from "@supabase/supabase-js";
+import { Resend } from "resend";
+import { getNoReplyFrom, paymentFailedEmail } from "@/lib/email-templates";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { createAdminClient } from "@/lib/server/admin";
+import { alertAdmin } from "@/lib/server/monitor";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+
+// Price IDからプランを判定
+function getPlanFromPriceId(priceId: string | undefined): "standard" | "premium" | null {
+  if (!priceId) return null;
+  if (priceId === process.env.STRIPE_STANDARD_PRICE_ID) return "standard";
+  if (priceId === process.env.STRIPE_PREMIUM_PRICE_ID) return "premium";
+  return null;
+}
+
+function customerIdOf(c: string | Stripe.Customer | Stripe.DeletedCustomer | null): string | null {
+  if (!c) return null;
+  return typeof c === "string" ? c : c.id;
+}
+
+async function mustUpdate(q: PromiseLike<{ error: { message: string } | null }>) {
+  const { error } = await q;
+  if (error) throw new Error(`profile update failed: ${error.message}`);
+}
+
+async function updateSubscriptionProfile(
+  admin: SupabaseClient,
+  sub: Stripe.Subscription,
+  customerId: string,
+  values: { plan?: string; stripe_subscription_id: string | null; subscription_status: string },
+  onlyIfCurrentSubscription = false,
+) {
+  const { data: profile, error: lookupError } = await admin
+    .from("user_profiles")
+    .select("id")
+    .eq("stripe_customer_id", customerId)
+    .maybeSingle();
+  if (lookupError) throw new Error(`profile lookup failed: ${lookupError.message}`);
+
+  const userId = profile?.id ?? sub.metadata?.supabase_user_id;
+  if (!userId) throw new Error(`No user profile found for Stripe customer ${customerId}`);
+
+  let query = admin.from("user_profiles")
+    .update({ ...values, ...(!profile ? { stripe_customer_id: customerId } : {}) })
+    .eq("id", userId);
+  if (onlyIfCurrentSubscription) {
+    query = query.or(`stripe_subscription_id.eq.${sub.id},stripe_subscription_id.is.null`);
+  }
+  const { data, error } = await query.select("id");
+  if (error) throw new Error(`profile update failed: ${error.message}`);
+  if (!data?.length && !onlyIfCurrentSubscription) {
+    throw new Error(`No user profile updated for Stripe customer ${customerId}`);
+  }
+}
+
+// サブスクリプションの「最新の状態」をプロフィールへ反映する。
+// どのイベントから呼ばれても同じ結果になる（イベントの到着順に依存しない）。
+async function applySubscription(admin: SupabaseClient, sub: Stripe.Subscription) {
+  const customerId = customerIdOf(sub.customer);
+  if (!customerId) return;
+
+  switch (sub.status) {
+    case "active":
+    case "trialing": {
+      const priceId = sub.items.data[0]?.price.id;
+      const plan = getPlanFromPriceId(priceId);
+      if (!plan) {
+        await alertAdmin(admin, "stripe-unknown-price", "Stripeの未知のPrice IDを受信しました",
+          `priceId=${priceId} subscription=${sub.id} customer=${customerId}\nSTRIPE_*_PRICE_ID の環境変数を確認してください。`);
+        throw new Error(`Unknown priceId: ${priceId}`); // 500を返してStripeに再送させる（環境変数の修正後に回復する）
+      }
+      await updateSubscriptionProfile(admin, sub, customerId,
+        { plan, stripe_subscription_id: sub.id, subscription_status: "active" });
+      break;
+    }
+    case "past_due":
+      // 支払い失敗の再試行中。プランは維持し、状態だけ記録する（画面で支払い方法の更新を促す）
+      await updateSubscriptionProfile(admin, sub, customerId,
+        { stripe_subscription_id: sub.id, subscription_status: "past_due" });
+      break;
+    case "canceled":
+    case "unpaid":
+    case "incomplete_expired":
+      // 解約・失効。ただし、別のサブスクリプションに乗り換え済みなら無料に戻さない
+      await updateSubscriptionProfile(admin, sub, customerId,
+        { plan: "free", stripe_subscription_id: null, subscription_status: "inactive" }, true);
+      break;
+    default:
+      break; // incomplete / paused などは何もしない
+  }
+}
+
+// 通知時点ではなく最新の状態を使う（古いイベントが後から届いても巻き戻らない）
+async function retrieveLatest(subId: string, fallback?: Stripe.Subscription): Promise<Stripe.Subscription> {
+  try {
+    return await stripe.subscriptions.retrieve(subId);
+  } catch (e: any) {
+    if (e?.code === "resource_missing" && fallback) return fallback;
+    throw e;
+  }
+}
+
+// 支払い失敗の連絡メール（Stripeの再試行が続いている間に、支払い方法の更新を案内する）
+async function notifyPaymentFailed(admin: SupabaseClient, customerId: string) {
+  const { data: profile } = await admin
+    .from("user_profiles").select("id").eq("stripe_customer_id", customerId).maybeSingle();
+  if (!profile || !process.env.RESEND_API_KEY) return;
+  const { data } = await admin.auth.admin.getUserById(profile.id);
+  const email = data?.user?.email;
+  if (!email) return;
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  await resend.emails.send({
+    from: getNoReplyFrom(),
+    to: email,
+    ...paymentFailedEmail(appUrl),
+  });
+}
 
 export async function POST(request: NextRequest) {
   const body = await request.text();
   const sig = request.headers.get("stripe-signature");
-
-  if (!sig) {
-    return NextResponse.json({ error: "No signature" }, { status: 400 });
-  }
+  if (!sig) return NextResponse.json({ error: "No signature" }, { status: 400 });
 
   let event: Stripe.Event;
   try {
     event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET!);
   } catch (e: any) {
     console.error("Webhook signature error:", e.message);
-    return NextResponse.json({ error: `Webhook Error: ${e.message}` }, { status: 400 });
+    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  const adminSupabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  );
+  const admin = createAdminClient();
 
-  const standardPriceId = process.env.STRIPE_STANDARD_PRICE_ID!;
-  const premiumPriceId = process.env.STRIPE_PREMIUM_PRICE_ID!;
-
-  // Price IDからプランを判定
-  function getPlanFromPriceId(priceId: string): "standard" | "premium" | null {
-    if (priceId === standardPriceId) return "standard";
-    if (priceId === premiumPriceId) return "premium";
-    return null;
+  // 冪等性: 同じイベントIDは1回だけ処理する（Stripeは再送・重複配信することがある）
+  const { data: claimed, error: claimError } = await admin
+    .from("stripe_events")
+    .upsert({ id: event.id, type: event.type }, { onConflict: "id", ignoreDuplicates: true })
+    .select("id");
+  if (claimError) {
+    console.error("stripe_events claim failed:", {
+      eventId: event.id,
+      eventType: event.type,
+      code: claimError.code,
+      message: claimError.message,
+      details: claimError.details,
+      hint: claimError.hint,
+    });
+    return NextResponse.json({ error: "temporary error" }, { status: 500 }); // Stripeが再送する
+  }
+  if (!claimed || claimed.length === 0) {
+    return NextResponse.json({ received: true, duplicate: true });
   }
 
   try {
     switch (event.type) {
-
       // 決済完了 → プランをアップグレード
-      case "checkout.session.completed": {
+      case "checkout.session.completed":
+      case "checkout.session.async_payment_succeeded": {
         const session = event.data.object as Stripe.Checkout.Session;
-        if (session.mode !== "subscription") break;
-
-        const customerId = session.customer as string;
-        const subscriptionId = session.subscription as string;
-
-        // サブスクリプションからPrice IDを取得
-        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-        const priceId = subscription.items.data[0]?.price.id;
-        const plan = getPlanFromPriceId(priceId);
-
-        if (!plan) {
-          console.error("Unknown priceId:", priceId);
-          break;
-        }
-
-        await adminSupabase
-          .from("user_profiles")
-          .update({
-            plan,
-            stripe_subscription_id: subscriptionId,
-            subscription_status: "active",
-          })
-          .eq("stripe_customer_id", customerId);
-
-        console.log(`Plan upgraded to ${plan} for customer ${customerId}`);
+        if (session.mode !== "subscription" || !session.subscription) break;
+        const subId = typeof session.subscription === "string" ? session.subscription : session.subscription.id;
+        await applySubscription(admin, await stripe.subscriptions.retrieve(subId));
         break;
       }
 
-      // サブスクリプション更新（プラン変更にも対応）
+      // サブスクリプションの作成・更新（プラン変更・状態変化）
+      case "customer.subscription.created":
       case "customer.subscription.updated": {
-        const subscription = event.data.object as Stripe.Subscription;
-        const customerId = subscription.customer as string;
-        const priceId = subscription.items.data[0]?.price.id;
-        const plan = getPlanFromPriceId(priceId);
-        const status = subscription.status;
-
-        if (status === "active" && plan) {
-          await adminSupabase
-            .from("user_profiles")
-            .update({
-              plan,
-              subscription_status: "active",
-            })
-            .eq("stripe_customer_id", customerId);
-        } else if (status === "canceled" || status === "unpaid") {
-          await adminSupabase
-            .from("user_profiles")
-            .update({
-              plan: "free",
-              stripe_subscription_id: null,
-              subscription_status: "inactive",
-            })
-            .eq("stripe_customer_id", customerId);
-        }
+        const sub = event.data.object as Stripe.Subscription;
+        await applySubscription(admin, await retrieveLatest(sub.id, sub));
         break;
       }
 
       // 解約 → 無料プランに戻す
       case "customer.subscription.deleted": {
-        const subscription = event.data.object as Stripe.Subscription;
-        const customerId = subscription.customer as string;
-
-        await adminSupabase
-          .from("user_profiles")
-          .update({
-            plan: "free",
-            stripe_subscription_id: null,
-            subscription_status: "inactive",
-          })
-          .eq("stripe_customer_id", customerId);
-
-        console.log(`Plan downgraded to free for customer ${customerId}`);
+        await applySubscription(admin, event.data.object as Stripe.Subscription);
         break;
       }
+
+      // 更新の支払い失敗 → 状態を記録してユーザーに連絡（初回の決済失敗は対象外）
+      case "invoice.payment_failed": {
+        const invoice = event.data.object as Stripe.Invoice;
+        if (invoice.billing_reason === "subscription_create") break;
+        const customerId = customerIdOf(invoice.customer);
+        if (!customerId) break;
+        await mustUpdate(admin.from("user_profiles")
+          .update({ subscription_status: "past_due" })
+          .eq("stripe_customer_id", customerId)
+          .neq("plan", "free"));
+        await notifyPaymentFailed(admin, customerId);
+        break;
+      }
+
+      // 支払い成功 → past_due から復帰
+      case "invoice.paid": {
+        const invoice = event.data.object as Stripe.Invoice;
+        const subRef = invoice.subscription;
+        if (!subRef) break;
+        const subId = typeof subRef === "string" ? subRef : subRef.id;
+        await applySubscription(admin, await stripe.subscriptions.retrieve(subId));
+        break;
+      }
+
+      default:
+        break;
     }
   } catch (e: any) {
-    console.error("Webhook handler error:", e);
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    console.error(`Webhook handler error (${event.type}):`, e);
+    // 再送で再処理できるよう、処理済みの記録を取り消す
+    const { error: releaseError } = await admin.from("stripe_events").delete().eq("id", event.id);
+    if (releaseError) console.error("Stripe webhook event claim could not be released:", releaseError);
+    await alertAdmin(admin, `stripe-webhook-${event.type}`, `Stripe Webhookの処理に失敗しました（${event.type}）`,
+      `event=${event.id}\n${String(e?.stack ?? e)}`);
+    return NextResponse.json({ error: "handler error" }, { status: 500 });
   }
 
   return NextResponse.json({ received: true });

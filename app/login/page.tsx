@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { supabase, isValidEmailFormat, DISPLAY_NAME_MAX_LENGTH, PASSWORD_MIN_LENGTH, toJapaneseAuthError } from "@/lib/supabase";
-import dynamic from "next/dynamic";
 import ContactModal from "@/components/ContactModal";
-const DemoApp = dynamic(() => import("@/components/DemoApp"), { ssr: false });
+import { GoogleLogo } from "@/components/TaskShared";
 
 type Mode = "login" | "signup" | "reset";
 
@@ -17,13 +16,11 @@ export default function LoginPage() {
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
-  const [demoMode, setDemoMode] = useState(false);
   const [showContact, setShowContact] = useState(false);
   const [lastProvider, setLastProvider] = useState<string | null>(null);
 
-  // メインボタンの活性/非活性判定（disabledと見た目のstyleで条件がズレないよう一箇所にまとめる）
   const isEmailValid = isValidEmailFormat(email);
-  const isPasswordValid = mode === "reset" || password.length >= PASSWORD_MIN_LENGTH;
+  const isPasswordValid = mode === "reset" || (mode === "login" ? password.length > 0 : password.length >= PASSWORD_MIN_LENGTH);
   const isDisplayNameValid = mode !== "signup" || (displayName.trim().length > 0 && displayName.trim().length <= DISPLAY_NAME_MAX_LENGTH);
 
   const isSubmitDisabled =
@@ -36,7 +33,14 @@ export default function LoginPage() {
   // ログイン済みの場合はトップページにリダイレクト
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("demo") === "1") setDemoMode(true);
+    const isDemo = params.get("demo") === "1";
+    if (isDemo) {
+      window.location.replace("/demo");
+      return;
+    }
+    if (params.get("deleted") === "1") {
+      setMessage({ type: "success", text: "アカウントを削除しました。ご利用ありがとうございました。" });
+    }
 
     if (params.get("error") === "reset_link_invalid") {
       setMessage({
@@ -53,16 +57,26 @@ export default function LoginPage() {
 
   // ログイン画面にアクセスした際に、前回のログインプロバイダを取得して表示する
   useEffect(() => {
-    fetch("/api/auth/last-login-provider")
-      .then(res => res.json())
-      .then(data => setLastProvider(data.provider ?? null))
-      .catch(() => { });
-  }, []);
+    let cancelled = false;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("demo") === "1" || params.get("deleted") === "1") {
+      setLastProvider(null);
+      return () => { cancelled = true; };
+    }
 
-  // デモモードの場合はDemoAppを表示
-  if (demoMode) {
-    return <DemoApp onExit={() => setDemoMode(false)} />;
-  }
+    fetch("/api/auth/last-login-provider", { cache: "no-store" })
+      .then(async response => {
+        if (!response.ok) throw new Error(`ログイン方法の取得に失敗しました (${response.status})`);
+        return response.json() as Promise<{ provider: string | null }>;
+      })
+      .then(data => {
+        if (!cancelled) setLastProvider(data.provider === "google" ? "google" : null);
+      })
+      .catch(error => {
+        if (!cancelled) console.error("failed to load last login provider:", error);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   // メールログイン・サインアップ・パスワードリセットの処理
   async function handleEmail() {
@@ -136,38 +150,23 @@ export default function LoginPage() {
     }
   }
 
-  // Googleのログイン機能の追加
   async function handleOAuth(provider: "google" | "twitter") {
     try {
       setLoading(true);
-
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
           redirectTo: `${location.origin}/auth/callback`,
-          queryParams: {
-            prompt: "select_account",
-          },
+          queryParams: { prompt: "select_account" },
         },
       });
-
       if (error) {
-        setMessage({
-          type: "error",
-          text: toJapaneseAuthError(error.message),
-        });
+        setMessage({ type: "error", text: toJapaneseAuthError(error.message) });
         return;
       }
-
     } catch (e: any) {
       console.error("oauth exception", e);
-
-      setMessage({
-        type: "error",
-        text:
-          e?.message ??
-          "Googleログイン中に予期しないエラーが発生しました",
-      });
+      setMessage({ type: "error", text: e?.message ?? "Googleログイン中に予期しないエラーが発生しました" });
     } finally {
       setLoading(false);
     }
@@ -182,31 +181,25 @@ export default function LoginPage() {
 
   return (
     <div style={{
-      minHeight: "100vh",
-      background: "linear-gradient(135deg,#1a0a2e 0%,#2d1a4a 55%,#1a2a4a 100%)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      fontFamily: "'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif",
-      padding: 16,
+      minHeight: "100vh", background: "var(--surface-sky)",
+      display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
     }}>
       <div style={{
-        background: "#fff", borderRadius: 24, padding: "40px 36px",
-        width: "100%", maxWidth: 400,
-        boxShadow: "0 20px 60px #0006, 0 0 0 1px #ffffff10",
+        background: "var(--bg)", borderRadius: "var(--radius-xl)", padding: "44px 36px",
+        width: "100%", maxWidth: 400, boxShadow: "var(--shadow-lg)",
       }}>
         {/* ロゴ */}
-        <div style={{ textAlign: "center", marginBottom: 28 }}>
-          <div style={{ fontSize: 38, marginBottom: 6, filter: "drop-shadow(0 2px 8px #7c3aed40)" }}>🎨</div>
-          <div style={{ fontWeight: 800, fontSize: 20, color: "#1a0a2e" }}>Commission Tracker</div>
-          <div style={{ color: "#888", fontSize: 13, marginTop: 2 }}>{titles[mode]}</div>
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <div style={{ fontWeight: 600, fontSize: 21, letterSpacing: "-0.01em" }}>ツクリスト</div>
+          <div style={{ color: "var(--muted)", fontSize: 13, marginTop: 4 }}>{titles[mode]}</div>
         </div>
 
         {/* メッセージ */}
         {message && (
           <div style={{
-            marginBottom: 16, padding: "10px 14px", borderRadius: 10, fontSize: 13,
-            background: message.type === "error" ? "#fee2e2" : "#d1fae5",
-            color: message.type === "error" ? "#b91c1c" : "#065f46",
-            border: `1px solid ${message.type === "error" ? "#fca5a5" : "#6ee7b7"}`,
+            marginBottom: 16, padding: "10px 14px", borderRadius: "var(--radius-md)", fontSize: 13,
+            background: message.type === "error" ? "var(--danger-soft)" : "var(--success-soft)",
+            color: message.type === "error" ? "var(--danger)" : "var(--success)",
           }}>
             {message.text}
           </div>
@@ -214,21 +207,14 @@ export default function LoginPage() {
 
         {mode !== "reset" && (
           <>
-            <div style={{ display: "grid", gap: 10, marginBottom: 20 }}>
+            <div style={{ marginBottom: 20 }}>
               <div style={{ position: "relative" }}>
-                <OAuthButton
-                  onClick={() => handleOAuth("google")}
-                  disabled={loading}
-                  icon="G"
-                  label="Googleで続ける"
-                  color="#4285f4"
-                />
+                <OAuthButton onClick={() => handleOAuth("google")} disabled={loading} label="Googleで続ける" />
                 {lastProvider === "google" && mode === "login" && (
                   <span style={{
                     position: "absolute", top: -8, right: -8,
-                    background: "#10b981", color: "#fff", fontSize: 9, fontWeight: 700,
-                    borderRadius: 999, padding: "2px 8px", boxShadow: "0 2px 6px #0003",
-                    whiteSpace: "nowrap", pointerEvents: "none",
+                    background: "var(--success)", color: "#fff", fontSize: 9, fontWeight: 600,
+                    borderRadius: 999, padding: "2px 8px", whiteSpace: "nowrap", pointerEvents: "none",
                   }}>
                     前回ログイン
                   </span>
@@ -243,59 +229,38 @@ export default function LoginPage() {
         <form onSubmit={(e) => { e.preventDefault(); handleEmail(); }}
           style={{ display: "grid", gap: 12, marginBottom: 16 }}>
           {mode === "signup" && (
-            <InputField
+            <input
               type="text" placeholder={`表示名（例: 山田太郎・${DISPLAY_NAME_MAX_LENGTH}文字まで）`}
-              value={displayName} onChange={setDisplayName}
-              maxLength={DISPLAY_NAME_MAX_LENGTH}
+              value={displayName} onChange={e => setDisplayName(e.target.value)}
+              maxLength={DISPLAY_NAME_MAX_LENGTH} className="input"
             />
           )}
-          <InputField
-            type="email" placeholder="メールアドレス"
-            value={email} onChange={setEmail}
+          <input
+            type="email" placeholder="メールアドレス" autoComplete="email"
+            value={email} onChange={e => setEmail(e.target.value)} className="input"
           />
           {mode !== "reset" && (
-            <InputField
-              type="password" placeholder={`パスワード（${PASSWORD_MIN_LENGTH}文字以上）`}
-              value={password} onChange={setPassword}
-              minLength={PASSWORD_MIN_LENGTH}
+            <input
+              type="password" placeholder={mode === "signup" ? `パスワード（${PASSWORD_MIN_LENGTH}文字以上）` : "パスワード"}
+              autoComplete="current-password"
+              value={password} onChange={e => setPassword(e.target.value)}
+              minLength={mode === "signup" ? PASSWORD_MIN_LENGTH : undefined} className="input"
             />
           )}
           <button type="submit" style={{ display: "none" }} />
         </form>
 
-        {/* メインボタン */}
-        <button
-          onClick={handleEmail}
-          disabled={isSubmitDisabled}
-          style={{
-            width: "100%", padding: "12px",
-            background: isSubmitDisabled ? "#c4b5fd" : "linear-gradient(135deg,#7c3aed,#4f46e5)",
-            color: "#fff", border: "none", borderRadius: 12,
-            fontWeight: 800, fontSize: 15,
-            cursor: isSubmitDisabled ? "not-allowed" : "pointer",
-            transition: "opacity 0.15s",
-          }}
-        >
+        <button onClick={handleEmail} disabled={isSubmitDisabled} className="btn btn-primary btn-block">
           {loading ? "処理中…" : titles[mode]}
         </button>
 
-        {/* デモボタン */}
         {mode === "login" && (
-          <button
-            onClick={() => setDemoMode(true)}
-            style={{
-              width: "100%", padding: "12px", marginTop: 10,
-              background: "#fff", color: "#7c3aed",
-              border: "1.5px solid #c4b5fd", borderRadius: 12,
-              fontWeight: 700, fontSize: 14, cursor: "pointer",
-            }}
-          >
-            🎮 ログインせずにデモを試す
-          </button>
+          <a href="/demo" className="btn btn-secondary btn-block" style={{ marginTop: 10, textDecoration: "none" }}>
+            ログインせずにデモを試す
+          </a>
         )}
 
-        {/* モード切替リンク */}
-        <div style={{ marginTop: 20, textAlign: "center", fontSize: 13, color: "#666", display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ marginTop: 22, textAlign: "center", fontSize: 13, color: "var(--muted)", display: "flex", flexDirection: "column", gap: 8 }}>
           {mode === "login" && (
             <>
               <span>アカウントをお持ちでない方は
@@ -318,42 +283,19 @@ export default function LoginPage() {
           )}
           {mode === "login" && (
             <TextLink onClick={() => setShowContact(true)}>
-              ✉️ お問い合わせ
+              お問い合わせ
             </TextLink>
           )}
         </div>
-        {/* フッターリンク */}
-        <div style={{
-          marginTop: 28,
-          paddingTop: 20,
-          borderTop: "1px solid #f3f4f6",
-          display: "flex",
-          flexWrap: "wrap",
-          justifyContent: "center",
-          gap: "4px 12px",
-        }}>
+
+        <div className="footer-links" style={{ marginTop: 28, paddingTop: 20, borderTop: "1px solid var(--border-soft)" }}>
           {[
             { href: "/lp", label: "サービス紹介" },
             { href: "/guide", label: "使い方" },
             { href: "/terms", label: "利用規約" },
             { href: "/privacy", label: "プライバシー" },
             { href: "/tokusho", label: "特定商取引法" },
-          ].map(link => (
-            <a
-              key={link.href}
-              href={link.href}
-              style={{
-                fontSize: 11,
-                color: "#aaa",
-                textDecoration: "none",
-                padding: "2px 4px",
-              }}
-              onMouseEnter={e => (e.currentTarget.style.color = "#7c3aed")}
-              onMouseLeave={e => (e.currentTarget.style.color = "#aaa")}
-            >
-              {link.label}
-            </a>
-          ))}
+          ].map(link => <a key={link.href} href={link.href}>{link.label}</a>)}
         </div>
       </div>
 
@@ -362,69 +304,33 @@ export default function LoginPage() {
   );
 }
 
-// UIコンポーネント群
-function OAuthButton({ onClick, disabled, icon, label, color }: {
-  onClick: () => void; disabled: boolean;
-  icon: string; label: string; color: string;
-}) {
+// OAuthボタンコンポーネント
+function OAuthButton({ onClick, disabled, label }: { onClick: () => void; disabled: boolean; label: string }) {
   return (
-    <button onClick={onClick} disabled={disabled} style={{
-      width: "100%", padding: "11px", border: "1.5px solid #e5e7eb",
-      borderRadius: 12, background: "#fff", cursor: "pointer",
-      display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-      fontWeight: 600, fontSize: 14, color: "#222",
-      transition: "background 0.15s",
-    }}
-      onMouseEnter={e => (e.currentTarget.style.background = "#f9fafb")}
-      onMouseLeave={e => (e.currentTarget.style.background = "#fff")}
-    >
-      <span style={{ fontWeight: 900, color, fontSize: 16, width: 20, textAlign: "center" }}>{icon}</span>
+    <button onClick={onClick} disabled={disabled} className="btn btn-secondary btn-block">
+      <GoogleLogo size={18} />
       {label}
     </button>
   );
 }
 
-// メール入力欄
-function InputField({ type, placeholder, value, onChange, maxLength, minLength }: {
-  type: string; placeholder: string; value: string; onChange: (v: string) => void;
-  maxLength?: number; minLength?: number;
-}) {
-  const autoComplete = type === "email" ? "email" : type === "password" ? "current-password" : "off";
-  return (
-    <input
-      type={type} placeholder={placeholder} value={value}
-      autoComplete={autoComplete}
-      maxLength={maxLength}
-      minLength={minLength}
-      onChange={e => onChange(e.target.value)}
-      style={{
-        width: "100%", padding: "10px 12px",
-        border: "1.5px solid #e5e7eb", borderRadius: 12,
-        fontSize: 16, outline: "none", color: "#1a0a2e",
-        background: "#faf8f5", boxSizing: "border-box",
-        fontFamily: "inherit",
-      }}
-    />
-  );
-}
-
-// 区切り線
+// メールログインとOAuthログインの間の区切り線
 function Divider() {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-      <div style={{ flex: 1, height: 1, background: "#e5e7eb" }} />
-      <span style={{ fontSize: 12, color: "#aaa", whiteSpace: "nowrap" }}>またはメールで</span>
-      <div style={{ flex: 1, height: 1, background: "#e5e7eb" }} />
+    <div className="row" style={{ gap: 10, marginBottom: 20 }}>
+      <div style={{ flex: 1, height: 1, background: "var(--border-soft)" }} />
+      <span className="text-meta">またはメールで</span>
+      <div style={{ flex: 1, height: 1, background: "var(--border-soft)" }} />
     </div>
   );
 }
 
-// テキストリンク（モード切替用）
+// テキストリンクボタンコンポーネント
 function TextLink({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
   return (
     <button onClick={onClick} style={{
-      background: "none", border: "none", color: "#7c3aed",
-      fontWeight: 700, cursor: "pointer", fontSize: 13, padding: "0 4px",
+      background: "none", border: "none", color: "var(--accent)",
+      fontWeight: 600, fontSize: 13, padding: "0 4px",
     }}>
       {children}
     </button>

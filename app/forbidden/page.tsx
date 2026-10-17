@@ -1,5 +1,6 @@
 import SystemMessage from "@/components/SystemMessage";
 
+// 403 Forbidden
 export default function ForbiddenPage() {
   return (
     <SystemMessage

@@ -1,9 +1,9 @@
-import CommissionApp from "@/components/CommissionApp";
+import TaskApp from "@/components/TaskApp";
 import { noIndexMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
-export const metadata = { ...noIndexMetadata, title: "依頼管理 | Commission Tracker" };
+export const metadata = { ...noIndexMetadata, title: "タスク管理 | ツクリスト" };
 
 export default function Home() {
-  return <CommissionApp />;
+  return <TaskApp />;
 }

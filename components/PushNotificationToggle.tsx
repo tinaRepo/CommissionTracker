@@ -2,16 +2,19 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { Icon } from "./TaskShared";
 
 // Web Push通知の購読管理コンポーネント
-export default function PushNotificationToggle() {
+// 購読は端末（ブラウザ）ごとに (user_id, endpoint) で保存する。
+// オン/オフはこの端末の分だけに作用し、他の端末の購読は変わらない。
+export default function PushNotificationToggle({ enabled = true }: { enabled?: boolean }) {
   const [supported, setSupported] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // コンポーネントマウント時にService WorkerとPush APIのサポートを確認し、既存の購読状態をチェック
   useEffect(() => {
+    if (!enabled) return;
     if ("serviceWorker" in navigator && "PushManager" in window) {
       setSupported(true);
       setLoading(true);
@@ -29,50 +32,49 @@ export default function PushNotificationToggle() {
         })
         .finally(() => setLoading(false));
     }
-  }, []);
+  }, [enabled]);
 
-  // 購読情報をSupabaseに保存する
   async function saveSubscription(sub: PushSubscription) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) throw new Error("ログイン状態を確認できません。再ログインしてください。");
 
     const { error } = await supabase
       .from("push_subscriptions")
-      .upsert({ user_id: session.user.id, subscription: sub.toJSON() }, { onConflict: "user_id" });
+      .upsert({ user_id: session.user.id, subscription: sub.toJSON() }, { onConflict: "user_id,endpoint" });
     if (error) throw new Error(error.message || "通知設定を保存できませんでした。");
   }
 
-  // 購読情報をSupabaseから削除する
-  async function removeSubscription() {
+  async function removeSubscription(endpoint: string) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) throw new Error("ログイン状態を確認できません。再ログインしてください。");
 
+    // この端末の購読だけを削除する（他の端末は残す）
     const { error } = await supabase
       .from("push_subscriptions")
       .delete()
-      .eq("user_id", session.user.id);
+      .eq("user_id", session.user.id)
+      .eq("endpoint", endpoint);
     if (error) throw new Error(error.message || "通知設定を解除できませんでした。");
   }
 
-  // Service Workerの登録を取得する（未登録なら登録する）
   async function getPushRegistration() {
     return await navigator.serviceWorker.getRegistration("/")
       ?? await navigator.serviceWorker.register("/sw.js");
   }
 
-  // 購読の切り替え処理
   async function handleToggle() {
+    if (!enabled) return;
     setLoading(true);
     try {
       if (subscribed) {
-        // 解除
         const reg = await getPushRegistration();
         const sub = await reg.pushManager.getSubscription();
-        await removeSubscription();
-        if (sub) await sub.unsubscribe();
+        if (sub) {
+          await removeSubscription(sub.endpoint);
+          await sub.unsubscribe();
+        }
         setSubscribed(false);
       } else {
-        // 購読
         const permission = await Notification.requestPermission();
         if (permission !== "granted") {
           alert("通知の許可が必要です。ブラウザの設定から許可してください。");
@@ -103,17 +105,13 @@ export default function PushNotificationToggle() {
 
   return (
     <div>
-      <button onClick={handleToggle} disabled={loading}
-        style={{
-          width: "100%", padding: "11px 16px", background: "none", border: "none",
-          borderBottom: errorMessage ? "none" : "1px solid #f3f4f6", cursor: loading ? "not-allowed" : "pointer",
-          fontSize: 13, color: subscribed ? "#10b981" : "#1a0a2e",
-          fontWeight: 600, textAlign: "left",
-        }}>
-        {loading ? "処理中…" : subscribed ? "🔔 通知オン（タップでオフ）" : "🔕 通知オフ（タップでオン）"}
+      <button onClick={handleToggle} disabled={!enabled || loading} className="user-menu-item"
+        style={{ color: subscribed ? "var(--success)" : "var(--fg)" }}>
+        <span className="user-menu-item-icon"><Icon name="bell" size={17} /></span>
+        <span>{loading ? "処理中…" : subscribed ? "通知オン（タップでオフ）" : "通知オフ（タップでオン）"}</span>
       </button>
       {errorMessage && (
-        <div role="alert" style={{ padding: "0 16px 10px", color: "#b91c1c", fontSize: 11, lineHeight: 1.5 }}>
+        <div role="alert" style={{ padding: "0 16px 10px", color: "var(--danger)", fontSize: 11, lineHeight: 1.5 }}>
           {errorMessage}
         </div>
       )}

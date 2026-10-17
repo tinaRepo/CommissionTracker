@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { accountDeletionRequestEmail, getSupportEmail, getSupportFrom } from "@/lib/email-templates";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -25,6 +26,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // レート制限: 1ユーザーあたり1日3回まで（管理者宛メールの連投防止）。
+    // 判定に失敗した場合は安全側に倒して拒否する。
+    const { data: allowed, error: rlErr } = await adminSupabase.rpc("check_rate_limit", {
+      p_key: `request-delete:${user.id}`,
+      p_limit: 3,
+      p_window_seconds: 86400,
+    });
+    if (rlErr) {
+      console.error("rate limit check failed:", rlErr);
+      return NextResponse.json({ error: "現在送信できません。しばらくしてからお試しください。" }, { status: 503 });
+    }
+    if (allowed !== true) {
+      return NextResponse.json({ error: "申請の回数が上限に達しました。時間をおいてお試しください。" }, { status: 429 });
+    }
+
     // display_nameを取得
     const { data: profile } = await adminSupabase
       .from("user_profiles")
@@ -33,48 +49,22 @@ export async function POST(request: NextRequest) {
       .single();
 
     const displayName = profile?.display_name ?? "（未設定）";
-    const adminEmail = process.env.ADMIN_EMAIL!;
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://commission-tracker-nine.vercel.app";
+    const adminEmail = getSupportEmail();
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
+    const subjectName = displayName.replace(/[\r\n]+/g, " ").slice(0, 60);
+    const email = accountDeletionRequestEmail({
+      displayName: subjectName,
+      email: user.email ?? null,
+      userId: user.id,
+      requestedAt: new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" }),
+      appUrl,
+    });
 
     // 管理者にメール送信
     const { error: mailErr } = await resend.emails.send({
-      from: "Commission Tracker <onboarding@resend.dev>",
+      from: getSupportFrom(),
       to: adminEmail,
-      subject: `【削除申請】${displayName} さんからアカウント削除の申請が届きました`,
-      html: `
-        <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #faf8f5; border-radius: 16px;">
-          <h2 style="color: #1a0a2e; margin-bottom: 24px;">🗑 アカウント削除申請</h2>
-          <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-            <tr>
-              <td style="padding: 8px 0; color: #888; width: 120px;">表示名</td>
-              <td style="padding: 8px 0; color: #1a0a2e; font-weight: bold;">${displayName}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px 0; color: #888;">メールアドレス</td>
-              <td style="padding: 8px 0; color: #1a0a2e;">${user.email ?? "—"}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px 0; color: #888;">ユーザーID</td>
-              <td style="padding: 8px 0; color: #666; font-family: monospace; font-size: 12px;">${user.id}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px 0; color: #888;">申請日時</td>
-              <td style="padding: 8px 0; color: #1a0a2e;">${new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })}</td>
-            </tr>
-          </table>
-          <div style="margin-top: 28px;">
-            <a href="${appUrl}/mgmt-c7f2a91e"
-              style="display: inline-block; background: linear-gradient(135deg, #7c3aed, #4f46e5);
-                color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 10px;
-                font-weight: bold; font-size: 14px;">
-              管理者ページでユーザーを削除する →
-            </a>
-          </div>
-          <p style="margin-top: 24px; font-size: 12px; color: #aaa;">
-            このメールはCommission Trackerから自動送信されました。
-          </p>
-        </div>
-      `,
+      ...email,
     });
 
     if (mailErr) throw mailErr;
@@ -82,6 +72,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (e: any) {
     console.error("request-delete error:", e);
-    return NextResponse.json({ error: e.message ?? "送信に失敗しました" }, { status: 500 });
+    return NextResponse.json({ error: "送信に失敗しました" }, { status: 500 });
   }
 }

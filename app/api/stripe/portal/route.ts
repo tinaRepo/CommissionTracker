@@ -4,6 +4,9 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const PORTAL_SETUP_CACHE_MS = 5 * 60 * 1000;
+let portalSetupPromise: Promise<void> | null = null;
+let portalSetupCheckedAt = 0;
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,11 +37,92 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No subscription found" }, { status: 400 });
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
+    const configuration = process.env.STRIPE_BILLING_PORTAL_CONFIGURATION_ID;
+    if (!configuration) {
+      console.error("Stripe billing portal configuration is missing");
+      return NextResponse.json(
+        { error: "プラン管理の設定が完了していません。時間をおいて再度お試しください。" },
+        { status: 500 }
+      );
+    }
+
+    const priceIds = [
+      process.env.STRIPE_STANDARD_PRICE_ID,
+      process.env.STRIPE_PREMIUM_PRICE_ID,
+    ].filter((priceId): priceId is string => !!priceId);
+    if (priceIds.length !== 2) {
+      console.error("Stripe standard and premium price IDs are required for the billing portal");
+      return NextResponse.json(
+        { error: "プラン管理の設定が完了していません。時間をおいて再度お試しください。" },
+        { status: 500 }
+      );
+    }
+
+    if (
+      !portalSetupPromise ||
+      Date.now() - portalSetupCheckedAt >= PORTAL_SETUP_CACHE_MS
+    ) {
+      portalSetupCheckedAt = Date.now();
+      portalSetupPromise = (async () => {
+        const [prices, portalConfiguration] = await Promise.all([
+          Promise.all(priceIds.map(priceId => stripe.prices.retrieve(priceId))),
+          stripe.billingPortal.configurations.retrieve(configuration),
+        ]);
+        if (prices.some(price => !price.active || !price.recurring || price.currency !== "jpy")) {
+          throw new Error("Stripe billing portal prices must be active recurring JPY prices");
+        }
+
+        const premiumPrice = prices.find(price => price.id === process.env.STRIPE_PREMIUM_PRICE_ID);
+        if (!premiumPrice) throw new Error("Stripe premium price is missing from the billing portal prices");
+
+        const premiumProductId = typeof premiumPrice.product === "string"
+          ? premiumPrice.product
+          : premiumPrice.product.id;
+        const expectedProducts = [{ product: premiumProductId, prices: [premiumPrice.id] }];
+        const planUpdates = portalConfiguration.features.subscription_update;
+        const currentProducts = (planUpdates.products ?? [])
+          .map(product => ({ product: product.product, prices: [...product.prices].sort() }))
+          .sort((a, b) => a.product.localeCompare(b.product));
+        const configNeedsUpdate =
+          !portalConfiguration.features.subscription_cancel.enabled ||
+          portalConfiguration.features.subscription_cancel.mode !== "at_period_end" ||
+          portalConfiguration.features.subscription_cancel.proration_behavior !== "none" ||
+          !planUpdates.enabled ||
+          planUpdates.proration_behavior !== "always_invoice" ||
+          JSON.stringify(currentProducts) !== JSON.stringify(expectedProducts) ||
+          planUpdates.default_allowed_updates.length !== 1 ||
+          planUpdates.default_allowed_updates[0] !== "price";
+
+        if (configNeedsUpdate) {
+          await stripe.billingPortal.configurations.update(configuration, {
+            features: {
+              subscription_cancel: {
+                enabled: true,
+                mode: "at_period_end",
+                proration_behavior: "none",
+              },
+              subscription_update: {
+                enabled: true,
+                default_allowed_updates: ["price"],
+                products: [{ product: premiumProductId, prices: [premiumPrice.id] }],
+                proration_behavior: "always_invoice",
+              },
+            },
+          });
+        }
+      })().catch(error => {
+        portalSetupPromise = null;
+        throw error;
+      });
+    }
+    await portalSetupPromise;
+
+    const appUrl = new URL(request.url).origin;
 
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: profile.stripe_customer_id,
-      return_url: `${appUrl}/`,
+      configuration,
+      return_url: `${appUrl}/pricing?billing=return`,
     });
 
     return NextResponse.json({ url: portalSession.url });
